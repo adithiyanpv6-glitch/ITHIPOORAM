@@ -2,14 +2,15 @@ import React from 'react';
 import { motion } from 'framer-motion';
 import { siteConfig } from '../data/siteConfig';
 import { MapPin, Phone } from 'lucide-react';
+import storefront from '../assets/storefront.png';
 
 export default function Hero() {
   return (
     <section id="home" className="relative h-[90vh] min-h-[600px] w-full bg-brand-brown flex items-center justify-center overflow-hidden">
-      {/* Background Image Placeholder - Replace with actual interior/food photo from IG */}
+      {/* Background Image - Storefront */}
       <div 
         className="absolute inset-0 z-0 opacity-40 bg-cover bg-center"
-        style={{ backgroundImage: 'url("https://images.unsplash.com/photo-1628294895950-9805252327bc?q=80&w=2070&auto=format&fit=crop")' }}
+        style={{ backgroundImage: `url(${storefront})` }}
       ></div>
       
       <div className="absolute inset-0 bg-gradient-to-b from-brand-dark/30 via-transparent to-brand-dark/80 z-0"></div>

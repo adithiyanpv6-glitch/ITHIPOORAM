@@ -7,10 +7,10 @@ export const siteConfig = {
   instagram: "https://www.instagram.com/ithipooram/",
   
   // Basic display address
-  address: "Vanchiyoor, Thiruvananthapuram, Kerala",
+  address: "ITHIPOORAM, Police Station, opposite Vanchiyoor, Vanchiyoor, Thiruvananthapuram, Keralam 695035",
   
   // Replace with the Google Maps share link (e.g., https://maps.app.goo.gl/...)
-  googleMaps: "",
+  googleMaps: "https://www.google.com/maps/search/?api=1&query=ITHIPOORAM,+Police+Station,+opposite+Vanchiyoor,+Vanchiyoor,+Thiruvananthapuram,+Keralam+695035",
   
   // Replace with the Google Review link for the business
   googleReview: "",

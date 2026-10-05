@@ -1,6 +1,7 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { siteConfig } from '../data/siteConfig';
+import signboard2 from '../assets/signboard2.png';
 
 export default function Introduction() {
   return (
@@ -16,8 +17,8 @@ export default function Introduction() {
           >
             <div className="relative aspect-[3/4] w-full overflow-hidden rounded-2xl shadow-xl">
               <img 
-                src="https://images.unsplash.com/photo-1610614819515-6899b154e156?q=80&w=1470&auto=format&fit=crop" 
-                alt="Kerala cuisine at Ithipooram" 
+                src={signboard2} 
+                alt="Ithipooram Signboard" 
                 className="w-full h-full object-cover"
                 loading="lazy"
               />

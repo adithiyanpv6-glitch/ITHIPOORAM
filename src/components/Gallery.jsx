@@ -1,10 +1,12 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 
+import signboard1 from '../assets/signboard1.png';
+
 const images = [
   "https://images.unsplash.com/photo-1589301760014-d929f39ce9de?q=80&w=800&auto=format&fit=crop", // Biriyani
   "https://images.unsplash.com/photo-1613478881439-53702efcdcf6?q=80&w=800&auto=format&fit=crop", // Appam/Stew
-  "https://images.unsplash.com/photo-1601050690597-df0568f70950?q=80&w=800&auto=format&fit=crop", // Samosa/Snack
+  signboard1, // Signboard
 ];
 
 export default function Gallery() {
