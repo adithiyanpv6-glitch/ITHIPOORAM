@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useMemo, useEffect, Suspense } from 'react';
-import { useSearchParams } from 'next/navigation';
+import { useSearchParams, useParams } from 'next/navigation';
 import { 
   ShoppingBag, 
   Plus, 
@@ -281,8 +281,10 @@ const FALLBACK_CATEGORIES: MenuCategory[] = [
 
 function CustomerOrderingContent() {
   const searchParams = useSearchParams();
-  // Table identifier from URL, e.g. TQ1B or TQ1
-  const rawTable = searchParams.get('table') || 'TQ1B';
+  const params = useParams();
+  // Table identifier from route param (e.g. /t/TQ1B) or query param (?table=TQ1B)
+  const routeTable = (params?.tableCode as string) || '';
+  const rawTable = routeTable || searchParams.get('table') || 'TQ1B';
   const tableCode = rawTable.toUpperCase();
   const rawName = searchParams.get('name') || '';
   const tableDisplayName = rawName || `Table ${tableCode}`;
