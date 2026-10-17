@@ -1,29 +1,25 @@
 {
-  "name": "ithipooram",
+  "name": "ithipooram-pos-system",
+  "version": "1.0.0",
+  "description": "Production-grade QR Ordering, Kitchen Display, Billing & Admin Management System for Ithi Pooram, Trivandrum",
   "private": true,
-  "version": "0.0.0",
-  "type": "module",
+  "workspaces": [
+    "backend",
+    "frontend"
+  ],
   "scripts": {
-    "dev": "vite",
-    "build": "vite build",
-    "lint": "oxlint",
-    "preview": "vite preview"
+    "dev:backend": "npm --prefix backend run dev",
+    "dev:frontend": "npm --prefix frontend run dev",
+    "build": "npm --prefix backend run build && npm --prefix frontend run build",
+    "test": "npm --prefix backend test"
   },
-  "dependencies": {
-    "framer-motion": "^14.0.0",
-    "lucide-react": "^1.52.0",
-    "qrcode.react": "^4.2.0",
-    "react": "^19.2.8",
-    "react-dom": "^19.2.8"
-  },
-  "devDependencies": {
-    "@types/react": "^19.2.18",
-    "@types/react-dom": "^19.2.7",
-    "@vitejs/plugin-react": "^6.1.1",
-    "autoprefixer": "^10.6.1",
-    "oxlint": "^1.81.0",
-    "postcss": "^8.5.29",
-    "tailwindcss": "^3.4.19",
-    "vite": "^8.3.0"
-  }
+  "keywords": [
+    "restaurant-pos",
+    "kds",
+    "qr-ordering",
+    "kerala-cuisine",
+    "trivandrum"
+  ],
+  "author": "Ithi Pooram Engineering",
+  "license": "UNLICENSED"
 }

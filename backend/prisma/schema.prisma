@@ -1,0 +1,374 @@
+// Prisma Schema for Ithi Pooram (ഇത്തിപ്പൂരം) Restaurant Management System
+// Target: PostgreSQL (Production) / SQLite (Local standalone validation)
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id                  String               @id @default(uuid())
+  username            String               @unique
+  passwordHash        String
+  pinHash             String?              // 4 to 6 digit quick confirmation PIN
+  fullName            String
+  phone               String?
+  role                String               // MAIN_ADMIN, MANAGER, CASHIER, KITCHEN_STAFF, MENU_EDITOR
+  isActive            Boolean              @default(true)
+  failedLoginAttempts Int                  @default(0)
+  lockoutUntil        DateTime?
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
+  sessions            Session[]
+  paymentsHandled     Payment[]
+  invoicesGenerated   Invoice[]
+  discountsApproved   Discount[]
+  refundsAuthorized   Refund[]
+  auditLogs           AuditLog[]
+  ordersCancelled     Order[]              @relation("CancelledBy")
+  statusChanges       OrderStatusHistory[]
+
+  @@index([username])
+  @@index([role])
+}
+
+model Session {
+  id              String    @id @default(uuid())
+  userId          String
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash       String    @unique
+  userAgent       String?
+  ipAddress       String?
+  deviceType      String?
+  expiresAt       DateTime
+  revokedAt       DateTime?
+  createdAt       DateTime  @default(now())
+
+  @@index([userId])
+  @@index([tokenHash])
+}
+
+model RestaurantTable {
+  id                  String            @id @default(uuid())
+  tableCode           String            @unique // e.g. TQ1, TQ2...
+  displayName         String            // e.g. "Table 1 (Courtyard)"
+  capacity            Int               @default(4)
+  qrToken             String            @unique // Long cryptographically random URL token
+  qrActive            Boolean           @default(true)
+  status              String            @default("AVAILABLE") // AVAILABLE, ACTIVE_ORDER, BILL_PENDING, CLOSED, DISABLED
+  lastQrRegeneratedAt DateTime          @default(now())
+  createdAt           DateTime          @default(now())
+  updatedAt           DateTime          @updatedAt
+  orders              Order[]
+  qrTokensHistory     TableQrToken[]
+
+  @@index([tableCode])
+  @@index([status])
+}
+
+model TableQrToken {
+  id          String          @id @default(uuid())
+  tableId     String
+  table       RestaurantTable @relation(fields: [tableId], references: [id], onDelete: Cascade)
+  token       String          @unique
+  isActive    Boolean         @default(true)
+  generatedAt DateTime        @default(now())
+  revokedAt   DateTime?
+  revokedBy   String?
+
+  @@index([tableId])
+  @@index([token])
+}
+
+model KitchenStation {
+  id          String      @id @default(uuid())
+  code        String      @unique // MAIN_KITCHEN, SEAFOOD_FRY, BEVERAGE_COUNTER
+  name        String
+  description String?
+  isActive    Boolean     @default(true)
+  menuItems   MenuItem[]
+  orders      Order[]
+}
+
+model MenuCategory {
+  id            String     @id @default(uuid())
+  name          String     @unique // Meals, Fish Fry, Curries, Specials, Drinks
+  malayalamName String?
+  slug          String     @unique
+  displayOrder  Int        @default(0)
+  isActive      Boolean    @default(true)
+  createdAt     DateTime   @default(now())
+  items         MenuItem[]
+
+  @@index([displayOrder])
+}
+
+model MenuItem {
+  id               String               @id @default(uuid())
+  categoryId       String
+  category         MenuCategory         @relation(fields: [categoryId], references: [id])
+  name             String
+  malayalamName    String?
+  description      String?
+  pricePaise       Int                  // Stored in paise (INR * 100)
+  dietary          String               @default("NON_VEG") // VEG, NON_VEG, SEAFOOD
+  imageUrl         String?
+  isAvailable      Boolean              @default(true)
+  dailyStockLimit  Int?                 // null = unlimited
+  currentStock     Int?                 // decreases with each order item
+  stationId        String?
+  station          KitchenStation?      @relation(fields: [stationId], references: [id])
+  displayOrder     Int                  @default(0)
+  createdAt        DateTime             @default(now())
+  updatedAt        DateTime             @updatedAt
+  orderItems       OrderItem[]
+
+  @@index([categoryId])
+  @@index([isAvailable])
+}
+
+model Order {
+  id                 String               @id @default(uuid())
+  internalId         String               @unique // LS-20261014-TQ1-005
+  customerCode       String               // TQ1-05
+  tableId            String
+  table              RestaurantTable      @relation(fields: [tableId], references: [id])
+  stationId          String?
+  station            KitchenStation?      @relation(fields: [stationId], references: [id])
+  fulfillmentStatus  String               @default("NEW") // NEW, ACCEPTED, PREPARING, READY, SERVED, CANCELLED
+  billingStatus      String               @default("UNPAID") // UNPAID, PARTIALLY_PAID, PAID, VOIDED, REFUNDED
+  customerNotes      String?
+  subtotalPaise      Int
+  taxPaise           Int
+  discountPaise      Int                  @default(0)
+  grandTotalPaise    Int
+  idempotencyKey     String?              @unique
+  businessDate       String               // YYYY-MM-DD
+  sequenceNumber     Int
+  cancelledReason    String?
+  cancelledByUserId  String?
+  cancelledBy        User?                @relation("CancelledBy", fields: [cancelledByUserId], references: [id])
+  createdAt          DateTime             @default(now())
+  updatedAt          DateTime             @updatedAt
+  items              OrderItem[]
+  statusHistory      OrderStatusHistory[]
+  payments           Payment[]
+  invoice            Invoice?
+  discounts          Discount[]
+  refunds            Refund[]
+
+  @@index([tableId])
+  @@index([businessDate])
+  @@index([fulfillmentStatus])
+  @@index([billingStatus])
+  @@index([customerCode])
+  @@index([createdAt])
+}
+
+model OrderItem {
+  id                     String    @id @default(uuid())
+  orderId                String
+  order                  Order     @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  menuItemId             String
+  menuItem               MenuItem  @relation(fields: [menuItemId], references: [id])
+  itemNameSnapshot       String    // Immutable snapshot
+  itemPriceSnapshotPaise Int       // Immutable unit price snapshot
+  quantity               Int
+  itemNotes              String?
+  lineTotalPaise         Int
+  status                 String    @default("PENDING")
+
+  @@index([orderId])
+  @@index([menuItemId])
+}
+
+model OrderStatusHistory {
+  id              String    @id @default(uuid())
+  orderId         String
+  order           Order     @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  fromStatus      String
+  toStatus        String
+  changedByUserId String?
+  changedByUser   User?     @relation(fields: [changedByUserId], references: [id])
+  reason          String?
+  timestamp       DateTime  @default(now())
+
+  @@index([orderId])
+}
+
+model Payment {
+  id                  String    @id @default(uuid())
+  orderId             String
+  order               Order     @relation(fields: [orderId], references: [id])
+  invoiceId           String?
+  invoice             Invoice?  @relation(fields: [invoiceId], references: [id])
+  amountPaise         Int
+  paymentMode         String    // CASH, UPI, CARD, SPLIT_PAYMENT, OTHER
+  paymentStatus       String    @default("SUCCESS") // PENDING, SUCCESS, FAILED, REFUNDED
+  referenceNumber     String?   // UPI ref or Card terminal txn id
+  cashierUserId       String
+  cashier             User      @relation(fields: [cashierUserId], references: [id])
+  cashierPinConfirmed Boolean   @default(false)
+  confirmedAt         DateTime  @default(now())
+  createdAt           DateTime  @default(now())
+
+  @@index([orderId])
+  @@index([invoiceId])
+  @@index([cashierUserId])
+}
+
+model Invoice {
+  id                 String             @id @default(uuid())
+  invoiceNumber      String             @unique // INV-20261014-0001
+  orderId            String             @unique
+  order              Order              @relation(fields: [orderId], references: [id])
+  tableCodeSnapshot  String
+  cashierUserId      String
+  cashier            User               @relation(fields: [cashierUserId], references: [id])
+  cashierNameSnapshot String
+  subtotalPaise      Int
+  taxBreakupJson     String             // CGST / SGST split
+  discountPaise      Int                @default(0)
+  grandTotalPaise    Int
+  paymentModeSnapshot String
+  printStatus        String             @default("PRINTED") // PENDING, PRINTED, FAILED
+  printCount         Int                @default(1)
+  lastPrintedAt      DateTime           @default(now())
+  createdAt          DateTime           @default(now())
+  payments           Payment[]
+  items              InvoiceItem[]
+  printLogs          InvoicePrintLog[]
+  refunds            Refund[]
+
+  @@index([invoiceNumber])
+  @@index([orderId])
+  @@index([cashierUserId])
+  @@index([createdAt])
+}
+
+model InvoiceItem {
+  id             String   @id @default(uuid())
+  invoiceId      String
+  invoice        Invoice  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  itemName       String
+  unitPricePaise Int
+  quantity       Int
+  lineTotalPaise Int
+
+  @@index([invoiceId])
+}
+
+model InvoicePrintLog {
+  id            String   @id @default(uuid())
+  invoiceId     String
+  invoice       Invoice  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  printType     String   // INITIAL, REPRINT, PREVIEW
+  cashierUserId String
+  status        String   // SUCCESS, FAILED
+  failureReason String?
+  reprintReason String?
+  createdAt     DateTime @default(now())
+
+  @@index([invoiceId])
+}
+
+model Discount {
+  id            String    @id @default(uuid())
+  orderId       String
+  order         Order     @relation(fields: [orderId], references: [id])
+  managerUserId String
+  manager       User      @relation(fields: [managerUserId], references: [id])
+  discountType  String    // PERCENTAGE, FIXED_AMOUNT
+  amountPaise   Int
+  reason        String
+  approvedAt    DateTime  @default(now())
+
+  @@index([orderId])
+}
+
+model Refund {
+  id                 String    @id @default(uuid())
+  orderId            String
+  order              Order     @relation(fields: [orderId], references: [id])
+  invoiceId          String
+  invoice            Invoice   @relation(fields: [invoiceId], references: [id])
+  authorizedByUserId String
+  authorizedBy       User      @relation(fields: [authorizedByUserId], references: [id])
+  amountPaise        Int
+  reason             String
+  refundMode         String    // CASH, UPI, ORIGINAL_MODE
+  createdAt          DateTime  @default(now())
+
+  @@index([orderId])
+  @@index([invoiceId])
+}
+
+model AuditLog {
+  id               String   @id @default(uuid())
+  timestamp        DateTime @default(now()) // ISO UTC; formatted to Asia/Kolkata
+  userId           String?
+  user             User?    @relation(fields: [userId], references: [id])
+  usernameSnapshot String?
+  roleSnapshot     String?
+  deviceIdentifier String?
+  ipAddress        String?
+  actionType       String   // LOGIN, LOGOUT, FAILED_LOGIN, ORDER_CREATED, KITCHEN_STATUS, PAYMENT_CONFIRMED, etc.
+  module           String   // AUTH, ORDER, KITCHEN, BILLING, MENU, TABLE_QR, REPORT, SETTINGS
+  entityType       String?  // ORDER, INVOICE, MENU_ITEM, TABLE, USER
+  entityId         String?
+  tableCode        String?
+  orderCode        String?
+  invoiceNumber    String?
+  beforeSnapshot   String?  // JSON string
+  afterSnapshot    String?  // JSON string
+  reason           String?
+  result           String   @default("SUCCESS") // SUCCESS, FAILURE
+
+  @@index([timestamp])
+  @@index([actionType])
+  @@index([module])
+  @@index([entityId])
+  @@index([tableCode])
+}
+
+model BusinessSettings {
+  id                    String   @id @default("default-settings")
+  restaurantName        String   @default("Ithi Pooram")
+  malayalamName         String   @default("ഇത്തിപ്പൂരം")
+  tagline               String   @default("Authentic Kerala Lunch & Seafood Spot")
+  address               String   @default("Near Secretariat / Statue, MG Road, Trivandrum, Kerala 695001")
+  phone                 String   @default("+91 471 233 4567")
+  email                 String   @default("info@ithipooram.in")
+  gstNumber             String   @default("32AAAAI0000A1Z5")
+  fssaiNumber           String   @default("11324007000890")
+  businessDayCutoffHour Int      @default(3) // 03:00 AM cutoff for post-midnight dining
+  currencyCode          String   @default("INR")
+  currencySymbol        String   @default("₹")
+  timezone              String   @default("Asia/Kolkata")
+  cgstPercent           Float    @default(2.5) // 5% total GST (2.5% CGST + 2.5% SGST) for non-AC/AC restaurant
+  sgstPercent           Float    @default(2.5)
+  maxManagerDiscountPaise Int    @default(100000) // ₹1000 max manager discount
+  updatedAt             DateTime @updatedAt
+}
+
+model DailyBusinessCounter {
+  id           String   @id @default(uuid())
+  businessDate String   // YYYY-MM-DD
+  tableCode    String   // TQ1, TQ2...
+  lastSequence Int      @default(0)
+  updatedAt    DateTime @updatedAt
+
+  @@unique([businessDate, tableCode])
+  @@index([businessDate])
+}
+
+model DailyInvoiceCounter {
+  id           String   @id @default(uuid())
+  businessDate String   @unique // YYYY-MM-DD
+  lastSequence Int      @default(0)
+  updatedAt    DateTime @updatedAt
+}

@@ -1,0 +1,65 @@
+version: '3.8'
+
+services:
+  # 1. PostgreSQL 16 Primary Database
+  postgres:
+    image: postgres:16-alpine
+    container_name: ithipooram_postgres
+    restart: always
+    environment:
+      POSTGRES_USER: ithipooram_user
+      POSTGRES_PASSWORD: ithipooram_production_secure_pass_2026
+      POSTGRES_DB: ithipooram_db
+      TZ: Asia/Kolkata
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./docker/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ithipooram_user -d ithipooram_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # 2. Node.js Express & Socket.IO Core API
+  backend:
+    build:
+      context: ./backend
+      dockerfile: ../docker/Dockerfile.backend
+    container_name: ithipooram_backend
+    restart: always
+    environment:
+      NODE_ENV: production
+      PORT: 5000
+      DATABASE_URL: "postgresql://ithipooram_user:ithipooram_production_secure_pass_2026@postgres:5432/ithipooram_db?schema=public"
+      JWT_SECRET: "ithipooram-trivandrum-lunch-super-secure-key-2026-kerala"
+      JWT_EXPIRES_IN: "12h"
+      FRONTEND_URL: "http://localhost:3000"
+      TZ: Asia/Kolkata
+    ports:
+      - "5000:5000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  # 3. Next.js 14 Responsive Web App
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: ../docker/Dockerfile.frontend
+    container_name: ithipooram_frontend
+    restart: always
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      NEXT_PUBLIC_API_URL: "http://localhost:5000/api"
+      NEXT_PUBLIC_SOCKET_URL: "http://localhost:5000"
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
+
+volumes:
+  postgres_data:
+    driver: local

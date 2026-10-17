@@ -1,0 +1,21 @@
+{
+  "name": "Ithi Pooram - Billing POS & Executive Console",
+  "short_name": "Ithi POS",
+  "description": "High-Volume Counter POS, Billing Tablet & Executive Management Console",
+  "start_url": "/login",
+  "display": "standalone",
+  "background_color": "#0C0E12",
+  "theme_color": "#0C0E12",
+  "icons": [
+    {
+      "src": "/logo.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/logo.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}

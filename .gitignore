@@ -1,3 +1,19 @@
+# Dependencies
+node_modules/
+*/node_modules/
+.pnp
+.pnp.js
+
+# Production & Build outputs
+.next/
+*/.next/
+dist/
+*/dist/
+build/
+*/build/
+out/
+*/out/
+
 # Logs
 logs
 *.log
@@ -7,18 +23,19 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
-node_modules
-dist
-dist-ssr
-*.local
+# Environment & Local files
+.env*.local
+.env
+*/.env*.local
 
-# Editor directories and files
-.vscode/*
-!.vscode/extensions.json
-.idea
+# SQLite & DB files
+*.db
+*.sqlite
+*.sqlite3
+backend/prisma/dev.db
+
+# OS / Editor
 .DS_Store
-*.suo
-*.ntvs*
-*.njsproj
-*.sln
-*.sw?
+Thumbs.db
+.vscode/
+.idea/

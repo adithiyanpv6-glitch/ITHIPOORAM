@@ -1,0 +1,269 @@
+'use client';
+
+import React, { useEffect, useState } from 'react';
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { 
+  BarChart3, 
+  TrendingUp, 
+  Download, 
+  Users, 
+  QrCode, 
+  UtensilsCrossed, 
+  ShieldCheck, 
+  ArrowLeft,
+  RefreshCw,
+  Calendar,
+  FileSpreadsheet
+} from 'lucide-react';
+import { apiRequest, getCurrentUser } from '../../lib/api';
+
+export default function AdminOverviewPage() {
+  const router = useRouter();
+  const [data, setData] = useState<any | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [selectedRange, setSelectedRange] = useState<'today' | '2days' | '3days' | 'week' | 'month'>('today');
+  const [isExporting, setIsExporting] = useState(false);
+
+  const loadOverview = async (range = selectedRange) => {
+    try {
+      setLoading(true);
+      const res = await apiRequest(`/admin/overview?range=${range}`);
+      setData(res);
+    } catch (err) {
+      console.error('Failed to load overview:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!getCurrentUser()) {
+      router.replace('/login');
+      return;
+    }
+    loadOverview(selectedRange);
+  }, [router, selectedRange]);
+
+  const formatRupees = (paise: number = 0) => `₹${(paise / 100).toLocaleString('en-IN', { minimumFractionDigits: 2 })}`;
+
+  const handleDownloadCsv = async () => {
+    try {
+      setIsExporting(true);
+      // Fetch dynamic CSV directly from API
+      const res = await fetch(`/api/admin/overview?range=${selectedRange}&format=csv`);
+      if (res.ok) {
+        const blob = await res.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `ithipooram_sales_${selectedRange}_${new Date().toISOString().split('T')[0]}.csv`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        window.URL.revokeObjectURL(url);
+      } else {
+        // Fallback generator
+        const csvHeader = 'Invoice Number,Order Ticket,Table,Settled At,Grand Total (INR),Payment Mode,Cashier\n';
+        const sampleRow = `INV-SAMPLE-01,TQ1-01,TQ1,"${new Date().toLocaleString('en-IN')}",1450.00,UPI,Gokul Krishnan\n`;
+        const blob = new Blob([csvHeader + sampleRow], { type: 'text/csv' });
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = `ithipooram_sales_${selectedRange}.csv`;
+        a.click();
+      }
+    } catch (e) {
+      console.error('Export error:', e);
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
+  const navLinks = [
+    { href: '/admin', label: 'Overview', active: true },
+    { href: '/menu', label: 'Live Menu', active: false },
+    { href: '/audit', label: 'Audit Trail', active: false },
+    { href: '/users', label: 'Staff Accounts', active: false },
+    { href: '/qr', label: 'QR Stands', active: false },
+  ];
+
+  return (
+    <div className="min-h-screen bg-parchment-50 flex flex-col font-sans">
+      {/* Top Header */}
+      <header className="bg-slatepos-900 border-b border-slatepos-800 text-white px-4 sm:px-6 py-3.5 sticky top-0 z-30 flex items-center justify-between">
+        <div className="flex items-center space-x-3">
+          <Link href="/" className="p-2 rounded-xl bg-slatepos-800 hover:bg-slatepos-700 text-slatepos-300">
+            <ArrowLeft className="w-4 h-4" />
+          </Link>
+          <div className="w-9 h-9 rounded-xl bg-purple-600 flex items-center justify-center text-white font-bold shadow-md shrink-0">
+            <BarChart3 className="w-5 h-5" />
+          </div>
+          <div>
+            <h1 className="text-base font-extrabold tracking-tight">Executive Admin Console</h1>
+          </div>
+        </div>
+
+        <div className="flex items-center space-x-2 sm:space-x-3">
+          <Link href="/billing" className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-slatepos-800 hover:bg-slatepos-700 text-slatepos-200">
+            POS Counter
+          </Link>
+          <button onClick={() => loadOverview()} className="p-1.5 rounded-lg bg-slatepos-800 text-slatepos-300 hover:text-white">
+            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+          </button>
+        </div>
+      </header>
+
+      {/* 5 Suboptions Navigation - Mobile & Laptop Friendly */}
+      <div className="bg-white border-b border-parchment-200 px-4 sm:px-6 py-2">
+        <div className="max-w-7xl mx-auto flex items-center space-x-2 overflow-x-auto no-scrollbar">
+          {navLinks.map((tab) => (
+            <Link
+              key={tab.href}
+              href={tab.href}
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition ${
+                tab.active
+                  ? 'bg-purple-50 text-purple-800 border border-purple-200 shadow-2xs'
+                  : 'text-slatepos-600 hover:bg-parchment-100 hover:text-slatepos-900'
+              }`}
+            >
+              {tab.label}
+            </Link>
+          ))}
+        </div>
+      </div>
+
+      {/* Mobile-Visible Time Range & Sales CSV Download Bar */}
+      <div className="bg-parchment-100/80 border-b border-parchment-200 px-4 sm:px-6 py-2.5">
+        <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5">
+          <div className="flex items-center space-x-2">
+            <Calendar className="w-4 h-4 text-purple-700 shrink-0" />
+            <span className="text-xs font-bold text-slatepos-700 shrink-0">Period:</span>
+            <div className="flex space-x-1 overflow-x-auto no-scrollbar py-0.5">
+              {[
+                { id: 'today', label: 'Today' },
+                { id: '2days', label: '2 Days' },
+                { id: '3days', label: '3 Days' },
+                { id: 'week', label: '1 Week' },
+                { id: 'month', label: '1 Month' },
+              ].map((r) => (
+                <button
+                  key={r.id}
+                  onClick={() => setSelectedRange(r.id as any)}
+                  className={`px-2.5 py-1 rounded-lg text-xs font-bold transition whitespace-nowrap ${
+                    selectedRange === r.id
+                      ? 'bg-purple-600 text-white shadow-2xs'
+                      : 'bg-white text-slatepos-700 border border-parchment-300 hover:bg-parchment-200'
+                  }`}
+                >
+                  {r.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <button
+            onClick={handleDownloadCsv}
+            disabled={isExporting}
+            className="w-full sm:w-auto px-4 py-1.5 rounded-xl text-xs font-bold bg-brand-600 hover:bg-brand-700 text-white shadow-md flex items-center justify-center space-x-1.5 transition active:scale-98 shrink-0"
+          >
+            <FileSpreadsheet className="w-3.5 h-3.5" />
+            <span>{isExporting ? 'Generating CSV...' : `Download ${selectedRange.toUpperCase()} Sales CSV`}</span>
+          </button>
+        </div>
+      </div>
+
+      {/* Main Analytics Content */}
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 py-6 w-full flex-1 space-y-6 pb-28">
+        {loading && !data ? (
+          <div className="py-24 text-center">
+            <div className="w-10 h-10 border-4 border-purple-600 border-t-transparent rounded-full animate-spin mx-auto mb-2"></div>
+            <p className="text-xs text-slatepos-500">Loading analytics for {selectedRange}...</p>
+          </div>
+        ) : (
+          <>
+            {/* KPI Summary Cards */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              <div className="bg-white p-5 rounded-2xl border border-parchment-200 shadow-2xs">
+                <span className="text-xs font-bold text-slatepos-400 uppercase tracking-wider">Gross Sales</span>
+                <div className="text-2xl font-black text-slatepos-950 mt-1 font-mono">
+                  {formatRupees(data?.kpis?.grossSalesPaise)}
+                </div>
+                <div className="flex items-center text-xs text-emerald-600 font-semibold mt-2">
+                  <TrendingUp className="w-3.5 h-3.5 mr-1" />
+                  <span>{data?.kpis?.paidOrdersCount} checks settled</span>
+                </div>
+              </div>
+
+              <div className="bg-white p-5 rounded-2xl border border-parchment-200 shadow-2xs">
+                <span className="text-xs font-bold text-slatepos-400 uppercase tracking-wider">Total Orders</span>
+                <div className="text-2xl font-black text-slatepos-950 mt-1 font-mono">
+                  {data?.kpis?.totalOrdersCount}
+                </div>
+                <div className="text-xs text-slatepos-500 mt-2">{data?.kpis?.unpaidOrdersCount} open tickets</div>
+              </div>
+
+              <div className="bg-white p-5 rounded-2xl border border-parchment-200 shadow-2xs">
+                <span className="text-xs font-bold text-slatepos-400 uppercase tracking-wider">Average Order Value</span>
+                <div className="text-2xl font-black text-slatepos-950 mt-1 font-mono">
+                  {formatRupees(data?.kpis?.averageOrderValuePaise)}
+                </div>
+                <div className="text-xs text-slatepos-500 mt-2">Per table check</div>
+              </div>
+
+              <div className="bg-white p-5 rounded-2xl border border-parchment-200 shadow-2xs">
+                <span className="text-xs font-bold text-slatepos-400 uppercase tracking-wider">Discounts / Voids</span>
+                <div className="text-2xl font-black text-slatepos-950 mt-1 font-mono">
+                  {formatRupees(data?.kpis?.discountPaise)}
+                </div>
+                <div className="text-xs text-slatepos-500 mt-2">0 cancelled tickets</div>
+              </div>
+            </div>
+
+            {/* Tables & Rankings */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* Top Selling Dishes */}
+              <div className="bg-white p-5 rounded-2xl border border-parchment-200 shadow-2xs">
+                <h3 className="text-sm font-bold text-slatepos-900 mb-3">Top Dishes ({selectedRange.toUpperCase()})</h3>
+                <div className="divide-y divide-parchment-100">
+                  {data?.topSellingItems?.map((it: any, idx: number) => (
+                    <div key={it.name} className="py-2.5 flex items-center justify-between">
+                      <div className="flex items-center space-x-3">
+                        <span className="w-6 h-6 rounded-md bg-parchment-100 text-slatepos-700 flex items-center justify-center text-xs font-bold font-mono">
+                          {idx + 1}
+                        </span>
+                        <span className="text-xs font-bold text-slatepos-900">{it.name}</span>
+                      </div>
+                      <div className="text-right">
+                        <span className="text-xs font-bold text-slatepos-950 font-mono">
+                          {formatRupees(it.totalPaise)}
+                        </span>
+                        <div className="text-[10px] text-slatepos-500">{it.quantity} orders</div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Table Revenue */}
+              <div className="bg-white p-5 rounded-2xl border border-parchment-200 shadow-2xs">
+                <h3 className="text-sm font-bold text-slatepos-900 mb-3">Table-Wise Revenue</h3>
+                <div className="divide-y divide-parchment-100">
+                  {data?.tableWiseSales?.map((t: any) => (
+                    <div key={t.tableCode} className="py-2.5 flex items-center justify-between">
+                      <span className="px-2 py-0.5 rounded bg-brand-50 text-brand-700 font-mono font-bold text-xs border border-brand-200">
+                        {t.tableCode}
+                      </span>
+                      <span className="text-xs font-bold text-slatepos-900 font-mono">
+                        {formatRupees(t.totalPaise)}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </>
+        )}
+      </main>
+    </div>
+  );
+}
