@@ -19,10 +19,10 @@ export function getCurrentUser() {
   return user ? JSON.parse(user) : null;
 }
 
-// In-browser fallback state store for instant Vercel preview
-let memoryTables = [...INITIAL_TABLES];
-let memoryOrders = { ...INITIAL_ORDERS };
-let memoryMenu = [...INITIAL_MENU_CATEGORIES];
+// In-browser fallback state store for instant Vercel preview (starts empty until user configures tables/dishes)
+let memoryTables: any[] = [];
+let memoryOrders: Record<string, any[]> = {};
+let memoryMenu: any[] = [];
 let memoryUsers = [...INITIAL_USERS];
 let memoryAudit = [...INITIAL_AUDIT_LOGS];
 

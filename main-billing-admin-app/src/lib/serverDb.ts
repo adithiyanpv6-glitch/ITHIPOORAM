@@ -166,12 +166,18 @@ if (!global.__ITHIPOORAM_DB__) {
         success: true,
       }
     ],
-    menuCategories: JSON.parse(JSON.stringify(INITIAL_MENU_CATEGORIES)),
+    menuCategories: [],
     historicalSales: generateInitialHistoricalSales(),
   };
-} else if (global.__ITHIPOORAM_DB__.tables?.some((t) => t.id === 't1' && t.displayName?.includes('Verandah'))) {
-  // Clear legacy mock tables so tables only appear when explicitly added by user
-  global.__ITHIPOORAM_DB__.tables = [];
+} else {
+  // Clear any legacy mock tables so tables only appear when explicitly added by user
+  if (global.__ITHIPOORAM_DB__.tables?.some((t) => t.id === 't1' && t.displayName?.includes('Verandah'))) {
+    global.__ITHIPOORAM_DB__.tables = [];
+  }
+  // Clear any legacy mock menu so dishes only appear when explicitly added by admin
+  if (global.__ITHIPOORAM_DB__.menuCategories?.some((c) => c.id === 'cat-1' || c.items?.some((it) => it.id === 'm1'))) {
+    global.__ITHIPOORAM_DB__.menuCategories = [];
+  }
 }
 
 export const db = global.__ITHIPOORAM_DB__;

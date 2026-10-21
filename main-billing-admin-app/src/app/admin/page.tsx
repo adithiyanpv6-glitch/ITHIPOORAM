@@ -10,7 +10,9 @@ import {
   ArrowLeft,
   RefreshCw,
   Calendar,
-  FileSpreadsheet
+  FileSpreadsheet,
+  UtensilsCrossed,
+  Plus
 } from 'lucide-react';
 import { apiRequest, getCurrentUser } from '../../lib/api';
 
@@ -105,6 +107,14 @@ export default function AdminOverviewPage() {
         </div>
 
         <div className="flex items-center space-x-2 sm:space-x-3">
+          <Link 
+            href="/menu" 
+            className="px-3 py-1.5 rounded-lg text-xs font-bold bg-[#9E341D] hover:bg-[#852B17] text-white flex items-center space-x-1.5 shadow-sm transition"
+            title="Open Live Menu Update & Add Items"
+          >
+            <UtensilsCrossed className="w-3.5 h-3.5" />
+            <span>LIVE MENU UPDATE</span>
+          </Link>
           <Link href="/billing" className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-slatepos-800 hover:bg-slatepos-700 text-slatepos-200">
             POS Counter
           </Link>
@@ -195,6 +205,36 @@ export default function AdminOverviewPage() {
                 </div>
                 <div className="text-xs text-slatepos-500 mt-2.5">{data?.kpis?.unpaidOrdersCount} open tickets currently active</div>
               </div>
+            </div>
+
+            {/* Live Menu & Dish Management Action Card */}
+            <div className="bg-gradient-to-r from-stone-900 to-slatepos-900 rounded-2xl p-4 sm:p-5 text-white flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border border-stone-800 shadow-md">
+              <div className="flex items-center space-x-3.5">
+                <div className="w-12 h-12 rounded-xl bg-[#9E341D] flex items-center justify-center text-white shrink-0 shadow-sm">
+                  <UtensilsCrossed className="w-6 h-6" />
+                </div>
+                <div>
+                  <div className="flex items-center space-x-2">
+                    <h2 className="text-sm sm:text-base font-extrabold tracking-wide uppercase">
+                      LIVE MENU UPDATE
+                    </h2>
+                    <span className="text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 px-2 py-0.5 rounded-full uppercase">
+                      Live Sync
+                    </span>
+                  </div>
+                  <p className="text-xs text-stone-300 mt-0.5">
+                    Add new dishes with auto-fetched food images, update daily stock quantities, and export the Daily Menu Excel database.
+                  </p>
+                </div>
+              </div>
+
+              <Link
+                href="/menu"
+                className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-[#9E341D] hover:bg-[#852B17] text-white font-bold text-xs shadow-md flex items-center justify-center space-x-2 active:scale-98 transition shrink-0"
+              >
+                <Plus className="w-4 h-4" />
+                <span>+ Add Item / Update Menu</span>
+              </Link>
             </div>
 
             {/* Tables & Rankings */}

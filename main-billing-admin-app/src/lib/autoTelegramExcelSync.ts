@@ -5,11 +5,47 @@ import { db, refreshTableSummaries } from './serverDb';
 import { generateMultiSheetTableExcelXml } from './tableExcelDatabase';
 import { getTelegramCredentials } from '@/config/telegram';
 
+export let cachedNumericChatId: string | null = null;
+
+export async function resolveNumericChatId(botToken: string, chatIdOrLink: string): Promise<string | null> {
+  // If it's already a numeric Telegram ID (like -1001234567890 or 12345678)
+  if (chatIdOrLink && (chatIdOrLink.startsWith('-') || /^\d+$/.test(chatIdOrLink))) {
+    return chatIdOrLink;
+  }
+  if (cachedNumericChatId) {
+    return cachedNumericChatId;
+  }
+
+  // Auto-detect numeric chat ID from recent bot updates
+  try {
+    const res = await fetch(`https://api.telegram.org/bot${botToken}/getUpdates`);
+    const data = await res.json();
+    if (data.ok && Array.isArray(data.result)) {
+      for (const update of data.result) {
+        const chat = update.message?.chat || update.channel_post?.chat || update.my_chat_member?.chat;
+        if (chat && chat.id) {
+          cachedNumericChatId = String(chat.id);
+          return cachedNumericChatId;
+        }
+      }
+    }
+  } catch (e) {
+    console.error('Error auto-resolving Telegram chat id:', e);
+  }
+  return null;
+}
+
 export async function autoDispatchTableExcelToTelegram(reason: string = 'Real-time Data Update'): Promise<boolean> {
   try {
-    const { botToken, chatId, isConfigured } = getTelegramCredentials();
-    if (!isConfigured || !botToken || !chatId) {
-      // Credentials not uploaded yet; skip silently
+    const { botToken, chatId } = getTelegramCredentials();
+    if (!botToken || !chatId) {
+      return false;
+    }
+
+    const resolvedChatId = await resolveNumericChatId(botToken, chatId);
+    if (!resolvedChatId) {
+      // Need at least one message in the group with the bot to auto-detect ID
+      console.log('Telegram Chat ID pending: Please ensure @ithipooram_bot is added as Admin in the group and a message was sent.');
       return false;
     }
 
@@ -38,7 +74,7 @@ export async function autoDispatchTableExcelToTelegram(reason: string = 'Real-ti
 
     const boundary = `----TelegramBoundary${Date.now()}`;
     const formDataParts = [
-      `--${boundary}\r\nContent-Disposition: form-data; name="chat_id"\r\n\r\n${chatId}\r\n`,
+      `--${boundary}\r\nContent-Disposition: form-data; name="chat_id"\r\n\r\n${resolvedChatId}\r\n`,
       `--${boundary}\r\nContent-Disposition: form-data; name="parse_mode"\r\n\r\nMarkdown\r\n`,
       `--${boundary}\r\nContent-Disposition: form-data; name="caption"\r\n\r\n${caption}\r\n`,
       `--${boundary}\r\nContent-Disposition: form-data; name="document"; filename="${filename}"\r\nContent-Type: application/vnd.ms-excel\r\n\r\n${xmlContent}\r\n`,

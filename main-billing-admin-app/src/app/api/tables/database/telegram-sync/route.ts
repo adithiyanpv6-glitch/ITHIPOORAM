@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { db, refreshTableSummaries } from '@/lib/serverDb';
 import { generateMultiSheetTableExcelXml } from '@/lib/tableExcelDatabase';
 import { getTelegramCredentials } from '@/config/telegram';
+import { resolveNumericChatId } from '@/lib/autoTelegramExcelSync';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -21,7 +22,32 @@ export async function POST(request: Request) {
     // Bot token & chat id priority: 1) Body, 2) telegram.ts config / process.env
     const fallback = getTelegramCredentials();
     const botToken = (body.botToken || fallback.botToken || '').trim();
-    const chatId = (body.chatId || fallback.chatId || '').trim();
+    const rawChatId = (body.chatId || fallback.chatId || '').trim();
+
+    if (!botToken || !rawChatId) {
+      return NextResponse.json(
+        {
+          success: false,
+          missingConfig: true,
+          error: 'Telegram Bot Token and Chat ID are required.',
+          message: 'Please provide your Telegram Bot Token and Chat ID in .env.local file or config/telegram.ts.',
+        },
+        { status: 400, headers: corsHeaders }
+      );
+    }
+
+    const chatId = await resolveNumericChatId(botToken, rawChatId);
+    if (!chatId) {
+      return NextResponse.json(
+        {
+          success: false,
+          pendingChatId: true,
+          error: 'Could not auto-detect group chat ID yet.',
+          message: 'Please ensure @ithipooram_bot is added as Administrator to your Telegram group, and send at least one message in the group to register it.',
+        },
+        { status: 400, headers: corsHeaders }
+      );
+    }
 
     let tables = db.tables;
     if (Array.isArray(body.tables) && body.tables.length > 0) {
@@ -39,18 +65,6 @@ export async function POST(request: Request) {
     const xmlContent = generateMultiSheetTableExcelXml(tables, orders);
     const dateFormatted = new Date().toISOString().slice(0, 10);
     const filename = `IthiPooram_Tables_Orders_Database_${dateFormatted}.xls`;
-
-    if (!botToken || !chatId) {
-      return NextResponse.json(
-        {
-          success: false,
-          missingConfig: true,
-          error: 'Telegram Bot Token and Chat ID are required.',
-          message: 'Please provide your Telegram Bot Token and Chat ID in Settings or in .env.local file.',
-        },
-        { status: 400, headers: corsHeaders }
-      );
-    }
 
     // Prepare multipart form data for Telegram sendDocument API
     const boundary = `----TelegramBoundary${Date.now()}`;

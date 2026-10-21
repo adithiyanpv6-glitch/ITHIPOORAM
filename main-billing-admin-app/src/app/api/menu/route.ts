@@ -15,6 +15,70 @@ export async function GET() {
   return NextResponse.json(db.menuCategories || [], { headers: corsHeaders });
 }
 
+export async function POST(request: Request) {
+  try {
+    const body = await request.json();
+    const { name, malayalamName, category, priceInr, pricePaise, currentStock, station, dietary, image } = body;
+
+    if (!name || !name.trim()) {
+      return NextResponse.json({ error: 'Item name is required' }, { status: 400, headers: corsHeaders });
+    }
+
+    const calculatedPricePaise = pricePaise !== undefined 
+      ? Number(pricePaise) 
+      : Math.round(Number(priceInr || 0) * 100);
+
+    if (calculatedPricePaise <= 0) {
+      return NextResponse.json({ error: 'Valid price is required' }, { status: 400, headers: corsHeaders });
+    }
+
+    const categoryName = (category || 'Special Delicacies').trim();
+    let targetCat = db.menuCategories.find(
+      (c) => c.name.toLowerCase() === categoryName.toLowerCase()
+    );
+
+    if (!targetCat) {
+      targetCat = {
+        id: `cat-${Date.now()}`,
+        name: categoryName,
+        malayalamName: malayalamName || categoryName,
+        items: [],
+      };
+      db.menuCategories.push(targetCat);
+    }
+
+    const newItem: any = {
+      id: `m-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+      name: name.trim(),
+      malayalamName: (malayalamName || '').trim(),
+      pricePaise: calculatedPricePaise,
+      isAvailable: true,
+      currentStock: currentStock !== null && currentStock !== undefined && currentStock !== '' ? Number(currentStock) : null,
+      station: station || 'Main Kitchen',
+      dietary: dietary || 'SEAFOOD',
+      image: image || '',
+      category: targetCat.name,
+    };
+
+    targetCat.items.push(newItem);
+
+    // Audit log entry
+    db.auditLogs.unshift({
+      id: `aud-${Date.now()}`,
+      timestamp: new Date().toISOString(),
+      actionType: 'MENU_ITEM_ADDED',
+      module: 'MENU',
+      usernameSnapshot: 'Menu Manager',
+      reason: `Added new dish "${newItem.name}" to ${targetCat.name} for ₹${(newItem.pricePaise / 100).toFixed(2)}`,
+      success: true,
+    });
+
+    return NextResponse.json({ success: true, item: newItem, categories: db.menuCategories }, { headers: corsHeaders });
+  } catch (err: any) {
+    return NextResponse.json({ error: err.message }, { status: 500, headers: corsHeaders });
+  }
+}
+
 export async function PATCH(request: Request) {
   try {
     const body = await request.json();
