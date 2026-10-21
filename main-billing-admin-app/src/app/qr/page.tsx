@@ -61,10 +61,6 @@ export default function TableQrStandsPage() {
   const [customerBaseUrl, setCustomerBaseUrl] = useState('https://customer-mobile-ithipooram.vercel.app');
   const [showConfig, setShowConfig] = useState(false);
 
-  // View mode: 'landing' (clean first page) or 'tables' (existing tables view)
-  const [viewMode, setViewMode] = useState<'landing' | 'tables'>('landing');
-  const [landingNotice, setLandingNotice] = useState<string>('');
-
   // Room & Tables state
   const [rooms, setRooms] = useState<Room[]>([]);
   const [tables, setTables] = useState<CustomTableStand[]>([]);
@@ -177,27 +173,16 @@ export default function TableQrStandsPage() {
     setRooms([]);
     setTables([]);
     setSelectedRoomId('');
-    setViewMode('landing');
+    setSelectedTableId(null);
     localStorage.removeItem('ithipooram_custom_rooms');
     localStorage.removeItem('ithipooram_custom_tables');
     try {
       fetch('/api/tables', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ tables: [] }),
+        body: JSON.stringify({ replace: true, tables: [] }),
       }).catch(() => {});
     } catch (e) {}
-  };
-
-  // Continue with existing tables handler
-  const handleContinueWithExisting = () => {
-    if (tables.length > 0 && rooms.length > 0) {
-      if (!selectedRoomId) setSelectedRoomId(rooms[0].id);
-      setViewMode('tables');
-    } else {
-      setLandingNotice('No saved tables found yet. Please create your first room & tables.');
-      setTimeout(() => setLandingNotice(''), 4000);
-    }
   };
 
   // Preview generated table codes in Step 2
@@ -299,7 +284,6 @@ export default function TableQrStandsPage() {
       setSelectedRoomId(activeRoom.id);
       saveState(updatedRooms, updatedTables);
       setIsWizardOpen(false);
-      setViewMode('tables');
     } catch (err) {
       console.error('Failed to generate tables:', err);
     } finally {
@@ -322,7 +306,6 @@ export default function TableQrStandsPage() {
       setSelectedRoomId(nextRooms[0].id);
     } else {
       setSelectedRoomId('');
-      setViewMode('landing');
     }
     saveState(nextRooms, nextTables);
   };
@@ -535,20 +518,10 @@ export default function TableQrStandsPage() {
         </div>
 
         <div className="flex items-center space-x-2">
-          {tables.length > 0 && viewMode === 'tables' && (
-            <button
-              onClick={() => setViewMode('landing')}
-              className="px-3 py-1.5 rounded-xl text-xs font-bold bg-slatepos-800 hover:bg-slatepos-700 text-slatepos-300 flex items-center space-x-1"
-            >
-              <ChevronLeft className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">Setup Overview</span>
-            </button>
-          )}
-
           {tables.length > 0 && (
             <button
               onClick={handleStartFresh}
-              className="p-2 sm:px-3 sm:py-1.5 rounded-xl text-xs font-bold bg-slatepos-800 hover:bg-red-950 text-red-300 border border-red-900/40 flex items-center space-x-1.5 transition active:scale-95"
+              className="p-2 sm:px-3 sm:py-1.5 rounded-xl text-xs font-bold bg-slatepos-800 hover:bg-red-950 text-red-300 border border-red-900/40 flex items-center space-x-1.5 transition active:scale-95 cursor-pointer"
               title="Clear all rooms & tables to start fresh"
             >
               <RotateCcw className="w-3.5 h-3.5 text-red-400" />
@@ -558,16 +531,16 @@ export default function TableQrStandsPage() {
 
           <button
             onClick={() => setShowConfig(!showConfig)}
-            className="p-2 rounded-xl bg-slatepos-800 hover:bg-slatepos-700 text-slatepos-300"
+            className="p-2 rounded-xl bg-slatepos-800 hover:bg-slatepos-700 text-slatepos-300 cursor-pointer"
             title="Configure Target Customer URL"
           >
             <Settings className="w-4 h-4" />
           </button>
 
-          {tables.length > 0 && viewMode === 'tables' && (
+          {tables.length > 0 && (
             <button
               onClick={() => window.print()}
-              className="px-3.5 py-1.5 rounded-xl text-xs font-bold bg-[#9E341D] hover:bg-[#832B18] text-white flex items-center space-x-1.5 shadow-md active:scale-95 transition"
+              className="px-3.5 py-1.5 rounded-xl text-xs font-bold bg-[#9E341D] hover:bg-[#832B18] text-white flex items-center space-x-1.5 shadow-md active:scale-95 transition cursor-pointer"
             >
               <Printer className="w-4 h-4" />
               <span className="hidden sm:inline">Print Stands</span>
@@ -597,7 +570,7 @@ export default function TableQrStandsPage() {
                   localStorage.setItem('ithipooram_customer_base_url', customerBaseUrl);
                   setShowConfig(false);
                 }}
-                className="px-3 py-1.5 bg-[#9E341D] text-white font-bold rounded-lg"
+                className="px-3 py-1.5 bg-[#9E341D] text-white font-bold rounded-lg cursor-pointer"
               >
                 Save
               </button>
@@ -606,128 +579,9 @@ export default function TableQrStandsPage() {
         </div>
       )}
 
-      {/* Room Tabs & Management Bar (Only shown in tables view when not in table detail) */}
-      {viewMode === 'tables' && rooms.length > 0 && !selectedTableId && (
-        <section className="bg-white border-b border-parchment-200 px-4 sm:px-6 py-3.5 shadow-2xs print:hidden">
-          <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-            <div className="flex items-center space-x-2 overflow-x-auto no-scrollbar w-full sm:w-auto py-1">
-              <span className="text-xs font-bold text-slatepos-500 uppercase tracking-wider shrink-0 mr-1">
-                Rooms:
-              </span>
-
-              {rooms.map((room) => {
-                const isSelected = room.id === selectedRoomId;
-                const count = tables.filter((t) => t.roomId === room.id).length;
-                return (
-                  <button
-                    key={room.id}
-                    onClick={() => {
-                      setSelectedRoomId(room.id);
-                      setSelectedTableId(null);
-                    }}
-                    className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition whitespace-nowrap flex items-center space-x-1.5 ${
-                      isSelected
-                        ? 'bg-slatepos-900 text-white shadow-sm ring-1 ring-slatepos-900'
-                        : 'bg-parchment-100 text-slatepos-700 hover:bg-parchment-200'
-                    }`}
-                  >
-                    <span>{room.name}</span>
-                    <span className={`text-[10px] px-1.5 py-0.2 rounded-full ${
-                      isSelected ? 'bg-amber-400 text-slatepos-950 font-black' : 'bg-parchment-300 text-slatepos-600'
-                    }`}>
-                      {count}
-                    </span>
-                  </button>
-                );
-              })}
-
-              <button
-                onClick={() => handleOpenWizard()}
-                className="px-3 py-1.5 rounded-xl text-xs font-bold bg-amber-50 hover:bg-amber-100 text-[#9E341D] border border-amber-300 flex items-center space-x-1 whitespace-nowrap shrink-0 transition"
-              >
-                <Plus className="w-3.5 h-3.5" />
-                <span>Add Room</span>
-              </button>
-            </div>
-
-            {currentRoom && (
-              <div className="flex items-center space-x-2 w-full sm:w-auto justify-end">
-                <button
-                  onClick={() => handleOpenWizard(currentRoom.name)}
-                  className="px-3.5 py-1.5 rounded-xl text-xs font-bold bg-[#9E341D] hover:bg-[#832B18] text-white shadow-xs flex items-center space-x-1 transition active:scale-95"
-                >
-                  <Plus className="w-3.5 h-3.5" />
-                  <span>Add Tables to {currentRoom.name}</span>
-                </button>
-
-                <button
-                  onClick={() => handleDeleteRoom(currentRoom.id)}
-                  className="p-1.5 rounded-xl text-red-500 hover:bg-red-50 hover:text-red-700"
-                  title={`Delete ${currentRoom.name}`}
-                >
-                  <Trash2 className="w-4 h-4" />
-                </button>
-              </div>
-            )}
-          </div>
-        </section>
-      )}
-
       {/* Main Body View */}
       <main className="max-w-7xl mx-auto p-4 sm:p-6">
-        {/* FIRST PAGE: Clean Landing View */}
-        {viewMode === 'landing' ? (
-          <div className="max-w-2xl mx-auto my-6 sm:my-10 bg-white rounded-3xl border border-parchment-200 shadow-sm p-6 sm:p-10 text-center animate-in fade-in duration-200">
-            {/* Notice if any */}
-            {landingNotice && (
-              <div className="mb-4 p-3 rounded-2xl bg-amber-50 border border-amber-200 text-amber-900 text-xs font-bold animate-in fade-in">
-                {landingNotice}
-              </div>
-            )}
-
-            {/* 1, 2, 3 Step Sections (Cleanly Preserved) */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5 text-left mb-8">
-              <div className="p-4 rounded-2xl bg-parchment-50 border border-parchment-200">
-                <div className="w-7 h-7 rounded-xl bg-slatepos-900 text-amber-400 font-black text-xs flex items-center justify-center mb-2">1</div>
-                <div className="font-bold text-xs text-slatepos-950 mb-1">Name Dining Room</div>
-                <div className="text-[11px] text-slatepos-500">Add custom dining rooms or seating areas.</div>
-              </div>
-              <div className="p-4 rounded-2xl bg-parchment-50 border border-parchment-200">
-                <div className="w-7 h-7 rounded-xl bg-slatepos-900 text-amber-400 font-black text-xs flex items-center justify-center mb-2">2</div>
-                <div className="font-bold text-xs text-slatepos-950 mb-1">Set Tables & Seats</div>
-                <div className="text-[11px] text-slatepos-500">Configure tables and multi-seat customer splits.</div>
-              </div>
-              <div className="p-4 rounded-2xl bg-parchment-50 border border-parchment-200">
-                <div className="w-7 h-7 rounded-xl bg-slatepos-900 text-amber-400 font-black text-xs flex items-center justify-center mb-2">3</div>
-                <div className="font-bold text-xs text-slatepos-950 mb-1">Export HQ Stand</div>
-                <div className="text-[11px] text-slatepos-500">Download high-resolution acrylic stand PNGs.</div>
-              </div>
-            </div>
-
-            {/* Action Buttons: Create New & Continue with Existing */}
-            <div className="space-y-3 max-w-md mx-auto">
-              <button
-                onClick={() => handleOpenWizard()}
-                className="w-full py-3.5 px-6 rounded-2xl text-sm font-extrabold bg-[#9E341D] hover:bg-[#832B18] text-white shadow-xl shadow-[#9E341D]/20 flex items-center justify-center space-x-2 active:scale-98 transition cursor-pointer"
-              >
-                <Plus className="w-5 h-5" />
-                <span>Create Your First Room & Tables</span>
-              </button>
-
-              <button
-                onClick={handleContinueWithExisting}
-                className="w-full py-3 px-6 rounded-2xl text-xs font-bold bg-parchment-100 hover:bg-parchment-200 text-slatepos-800 border border-parchment-300 flex items-center justify-center space-x-2 transition active:scale-98 cursor-pointer"
-              >
-                <span>Continue with Existing Tables</span>
-                {tables.length > 0 && (
-                  <span className="px-2 py-0.5 rounded-full bg-slatepos-900 text-amber-400 text-[10px] font-black">
-                    {tables.length}
-                  </span>
-                )}
-              </button>
-            </div>
-          </div>
-        ) : selectedStand ? (
+        {selectedStand ? (
           /* ========================================================================= */
           /* TABLE DETAIL VIEW (CLICKED ON TABLE NAME): QR STAND + LIVE ORDER TRACKING */
           /* ========================================================================= */

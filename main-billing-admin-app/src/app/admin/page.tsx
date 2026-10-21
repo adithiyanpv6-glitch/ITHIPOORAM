@@ -12,7 +12,8 @@ import {
   Calendar,
   FileSpreadsheet,
   UtensilsCrossed,
-  Plus
+  Plus,
+  QrCode
 } from 'lucide-react';
 import { apiRequest, getCurrentUser } from '../../lib/api';
 
@@ -107,6 +108,14 @@ export default function AdminOverviewPage() {
         </div>
 
         <div className="flex items-center space-x-2 sm:space-x-3">
+          <Link 
+            href="/qr" 
+            className="px-3 py-1.5 rounded-lg text-xs font-bold bg-slatepos-800 hover:bg-slatepos-700 text-amber-300 flex items-center space-x-1.5 shadow-sm transition border border-slatepos-700"
+            title="Manage Table QRs, Rooms & Live Order Tracking"
+          >
+            <QrCode className="w-3.5 h-3.5" />
+            <span>TABLE QR SECTION</span>
+          </Link>
           <Link 
             href="/menu" 
             className="px-3 py-1.5 rounded-lg text-xs font-bold bg-[#9E341D] hover:bg-[#852B17] text-white flex items-center space-x-1.5 shadow-sm transition"
@@ -207,34 +216,67 @@ export default function AdminOverviewPage() {
               </div>
             </div>
 
-            {/* Live Menu & Dish Management Action Card */}
-            <div className="bg-gradient-to-r from-stone-900 to-slatepos-900 rounded-2xl p-4 sm:p-5 text-white flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border border-stone-800 shadow-md">
-              <div className="flex items-center space-x-3.5">
-                <div className="w-12 h-12 rounded-xl bg-[#9E341D] flex items-center justify-center text-white shrink-0 shadow-sm">
-                  <UtensilsCrossed className="w-6 h-6" />
-                </div>
-                <div>
-                  <div className="flex items-center space-x-2">
-                    <h2 className="text-sm sm:text-base font-extrabold tracking-wide uppercase">
-                      LIVE MENU UPDATE
-                    </h2>
-                    <span className="text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 px-2 py-0.5 rounded-full uppercase">
-                      Live Sync
-                    </span>
+            {/* Live Management Action Cards: Live Menu & Table QR Section */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* Live Menu Action Card */}
+              <div className="bg-gradient-to-r from-stone-900 to-slatepos-900 rounded-2xl p-4 sm:p-5 text-white flex flex-col justify-between gap-4 border border-stone-800 shadow-md">
+                <div className="flex items-start space-x-3.5">
+                  <div className="w-12 h-12 rounded-xl bg-[#9E341D] flex items-center justify-center text-white shrink-0 shadow-sm">
+                    <UtensilsCrossed className="w-6 h-6" />
                   </div>
-                  <p className="text-xs text-stone-300 mt-0.5">
-                    Add new dishes with auto-fetched food images, update daily stock quantities, and export the Daily Menu Excel database.
-                  </p>
+                  <div>
+                    <div className="flex items-center space-x-2">
+                      <h2 className="text-sm sm:text-base font-extrabold tracking-wide uppercase">
+                        LIVE MENU UPDATE
+                      </h2>
+                      <span className="text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 px-2 py-0.5 rounded-full uppercase">
+                        Live Sync
+                      </span>
+                    </div>
+                    <p className="text-xs text-stone-300 mt-1">
+                      Add dishes, adjust daily stock, and sync with customer ordering &amp; kitchen instantly.
+                    </p>
+                  </div>
                 </div>
+
+                <Link
+                  href="/menu"
+                  className="w-full px-4 py-2.5 rounded-xl bg-[#9E341D] hover:bg-[#852B17] text-white font-bold text-xs shadow-md flex items-center justify-center space-x-2 active:scale-98 transition shrink-0"
+                >
+                  <Plus className="w-4 h-4" />
+                  <span>+ Add Item / Update Menu</span>
+                </Link>
               </div>
 
-              <Link
-                href="/menu"
-                className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-[#9E341D] hover:bg-[#852B17] text-white font-bold text-xs shadow-md flex items-center justify-center space-x-2 active:scale-98 transition shrink-0"
-              >
-                <Plus className="w-4 h-4" />
-                <span>+ Add Item / Update Menu</span>
-              </Link>
+              {/* Table QR Section & Live Tracking Card */}
+              <div className="bg-gradient-to-r from-slatepos-900 to-stone-900 rounded-2xl p-4 sm:p-5 text-white flex flex-col justify-between gap-4 border border-slatepos-800 shadow-md">
+                <div className="flex items-start space-x-3.5">
+                  <div className="w-12 h-12 rounded-xl bg-amber-500/20 border border-amber-500/30 flex items-center justify-center text-amber-400 shrink-0 shadow-sm">
+                    <QrCode className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <div className="flex items-center space-x-2">
+                      <h2 className="text-sm sm:text-base font-extrabold tracking-wide uppercase text-amber-300">
+                        TABLE QR SECTION
+                      </h2>
+                      <span className="text-[10px] font-bold bg-sky-500/20 text-sky-300 border border-sky-500/30 px-2 py-0.5 rounded-full uppercase">
+                        Telegram Excel
+                      </span>
+                    </div>
+                    <p className="text-xs text-stone-300 mt-1">
+                      Manage dining rooms, view table names, print acrylic QRs, and track live orders with Telegram Excel sync.
+                    </p>
+                  </div>
+                </div>
+
+                <Link
+                  href="/qr"
+                  className="w-full px-4 py-2.5 rounded-xl bg-slatepos-800 hover:bg-slatepos-700 text-amber-300 border border-amber-500/30 font-bold text-xs shadow-md flex items-center justify-center space-x-2 active:scale-98 transition shrink-0"
+                >
+                  <QrCode className="w-4 h-4" />
+                  <span>Open Table QR Section &rarr;</span>
+                </Link>
+              </div>
             </div>
 
             {/* Tables & Rankings */}

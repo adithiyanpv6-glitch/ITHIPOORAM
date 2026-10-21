@@ -89,7 +89,7 @@ export default function OperationalGateway() {
       subtitle: 'Stock Control & Customer Sync',
       badge: 'LIVE MENU & EXCEL',
       badgeColor: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30',
-      description: 'Add new dishes with auto-fetched food images, update daily stock quantities, adjust prices, and export the Daily Menu Excel database with date history.',
+      description: 'Add new dishes with Malayalam & English names, adjust daily stock & prices, sync customer mobile ordering, and export the Daily Menu Excel database.',
       link: '/menu',
       linkText: 'Open Live Menu Update',
       image: '/sections/menu-stock.jpg',
