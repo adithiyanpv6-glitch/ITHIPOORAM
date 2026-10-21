@@ -1,0 +1,21 @@
+{
+  "name": "Ithi Pooram - Customer Mobile QR Ordering",
+  "short_name": "Ithi Pooram",
+  "description": "Instant Table QR Ordering for Ithi Pooram Lunch & Seafood Spot, Vanchiyoor, Trivandrum",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0C0E12",
+  "theme_color": "#9E341D",
+  "icons": [
+    {
+      "src": "/logo.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/logo.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}

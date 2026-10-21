@@ -1,0 +1,7 @@
+Staff ID,Employee Full Name,Login Username,Access PIN (4-Digit),Assigned Role,Counter / Terminal,Status,Registered Date,Security Notes
+IP-USR-001,"Owner / Executive Admin",admin,'1111,MAIN_ADMIN,"Executive Central Gateway",ACTIVE,15-Oct-2026,"Primary Master Admin. Emergency bypass PIN 1111 valid across all screens."
+IP-USR-002,"Gokul Krishnan",gokul,'1234,CASHIER,"Billing Counter POS 1",ACTIVE,15-Oct-2026,"Main lunch and dinner counter cashier. Authorized for cash & UPI billing."
+IP-USR-003,"Meera Rajesh",meera,'5678,CASHIER,"Billing Counter POS 2",ACTIVE,15-Oct-2026,"Secondary counter cashier & parcel order billing operator."
+IP-USR-004,"Ananthu V",ananthu,'9999,MANAGER,"Floor Operations & KDS Gateway",ACTIVE,15-Oct-2026,"Restaurant shift floor manager. Audit access and void order privileges."
+IP-USR-005,"Chef Suresh Kumar",chef_suresh,'2233,KITCHEN_STAFF,"Main Kitchen Display (KDS)",ACTIVE,16-Oct-2026,"Head seafood chef. Kitchen ticket management (Cooking, Ready, Served)."
+IP-USR-006,"Dining QR Supervisor",qr_supervisor,'4455,MENU_EDITOR,"QR & Menu Control Desk",ACTIVE,16-Oct-2026,"Authorized to update live 86-item availability and generate acrylic table stands."

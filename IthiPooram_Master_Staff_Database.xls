@@ -1,0 +1,209 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?mso-application progid="Excel.Sheet"?>
+<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet"
+ xmlns:o="urn:schemas-microsoft-com:office:office"
+ xmlns:x="urn:schemas-microsoft-com:office:excel"
+ xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet"
+ xmlns:html="http://www.w3.org/TR/REC-html40">
+ <DocumentProperties xmlns="urn:schemas-microsoft-com:office:office">
+  <Title>Ithi Pooram - Staff Credentials &amp; Access Database</Title>
+  <Subject>Confidential Restaurant Credentials &amp; Role Permissions</Subject>
+  <Author>Ithi Pooram Restaurant Systems</Author>
+ </DocumentProperties>
+ <Styles>
+  <Style ss:ID="Default" ss:Name="Normal">
+   <Alignment ss:Vertical="Center"/>
+   <Font ss:FontName="Segoe UI" ss:Size="10" ss:Color="#16191D"/>
+  </Style>
+  <Style ss:ID="TitleBanner">
+   <Alignment ss:Horizontal="Center" ss:Vertical="Center"/>
+   <Font ss:FontName="Segoe UI" ss:Size="16" ss:Color="#FFFFFF" ss:Bold="1"/>
+   <Interior ss:Color="#9E341D" ss:Pattern="Solid"/>
+   <Borders><Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="2" ss:Color="#D4AF37"/></Borders>
+  </Style>
+  <Style ss:ID="SubtitleBanner">
+   <Alignment ss:Horizontal="Center" ss:Vertical="Center"/>
+   <Font ss:FontName="Segoe UI" ss:Size="10" ss:Color="#FDFCF7" ss:Italic="1"/>
+   <Interior ss:Color="#7A2816" ss:Pattern="Solid"/>
+  </Style>
+  <Style ss:ID="MetaBar">
+   <Alignment ss:Horizontal="Left" ss:Vertical="Center"/>
+   <Font ss:FontName="Segoe UI" ss:Size="9" ss:Color="#6E665D" ss:Bold="1"/>
+   <Interior ss:Color="#F6F1EA" ss:Pattern="Solid"/>
+   <Borders><Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#E2D9CC"/></Borders>
+  </Style>
+  <Style ss:ID="TableHeader">
+   <Alignment ss:Horizontal="Center" ss:Vertical="Center" ss:WrapText="1"/>
+   <Font ss:FontName="Segoe UI" ss:Size="10" ss:Color="#FFFFFF" ss:Bold="1"/>
+   <Interior ss:Color="#16191D" ss:Pattern="Solid"/>
+   <Borders>
+    <Border ss:Position="Top" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#333333"/>
+    <Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="2" ss:Color="#D4AF37"/>
+    <Border ss:Position="Left" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#333333"/>
+    <Border ss:Position="Right" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#333333"/>
+   </Borders>
+  </Style>
+  <Style ss:ID="CellRegular">
+   <Alignment ss:Horizontal="Left" ss:Vertical="Center"/>
+   <Font ss:FontName="Segoe UI" ss:Size="9.5" ss:Color="#16191D"/>
+   <Borders>
+    <Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#EAE5DE"/>
+    <Border ss:Position="Right" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#EAE5DE"/>
+   </Borders>
+  </Style>
+  <Style ss:ID="CellZebra">
+   <Alignment ss:Horizontal="Left" ss:Vertical="Center"/>
+   <Font ss:FontName="Segoe UI" ss:Size="9.5" ss:Color="#16191D"/>
+   <Interior ss:Color="#FAF7F2" ss:Pattern="Solid"/>
+   <Borders>
+    <Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#EAE5DE"/>
+    <Border ss:Position="Right" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#EAE5DE"/>
+   </Borders>
+  </Style>
+  <Style ss:ID="PinCell">
+   <Alignment ss:Horizontal="Center" ss:Vertical="Center"/>
+   <Font ss:FontName="Consolas" ss:Size="11" ss:Color="#9E341D" ss:Bold="1"/>
+   <Interior ss:Color="#FFF3E0" ss:Pattern="Solid"/>
+   <Borders>
+    <Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#FFE0B2"/>
+    <Border ss:Position="Right" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#FFE0B2"/>
+   </Borders>
+  </Style>
+  <Style ss:ID="RoleAdmin">
+   <Alignment ss:Horizontal="Center" ss:Vertical="Center"/>
+   <Font ss:FontName="Segoe UI" ss:Size="9" ss:Color="#FFFFFF" ss:Bold="1"/>
+   <Interior ss:Color="#9E341D" ss:Pattern="Solid"/>
+  </Style>
+  <Style ss:ID="RoleManager">
+   <Alignment ss:Horizontal="Center" ss:Vertical="Center"/>
+   <Font ss:FontName="Segoe UI" ss:Size="9" ss:Color="#FFFFFF" ss:Bold="1"/>
+   <Interior ss:Color="#2C3E50" ss:Pattern="Solid"/>
+  </Style>
+  <Style ss:ID="RoleCashier">
+   <Alignment ss:Horizontal="Center" ss:Vertical="Center"/>
+   <Font ss:FontName="Segoe UI" ss:Size="9" ss:Color="#FFFFFF" ss:Bold="1"/>
+   <Interior ss:Color="#1E824C" ss:Pattern="Solid"/>
+  </Style>
+  <Style ss:ID="RoleKitchen">
+   <Alignment ss:Horizontal="Center" ss:Vertical="Center"/>
+   <Font ss:FontName="Segoe UI" ss:Size="9" ss:Color="#FFFFFF" ss:Bold="1"/>
+   <Interior ss:Color="#D35400" ss:Pattern="Solid"/>
+  </Style>
+  <Style ss:ID="StatusActive">
+   <Alignment ss:Horizontal="Center" ss:Vertical="Center"/>
+   <Font ss:FontName="Segoe UI" ss:Size="9" ss:Color="#1E824C" ss:Bold="1"/>
+   <Interior ss:Color="#E8F8F0" ss:Pattern="Solid"/>
+   <Borders><Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#C8E6C9"/></Borders>
+  </Style>
+  <Style ss:ID="FooterNotice">
+   <Alignment ss:Horizontal="Left" ss:Vertical="Center" ss:WrapText="1"/>
+   <Font ss:FontName="Segoe UI" ss:Size="8.5" ss:Color="#7F8C8D" ss:Italic="1"/>
+   <Interior ss:Color="#FDFCF7" ss:Pattern="Solid"/>
+  </Style>
+ </Styles>
+ <Worksheet ss:Name="Staff_Credentials_Database">
+  <Table ss:ExpandedColumnCount="9" x:FullColumns="1" x:FullRows="1" ss:DefaultRowHeight="20">
+   <Column ss:Width="85"/>
+   <Column ss:Width="160"/>
+   <Column ss:Width="120"/>
+   <Column ss:Width="100"/>
+   <Column ss:Width="120"/>
+   <Column ss:Width="180"/>
+   <Column ss:Width="85"/>
+   <Column ss:Width="140"/>
+   <Column ss:Width="240"/>
+   <Row ss:Height="40"><Cell ss:MergeAcross="8" ss:StyleID="TitleBanner"><Data ss:Type="String">ITHI POORAM (ഇത്തിപ്പൂരം) • MASTER STAFF &amp; ADMIN CREDENTIALS</Data></Cell></Row>
+   <Row ss:Height="22"><Cell ss:MergeAcross="8" ss:StyleID="SubtitleBanner"><Data ss:Type="String">Vanchiyoor, Trivandrum | Confidential Access Control &amp; Authentication Registry</Data></Cell></Row>
+   <Row ss:Height="22"><Cell ss:MergeAcross="8" ss:StyleID="MetaBar"><Data ss:Type="String">System Sync: Live Linked to POS Gateway • Generated on: 21 Oct 2026 at 06:41 PM • Telegram Archive: @IthiPooram_Group</Data></Cell></Row>
+   <Row ss:Height="8"/>
+   <Row ss:Height="28">
+    <Cell ss:StyleID="TableHeader"><Data ss:Type="String">STAFF ID</Data></Cell>
+    <Cell ss:StyleID="TableHeader"><Data ss:Type="String">EMPLOYEE FULL NAME</Data></Cell>
+    <Cell ss:StyleID="TableHeader"><Data ss:Type="String">LOGIN USERNAME</Data></Cell>
+    <Cell ss:StyleID="TableHeader"><Data ss:Type="String">ACCESS PIN (4-DIGIT)</Data></Cell>
+    <Cell ss:StyleID="TableHeader"><Data ss:Type="String">ASSIGNED ROLE</Data></Cell>
+    <Cell ss:StyleID="TableHeader"><Data ss:Type="String">COUNTER / TERMINAL</Data></Cell>
+    <Cell ss:StyleID="TableHeader"><Data ss:Type="String">STATUS</Data></Cell>
+    <Cell ss:StyleID="TableHeader"><Data ss:Type="String">REGISTERED DATE</Data></Cell>
+    <Cell ss:StyleID="TableHeader"><Data ss:Type="String">SECURITY PRIVILEGE NOTES</Data></Cell>
+   </Row>
+   <Row ss:Height="24">
+    <Cell ss:StyleID="CellRegular"><Data ss:Type="String">IP-USR-001</Data></Cell>
+    <Cell ss:StyleID="CellRegular"><Data ss:Type="String">Owner / Executive Admin</Data></Cell>
+    <Cell ss:StyleID="CellRegular"><Data ss:Type="String">admin</Data></Cell>
+    <Cell ss:StyleID="PinCell"><Data ss:Type="String">1111</Data></Cell>
+    <Cell ss:StyleID="RoleAdmin"><Data ss:Type="String">MAIN_ADMIN</Data></Cell>
+    <Cell ss:StyleID="CellRegular"><Data ss:Type="String">Executive Central Gateway</Data></Cell>
+    <Cell ss:StyleID="StatusActive"><Data ss:Type="String">ACTIVE</Data></Cell>
+    <Cell ss:StyleID="CellRegular"><Data ss:Type="String">15-Oct-2026</Data></Cell>
+    <Cell ss:StyleID="CellRegular"><Data ss:Type="String">Primary Master Admin. Emergency bypass PIN 1111 valid across all screens.</Data></Cell>
+   </Row>
+   <Row ss:Height="24">
+    <Cell ss:StyleID="CellZebra"><Data ss:Type="String">IP-USR-002</Data></Cell>
+    <Cell ss:StyleID="CellZebra"><Data ss:Type="String">Gokul Krishnan</Data></Cell>
+    <Cell ss:StyleID="CellZebra"><Data ss:Type="String">gokul</Data></Cell>
+    <Cell ss:StyleID="PinCell"><Data ss:Type="String">1234</Data></Cell>
+    <Cell ss:StyleID="RoleCashier"><Data ss:Type="String">CASHIER</Data></Cell>
+    <Cell ss:StyleID="CellZebra"><Data ss:Type="String">Billing Counter POS 1</Data></Cell>
+    <Cell ss:StyleID="StatusActive"><Data ss:Type="String">ACTIVE</Data></Cell>
+    <Cell ss:StyleID="CellZebra"><Data ss:Type="String">15-Oct-2026</Data></Cell>
+    <Cell ss:StyleID="CellZebra"><Data ss:Type="String">Main lunch and dinner counter cashier. Authorized for cash & UPI billing.</Data></Cell>
+   </Row>
+   <Row ss:Height="24">
+    <Cell ss:StyleID="CellRegular"><Data ss:Type="String">IP-USR-003</Data></Cell>
+    <Cell ss:StyleID="CellRegular"><Data ss:Type="String">Meera Rajesh</Data></Cell>
+    <Cell ss:StyleID="CellRegular"><Data ss:Type="String">meera</Data></Cell>
+    <Cell ss:StyleID="PinCell"><Data ss:Type="String">5678</Data></Cell>
+    <Cell ss:StyleID="RoleCashier"><Data ss:Type="String">CASHIER</Data></Cell>
+    <Cell ss:StyleID="CellRegular"><Data ss:Type="String">Billing Counter POS 2</Data></Cell>
+    <Cell ss:StyleID="StatusActive"><Data ss:Type="String">ACTIVE</Data></Cell>
+    <Cell ss:StyleID="CellRegular"><Data ss:Type="String">15-Oct-2026</Data></Cell>
+    <Cell ss:StyleID="CellRegular"><Data ss:Type="String">Secondary counter cashier & parcel order billing operator.</Data></Cell>
+   </Row>
+   <Row ss:Height="24">
+    <Cell ss:StyleID="CellZebra"><Data ss:Type="String">IP-USR-004</Data></Cell>
+    <Cell ss:StyleID="CellZebra"><Data ss:Type="String">Ananthu V</Data></Cell>
+    <Cell ss:StyleID="CellZebra"><Data ss:Type="String">ananthu</Data></Cell>
+    <Cell ss:StyleID="PinCell"><Data ss:Type="String">9999</Data></Cell>
+    <Cell ss:StyleID="RoleManager"><Data ss:Type="String">MANAGER</Data></Cell>
+    <Cell ss:StyleID="CellZebra"><Data ss:Type="String">Floor Operations & KDS Gateway</Data></Cell>
+    <Cell ss:StyleID="StatusActive"><Data ss:Type="String">ACTIVE</Data></Cell>
+    <Cell ss:StyleID="CellZebra"><Data ss:Type="String">15-Oct-2026</Data></Cell>
+    <Cell ss:StyleID="CellZebra"><Data ss:Type="String">Restaurant shift floor manager. Audit access and void order privileges.</Data></Cell>
+   </Row>
+   <Row ss:Height="24">
+    <Cell ss:StyleID="CellRegular"><Data ss:Type="String">IP-USR-005</Data></Cell>
+    <Cell ss:StyleID="CellRegular"><Data ss:Type="String">Chef Suresh Kumar</Data></Cell>
+    <Cell ss:StyleID="CellRegular"><Data ss:Type="String">chef_suresh</Data></Cell>
+    <Cell ss:StyleID="PinCell"><Data ss:Type="String">2233</Data></Cell>
+    <Cell ss:StyleID="RoleKitchen"><Data ss:Type="String">KITCHEN_STAFF</Data></Cell>
+    <Cell ss:StyleID="CellRegular"><Data ss:Type="String">Main Kitchen Display (KDS)</Data></Cell>
+    <Cell ss:StyleID="StatusActive"><Data ss:Type="String">ACTIVE</Data></Cell>
+    <Cell ss:StyleID="CellRegular"><Data ss:Type="String">16-Oct-2026</Data></Cell>
+    <Cell ss:StyleID="CellRegular"><Data ss:Type="String">Head seafood chef. Kitchen ticket management (Cooking, Ready, Served).</Data></Cell>
+   </Row>
+   <Row ss:Height="24">
+    <Cell ss:StyleID="CellZebra"><Data ss:Type="String">IP-USR-006</Data></Cell>
+    <Cell ss:StyleID="CellZebra"><Data ss:Type="String">Dining QR Supervisor</Data></Cell>
+    <Cell ss:StyleID="CellZebra"><Data ss:Type="String">qr_supervisor</Data></Cell>
+    <Cell ss:StyleID="PinCell"><Data ss:Type="String">4455</Data></Cell>
+    <Cell ss:StyleID="RoleCashier"><Data ss:Type="String">MENU_EDITOR</Data></Cell>
+    <Cell ss:StyleID="CellZebra"><Data ss:Type="String">QR & Menu Control Desk</Data></Cell>
+    <Cell ss:StyleID="StatusActive"><Data ss:Type="String">ACTIVE</Data></Cell>
+    <Cell ss:StyleID="CellZebra"><Data ss:Type="String">16-Oct-2026</Data></Cell>
+    <Cell ss:StyleID="CellZebra"><Data ss:Type="String">Authorized to update live 86-item availability and generate acrylic table stands.</Data></Cell>
+   </Row>
+   <Row ss:Height="12"/>
+   <Row ss:Height="28">
+    <Cell ss:MergeAcross="8" ss:StyleID="FooterNotice">
+     <Data ss:Type="String">CONFIDENTIAL &amp; PROPRIETARY: This master credentials database is protected. Admin Master PIN [1111] possesses emergency override permissions across all tablet terminals. Keep this document stored securely in the private Telegram vault.</Data>
+    </Cell>
+   </Row>
+  </Table>
+  <WorksheetOptions xmlns="urn:schemas-microsoft-com:office:excel">
+   <Selected/>
+   <FreezePanes/><FrozenNoSplit/>
+   <SplitPane><PaneType>3</PaneType><Row>5</Row></SplitPane>
+  </WorksheetOptions>
+ </Worksheet>
+</Workbook>
