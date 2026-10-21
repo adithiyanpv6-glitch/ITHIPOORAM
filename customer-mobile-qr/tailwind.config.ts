@@ -43,8 +43,8 @@ const config: Config = {
         }
       },
       fontFamily: {
-        sans: ['Inter', '-apple-system', 'sans-serif'],
-        malayalam: ['"Noto Sans Malayalam"', 'sans-serif'],
+        sans: ['"Plus Jakarta Sans"', 'Inter', '-apple-system', 'sans-serif'],
+        malayalam: ['"Noto Sans Malayalam"', '"Noto Serif Malayalam"', 'sans-serif'],
         mono: ['"JetBrains Mono"', 'Courier', 'monospace'],
       },
     },

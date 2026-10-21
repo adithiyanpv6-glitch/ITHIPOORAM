@@ -3,7 +3,7 @@ import './globals.css';
 
 export const metadata: Metadata = {
   title: 'ഇത്തിപ്പൂരം | Ithi Pooram - Customer Mobile QR Ordering',
-  description: 'Instant Table QR Ordering for Ithi Pooram Lunch & Seafood Spot, Statue, Trivandrum',
+  description: 'Instant Table QR Ordering for Ithi Pooram Lunch & Seafood Spot, Vanchiyoor, Trivandrum',
 };
 
 export const viewport: Viewport = {

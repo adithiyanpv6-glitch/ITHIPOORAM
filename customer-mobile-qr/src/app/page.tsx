@@ -663,43 +663,39 @@ function CustomerOrderingContent() {
     <div className="min-h-screen bg-[#FAF7F2] text-stone-900 font-sans pb-28">
       {/* Top Brand Notification Header */}
       <header className="bg-white border-b border-stone-200 sticky top-0 z-30 shadow-2xs">
-        <div className="max-w-xl mx-auto px-4 py-2.5 flex items-center justify-between">
-          <button 
-            onClick={() => setCurrentView('welcome')}
-            className="flex items-center space-x-2.5 text-left active:opacity-75 transition"
-          >
-            <img 
-              src="/logo.png" 
-              alt="Ithi Pooram Logo" 
-              className="w-10 h-10 object-contain rounded-full shadow-xs shrink-0 bg-stone-50 border border-stone-100"
-            />
-            <div>
-              <div className="flex items-center space-x-1.5">
-                <span className="font-extrabold text-stone-950 text-sm tracking-tight font-brand-title">ITHI POORAM</span>
-                <span className="text-[10px] bg-[#9E341D]/10 text-[#9E341D] font-bold px-1.5 py-0.2 rounded font-mono">
-                  {tableCode}
-                </span>
-              </div>
-              <p className="text-[11px] text-stone-500 line-clamp-1 font-medium">
-                {tableDisplayName}
-              </p>
-            </div>
-          </button>
-
-          <div className="flex items-center space-x-1.5">
-            {/* Phone Session Simulator Button */}
-            <button
-              onClick={() => setShowSessionDrawer(!showSessionDrawer)}
-              className="px-2.5 py-1 rounded-xl bg-stone-100 hover:bg-stone-200 text-stone-700 text-[11px] font-bold flex items-center space-x-1 transition border border-stone-200/60"
-              title="Switch Phone Session"
+        <div className="max-w-xl mx-auto px-4 py-3 flex items-center justify-between relative">
+          {currentView !== 'welcome' ? (
+            <button 
+              onClick={() => setCurrentView('welcome')}
+              className="flex items-center space-x-1 text-xs font-bold text-stone-600 hover:text-stone-950 p-1.5 rounded-xl hover:bg-stone-100 transition z-10"
+              title="Back to Welcome"
             >
-              <Smartphone className="w-3.5 h-3.5 text-[#9E341D]" />
-              <span className="hidden sm:inline">{phoneLabel}</span>
-              <span className="sm:hidden font-mono">{phoneLabel.replace('Customer ', '')}</span>
+              <ArrowLeft className="w-4 h-4" />
+              <span className="hidden sm:inline">Home</span>
             </button>
+          ) : (
+            <div className="w-8" />
+          )}
 
-            {/* Active order quick indicator */}
-            {activeExistingOrder && (
+          {/* Centered Brand Name & Logo */}
+          <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+            <button
+              onClick={() => setCurrentView('welcome')}
+              className="flex items-center space-x-2.5 pointer-events-auto active:opacity-80 transition"
+            >
+              <img 
+                src="/logo.png" 
+                alt="Ithi Pooram Logo" 
+                className="w-9 h-9 object-contain rounded-full shadow-xs shrink-0 bg-stone-50 border border-stone-100"
+              />
+              <span className="font-extrabold text-stone-950 text-base tracking-tight font-brand-title">
+                ITHI POORAM
+              </span>
+            </button>
+          </div>
+
+          <div className="flex items-center space-x-1.5 z-10">
+            {activeExistingOrder && currentView === 'menu' ? (
               <button
                 onClick={() => setCurrentView('status')}
                 className="px-2.5 py-1 rounded-xl bg-amber-500/10 text-amber-900 border border-amber-300 text-[11px] font-bold flex items-center space-x-1 animate-pulse"
@@ -707,103 +703,11 @@ function CustomerOrderingContent() {
                 <Flame className="w-3 h-3 text-amber-600" />
                 <span>Cooking</span>
               </button>
+            ) : (
+              <div className="w-8" />
             )}
-
-            {/* Settings */}
-            <button
-              onClick={() => setShowConfig(!showConfig)}
-              className="p-1.5 rounded-xl text-stone-400 hover:text-stone-700 hover:bg-stone-100 transition"
-              title="Backend API Configuration"
-            >
-              <Settings className="w-4 h-4" />
-            </button>
           </div>
         </div>
-
-        {/* API Endpoint Configuration Drawer */}
-        {showConfig && (
-          <div className="bg-stone-900 text-white p-3 border-b border-stone-800 text-xs animate-in slide-in-from-top duration-200">
-            <div className="max-w-xl mx-auto space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="font-bold text-amber-400">Admin API Configuration</span>
-                <button onClick={() => setShowConfig(false)} className="text-stone-400 hover:text-white">
-                  <X className="w-4 h-4" />
-                </button>
-              </div>
-              <input
-                type="text"
-                value={apiUrl}
-                onChange={(e) => setApiUrl(e.target.value)}
-                placeholder="e.g. http://localhost:3000"
-                className="w-full px-3 py-1.5 rounded-lg bg-stone-800 border border-stone-700 text-xs text-white"
-              />
-              <div className="flex justify-end space-x-2 pt-1">
-                <button
-                  onClick={() => {
-                    localStorage.setItem('ithipooram_api_endpoint', apiUrl);
-                    setShowConfig(false);
-                  }}
-                  className="px-3 py-1 rounded-lg bg-[#9E341D] text-white text-xs font-bold"
-                >
-                  Save URL
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Phone Session Switcher Drawer */}
-        {showSessionDrawer && (
-          <div className="bg-amber-50 border-b border-amber-200 p-3.5 text-xs text-amber-950 animate-in slide-in-from-top duration-200">
-            <div className="max-w-xl mx-auto space-y-2.5">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-1.5">
-                  <Smartphone className="w-4 h-4 text-[#9E341D]" />
-                  <span className="font-bold text-stone-900">Phone Session Simulator</span>
-                </div>
-                <button onClick={() => setShowSessionDrawer(false)} className="text-stone-400 hover:text-stone-700">
-                  <X className="w-4 h-4" />
-                </button>
-              </div>
-              <p className="text-[11px] text-stone-600 leading-relaxed">
-                Test the multi-phone behavior: <strong>Phone 1</strong> can place an order and then scan again to see the 
-                <em> &quot;Adding new items to previous order&quot;</em> interface. Switch to <strong>Phone 2</strong> to simulate a new customer 
-                scanning Table {tableCode} who sees a fresh welcome and new order ticket.
-              </p>
-              <div className="flex flex-wrap gap-2 pt-1">
-                <button
-                  onClick={() => switchDeviceSession('phone1')}
-                  className={`px-3 py-1.5 rounded-xl font-bold text-xs flex items-center space-x-1 transition ${
-                    deviceSessionId.includes('phone1')
-                      ? 'bg-[#9E341D] text-white shadow-xs'
-                      : 'bg-white border border-stone-200 text-stone-700 hover:bg-stone-50'
-                  }`}
-                >
-                  <span>Phone 1 (Customer 1)</span>
-                  {deviceSessionId.includes('phone1') && <Check className="w-3.5 h-3.5" />}
-                </button>
-                <button
-                  onClick={() => switchDeviceSession('phone2')}
-                  className={`px-3 py-1.5 rounded-xl font-bold text-xs flex items-center space-x-1 transition ${
-                    deviceSessionId.includes('phone2')
-                      ? 'bg-[#9E341D] text-white shadow-xs'
-                      : 'bg-white border border-stone-200 text-stone-700 hover:bg-stone-50'
-                  }`}
-                >
-                  <span>Phone 2 (Customer 2 - New)</span>
-                  {deviceSessionId.includes('phone2') && <Check className="w-3.5 h-3.5" />}
-                </button>
-                <button
-                  onClick={() => switchDeviceSession('new')}
-                  className="px-3 py-1.5 rounded-xl bg-white border border-stone-200 text-stone-700 hover:bg-stone-50 font-bold text-xs flex items-center space-x-1"
-                >
-                  <RotateCcw className="w-3 h-3 text-stone-500" />
-                  <span>Random New Phone</span>
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
 
         {/* Re-order Continuation Active Banner when browsing menu */}
         {activeExistingOrder && currentView === 'menu' && (
@@ -852,32 +756,17 @@ function CustomerOrderingContent() {
               <p className="text-xs sm:text-sm font-semibold text-[#9E341D] tracking-wide mt-1">
                 Authentic Kerala Lunch & Fresh Coastal Seafood
               </p>
-              <p className="text-[11px] text-stone-400 mt-0.5">
-                Statue Junction, Trivandrum
+              <p className="text-xs font-medium text-stone-500 mt-1 tracking-wide">
+                Vanchiyoor, Trivandrum
               </p>
 
               {/* Table Identification Card */}
-              <div className="w-full mt-6 p-4 rounded-2xl bg-[#FAF7F2] border border-amber-200/70 text-center shadow-2xs">
-                <span className="text-[10px] font-bold uppercase tracking-widest text-stone-400">
-                  Scanned QR Location
+              <div className="w-full mt-6 py-6 px-4 rounded-3xl bg-[#FAF7F2] border border-amber-200/80 text-center shadow-2xs flex flex-col items-center justify-center">
+                <span className="text-xs font-bold uppercase tracking-widest text-stone-500">
+                  You are ordering through
                 </span>
-                <div className="text-lg sm:text-xl font-black text-stone-900 mt-1 flex items-center justify-center space-x-2">
-                  <span>You are ordering through</span>
-                  <span className="px-2.5 py-0.5 rounded-lg bg-[#9E341D] text-white font-mono text-base font-extrabold shadow-xs">
-                    {tableCode}
-                  </span>
-                </div>
-                <p className="text-xs font-medium text-stone-600 mt-1">
-                  {tableDisplayName} • Direct Kitchen Link
-                </p>
-
-                <div className="mt-3 pt-2.5 border-t border-amber-200/50 flex items-center justify-center space-x-3 text-[11px] text-emerald-800 font-semibold">
-                  <span className="flex items-center">
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 mr-1.5 animate-pulse" />
-                    Table Verified
-                  </span>
-                  <span>•</span>
-                  <span>Contactless Kitchen Service</span>
+                <div className="text-4xl sm:text-5xl font-black text-[#9E341D] tracking-wider font-mono my-2.5 px-6 py-2 rounded-2xl bg-amber-500/10 border border-amber-300 shadow-xs inline-block">
+                  {tableCode}
                 </div>
               </div>
 
@@ -955,46 +844,12 @@ function CustomerOrderingContent() {
                     <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
                   </button>
 
-                  <p className="text-xs text-stone-500 font-malayalam-serif">
+                  <p className="text-sm font-semibold text-stone-600 font-malayalam-serif">
                     ഇന്നത്തെ സ്പെഷ്യൽ വിഭവങ്ങളും തത്സമയ നിരക്കുകളും കാണുക
                   </p>
                 </div>
               )}
             </div>
-          </div>
-
-          {/* Highlights of Today's Kitchen */}
-          <div className="grid grid-cols-3 gap-3 text-center">
-            <div className="bg-white rounded-2xl p-3 border border-stone-200/80 shadow-2xs">
-              <div className="w-8 h-8 rounded-full bg-cyan-50 text-cyan-700 flex items-center justify-center mx-auto mb-1.5">
-                <Fish className="w-4 h-4" />
-              </div>
-              <div className="text-[11px] font-bold text-stone-900">Fresh Catch</div>
-              <div className="text-[10px] text-stone-500">Direct coastal catch</div>
-            </div>
-            <div className="bg-white rounded-2xl p-3 border border-stone-200/80 shadow-2xs">
-              <div className="w-8 h-8 rounded-full bg-emerald-50 text-emerald-700 flex items-center justify-center mx-auto mb-1.5">
-                <ChefHat className="w-4 h-4" />
-              </div>
-              <div className="text-[11px] font-bold text-stone-900">Naadan Sadhya</div>
-              <div className="text-[10px] text-stone-500">Clay pot cooking</div>
-            </div>
-            <div className="bg-white rounded-2xl p-3 border border-stone-200/80 shadow-2xs">
-              <div className="w-8 h-8 rounded-full bg-amber-50 text-amber-700 flex items-center justify-center mx-auto mb-1.5">
-                <Clock className="w-4 h-4" />
-              </div>
-              <div className="text-[11px] font-bold text-stone-900">Quick Serving</div>
-              <div className="text-[10px] text-stone-500">10–15 mins fresh</div>
-            </div>
-          </div>
-
-          {/* Session Identification Notice for Patrons */}
-          <div className="p-3.5 rounded-2xl bg-stone-100/80 border border-stone-200/70 text-stone-600 text-xs flex items-center space-x-2.5">
-            <Info className="w-4 h-4 text-stone-400 shrink-0" />
-            <p className="text-[11px] leading-relaxed">
-              Your device session is linked to <strong>{tableCode}</strong>. If you re-scan this QR code during dining, 
-              you can effortlessly add more dishes to your running order!
-            </p>
           </div>
         </main>
       )}
