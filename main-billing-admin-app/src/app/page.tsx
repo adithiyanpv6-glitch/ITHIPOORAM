@@ -17,7 +17,7 @@ import { getCurrentUser } from '../lib/api';
 export default function OperationalGateway() {
   const router = useRouter();
   const [currentUser, setCurrentUser] = useState<any>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
   const [fadeLoading, setFadeLoading] = useState(false);
 
   // Authentication Guard: Web app always begins with sign in if not authenticated
@@ -29,18 +29,26 @@ export default function OperationalGateway() {
     }
     setCurrentUser(user);
 
-    const timer1 = setTimeout(() => {
-      setFadeLoading(true); // Initiate fade out animation
-    }, 1100);
+    // Only show splash once per browser session; subsequent returns to dashboard are instant with zero transition
+    const hasSeenSplash = typeof window !== 'undefined' ? sessionStorage.getItem('ithi_splash_shown') : true;
+    if (!hasSeenSplash) {
+      setIsLoading(true);
+      if (typeof window !== 'undefined') {
+        sessionStorage.setItem('ithi_splash_shown', 'true');
+      }
+      const timer1 = setTimeout(() => {
+        setFadeLoading(true);
+      }, 700);
 
-    const timer2 = setTimeout(() => {
-      setIsLoading(false); // Remove overlay from DOM
-    }, 1700);
+      const timer2 = setTimeout(() => {
+        setIsLoading(false);
+      }, 1000);
 
-    return () => {
-      clearTimeout(timer1);
-      clearTimeout(timer2);
-    };
+      return () => {
+        clearTimeout(timer1);
+        clearTimeout(timer2);
+      };
+    }
   }, [router]);
 
   const handleSignOut = () => {

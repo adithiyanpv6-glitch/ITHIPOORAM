@@ -14,6 +14,14 @@ import { apiRequest, getCurrentUser } from '../../lib/api';
 
 export default function AuditTrailPage() {
   const router = useRouter();
+
+  const handleBack = () => {
+    if (typeof window !== 'undefined' && window.history.length > 1) {
+      router.back();
+    } else {
+      router.push('/');
+    }
+  };
   const [logs, setLogs] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [moduleFilter, setModuleFilter] = useState('');
@@ -46,9 +54,13 @@ export default function AuditTrailPage() {
     <div className="min-h-screen bg-parchment-50 font-sans">
       <header className="bg-slatepos-900 border-b border-slatepos-800 text-white px-6 py-4 flex items-center justify-between">
         <div className="flex items-center space-x-3">
-          <Link href="/" className="p-2 rounded-xl bg-slatepos-800 hover:bg-slatepos-700 text-slatepos-300">
+          <button 
+            onClick={handleBack} 
+            className="p-2 rounded-xl bg-slatepos-800 hover:bg-slatepos-700 text-slatepos-300 transition-colors"
+            title="Back to Previous Page"
+          >
             <ArrowLeft className="w-4 h-4" />
-          </Link>
+          </button>
           <div className="w-10 h-10 rounded-xl bg-amber-600 flex items-center justify-center text-white font-bold shadow-md">
             <ShieldCheck className="w-5 h-5" />
           </div>

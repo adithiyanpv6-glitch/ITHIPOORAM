@@ -52,6 +52,14 @@ export default function UsersPage() {
   const [telegramStatus, setTelegramStatus] = useState<string | null>(null);
   const [isSendingTelegram, setIsSendingTelegram] = useState(false);
 
+  const handleBack = () => {
+    if (typeof window !== 'undefined' && window.history.length > 1) {
+      router.back();
+    } else {
+      router.push('/');
+    }
+  };
+
   // Load staff records from localStorage or defaults
   const loadStaffDatabase = () => {
     if (typeof window !== 'undefined') {
@@ -223,9 +231,13 @@ export default function UsersPage() {
       <header className="bg-slatepos-900 border-b border-slatepos-800 text-white px-4 sm:px-6 py-3.5 sticky top-0 z-30 shadow-md">
         <div className="max-w-7xl mx-auto flex items-center justify-between">
           <div className="flex items-center space-x-3.5">
-            <Link href="/" className="p-2 rounded-xl bg-slatepos-800 hover:bg-slatepos-700 text-slatepos-300">
+            <button 
+              onClick={handleBack} 
+              className="p-2 rounded-xl bg-slatepos-800 hover:bg-slatepos-700 text-slatepos-300 transition-colors"
+              title="Back to Previous Page"
+            >
               <ArrowLeft className="w-4 h-4" />
-            </Link>
+            </button>
 
             <img 
               src="/ithipooram-logo.png" 

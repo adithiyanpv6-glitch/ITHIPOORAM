@@ -12,7 +12,6 @@ import {
   RefreshCw, 
   Lock, 
   CheckCircle2, 
-  LogOut, 
   Split, 
   Percent, 
   ArrowLeft,
@@ -31,9 +30,17 @@ interface TableSummary {
 
 export default function BillingTerminalPage() {
   const router = useRouter();
+
+  const handleBack = () => {
+    if (typeof window !== 'undefined' && window.history.length > 1) {
+      router.back();
+    } else {
+      router.push('/');
+    }
+  };
   const [mobileTab, setMobileTab] = useState<'tables' | 'orders' | 'checkout'>('tables');
   const [tables, setTables] = useState<TableSummary[]>([]);
-  const [selectedTableCode, setSelectedTableCode] = useState<string>('TQ1');
+  const [selectedTableCode, setSelectedTableCode] = useState<string>('');
   const [unpaidOrders, setUnpaidOrders] = useState<any[]>([]);
   const [selectedOrder, setSelectedOrder] = useState<any | null>(null);
   const [billPreview, setBillPreview] = useState<any | null>(null);
@@ -74,8 +81,38 @@ export default function BillingTerminalPage() {
   const loadTables = async () => {
     try {
       setLoadingTables(true);
+
+      // Check Table QR generation database from localStorage to ensure all created tables are synced
+      if (typeof window !== 'undefined') {
+        const savedCustomTables = localStorage.getItem('ithipooram_custom_tables');
+        if (savedCustomTables) {
+          try {
+            const customTables = JSON.parse(savedCustomTables);
+            if (Array.isArray(customTables) && customTables.length > 0) {
+              await fetch('/api/tables', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  tables: customTables.map((t: any) => ({
+                    tableCode: (t.tableCode || '').toUpperCase(),
+                    displayName: t.roomName ? `${t.roomName} - ${t.tableName || t.tableCode}` : (t.tableName || `Table ${t.tableCode}`),
+                    capacity: t.capacity || 4,
+                  })),
+                }),
+              }).catch(() => {});
+            }
+          } catch (e) {}
+        }
+      }
+
       const data = await apiRequest<TableSummary[]>('/tables');
       setTables(data);
+      if (data.length > 0) {
+        setSelectedTableCode((prev) => {
+          const exists = data.some((t) => t.tableCode.toUpperCase() === prev?.toUpperCase());
+          return exists ? prev : data[0].tableCode;
+        });
+      }
     } catch (err) {
       console.error('Failed to load tables:', err);
     } finally {
@@ -83,21 +120,29 @@ export default function BillingTerminalPage() {
     }
   };
 
-  const loadUnpaidOrders = async (tCode: string) => {
+  const loadUnpaidOrders = async (tCode: string, silent = false) => {
     try {
-      setLoadingOrders(true);
+      if (!silent) setLoadingOrders(true);
       const res = await apiRequest(`/billing/tables/${tCode}/unpaid`);
-      setUnpaidOrders(res.unpaidOrders || []);
-      if (res.unpaidOrders && res.unpaidOrders.length > 0) {
-        selectOrderForBilling(res.unpaidOrders[0]);
+      const freshOrders = res.unpaidOrders || [];
+      setUnpaidOrders(freshOrders);
+      if (freshOrders.length > 0) {
+        // If no order selected or currently selected order no longer unpaid, select first
+        setSelectedOrder((curr: any) => {
+          if (!curr || !freshOrders.some((o: any) => o.id === curr.id)) {
+            selectOrderForBilling(freshOrders[0]);
+            return freshOrders[0];
+          }
+          return curr;
+        });
       } else {
         setSelectedOrder(null);
         setBillPreview(null);
       }
     } catch (err) {
-      console.error('Failed to load unpaid orders:', err);
+      if (!silent) console.error('Failed to load unpaid orders:', err);
     } finally {
-      setLoadingOrders(false);
+      if (!silent) setLoadingOrders(false);
     }
   };
 
@@ -127,6 +172,23 @@ export default function BillingTerminalPage() {
     if (selectedTableCode) {
       loadUnpaidOrders(selectedTableCode);
     }
+  }, [selectedTableCode]);
+
+  // Live tracker: continuously tracks customer ordering system in real-time (2.5s)
+  useEffect(() => {
+    const liveTrackerInterval = setInterval(async () => {
+      try {
+        const freshTables = await apiRequest<TableSummary[]>('/tables');
+        setTables(freshTables);
+        if (selectedTableCode) {
+          loadUnpaidOrders(selectedTableCode, true);
+        }
+      } catch (err) {
+        // Silent background polling
+      }
+    }, 2500);
+
+    return () => clearInterval(liveTrackerInterval);
   }, [selectedTableCode]);
 
   const handleInitiatePayment = () => {
@@ -202,60 +264,42 @@ export default function BillingTerminalPage() {
 
   return (
     <div className="min-h-screen bg-parchment-50 flex flex-col font-sans">
-      {/* Top POS Header */}
-      <header className="bg-slatepos-900 border-b border-slatepos-800 text-white px-6 py-3.5 flex items-center justify-between sticky top-0 z-30">
-        <div className="flex items-center space-x-3">
-          <Link
-            href="/"
-            className="p-2 rounded-xl bg-slatepos-800 hover:bg-slatepos-700 text-slatepos-300"
-            title="Return to Gateway"
+      {/* Top POS Header - Single Line Centered */}
+      <header className="bg-slatepos-900 border-b border-slatepos-800 text-white px-4 sm:px-6 py-3.5 flex items-center justify-between sticky top-0 z-30 shadow-md">
+        {/* Left: Instant Back Navigation */}
+        <div className="flex items-center w-1/4">
+          <button
+            onClick={handleBack}
+            className="p-2 rounded-xl bg-slatepos-800 hover:bg-slatepos-700 text-slatepos-300 transition-colors"
+            title="Back to Previous Page"
           >
             <ArrowLeft className="w-4 h-4" />
-          </Link>
-          <img 
-            src="/logo.png" 
-            alt="Logo" 
-            className="w-10 h-10 object-contain rounded-full shadow-md"
-          />
-          <div>
-            <div className="flex items-center space-x-2">
-              <h1 className="text-base font-black tracking-tight">BILLING & COUNTER POS</h1>
-              <img 
-                src="/brand-calligraphy-white.png" 
-                alt="ഇത്തിപൂരം" 
-                className="h-5 sm:h-6 w-auto object-contain opacity-95"
-              />
-            </div>
-            <p className="text-xs text-slatepos-400">
-              Terminal: Cashier 1 • Vanchiyoor, Trivandrum (Cutoff: 03:00 AM IST)
-            </p>
-          </div>
+          </button>
         </div>
 
-        <div className="flex items-center space-x-3">
-          <div className="text-right hidden sm:block">
-            <div className="text-xs font-bold text-white">
-              {cashier?.fullName || 'Gokul Krishnan'}
-            </div>
-            <div className="text-[11px] text-slatepos-400 font-mono">
-              PIN: 5566 (Counter 1)
-            </div>
+        {/* Center: Single Line "Billing Counter" */}
+        <div className="flex items-center justify-center w-2/4 text-center">
+          <h1 className="text-base sm:text-lg font-black tracking-wider text-white uppercase truncate">
+            Billing Counter
+          </h1>
+        </div>
+
+        {/* Right: Live Connection Pulse & Refresh */}
+        <div className="flex items-center justify-end w-1/4 space-x-2">
+          <div className="hidden sm:flex items-center space-x-1.5 bg-emerald-950/60 border border-emerald-500/30 px-2.5 py-1 rounded-full">
+            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+            <span className="text-[10px] font-bold text-emerald-300 uppercase tracking-wider">Live Orders</span>
           </div>
-
-          <Link
-            href="/admin"
-            className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-slatepos-800 hover:bg-slatepos-700 text-slatepos-200"
+          <button
+            onClick={() => {
+              loadTables();
+              if (selectedTableCode) loadUnpaidOrders(selectedTableCode);
+            }}
+            className="p-2 rounded-xl bg-slatepos-800 hover:bg-slatepos-700 text-slatepos-300 hover:text-white transition-colors"
+            title="Refresh Live Data"
           >
-            Admin Reports
-          </Link>
-
-          <Link
-            href="/login"
-            className="p-2 rounded-lg bg-slatepos-800 hover:bg-red-950/60 text-slatepos-400 hover:text-red-300"
-            title="Log Out"
-          >
-            <LogOut className="w-4 h-4" />
-          </Link>
+            <RefreshCw className={`w-3.5 h-3.5 ${loadingTables || loadingOrders ? 'animate-spin' : ''}`} />
+          </button>
         </div>
       </header>
 
@@ -303,7 +347,7 @@ export default function BillingTerminalPage() {
         }`}>
           <div className="flex items-center justify-between mb-3">
             <h2 className="text-xs font-bold uppercase tracking-wider text-slatepos-500">
-              Floor Tables (10)
+              Tables ({tables.length})
             </h2>
             <button
               onClick={loadTables}
@@ -314,52 +358,70 @@ export default function BillingTerminalPage() {
             </button>
           </div>
 
-          <div className="grid grid-cols-2 gap-2.5">
-            {tables.map((t) => {
-              const isSelected = selectedTableCode === t.tableCode;
-              const isBillPending = t.status === 'BILL_PENDING';
-              const isActive = t.status === 'ACTIVE_ORDER';
+          {tables.length === 0 ? (
+            <div className="flex-1 flex flex-col items-center justify-center p-6 text-center border-2 border-dashed border-parchment-300 rounded-2xl bg-parchment-50/60 my-auto">
+              <div className="w-12 h-12 rounded-2xl bg-amber-500/10 text-amber-700 flex items-center justify-center mb-3">
+                <QrCode className="w-6 h-6" />
+              </div>
+              <h3 className="text-sm font-bold text-slatepos-900 mb-1">No Tables Configured</h3>
+              <p className="text-xs text-slatepos-500 mb-4 leading-relaxed">
+                Add or generate tables in the Table QR section to display them here.
+              </p>
+              <Link
+                href="/qr"
+                className="px-4 py-2 rounded-xl bg-[#9E341D] hover:bg-[#852B17] text-white font-bold text-xs shadow-sm transition"
+              >
+                + Add Tables
+              </Link>
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 gap-2.5">
+              {tables.map((t) => {
+                const isSelected = selectedTableCode === t.tableCode;
+                const isBillPending = t.status === 'BILL_PENDING';
+                const isActive = t.status === 'ACTIVE_ORDER';
 
-              return (
-                <button
-                  key={t.id}
-                  onClick={() => {
-                    setSelectedTableCode(t.tableCode);
-                    setMobileTab('orders');
-                  }}
-                  className={`p-3 rounded-2xl border text-left transition relative flex flex-col justify-between h-24 ${
-                    isSelected
-                      ? 'border-brand-600 bg-brand-50/60 ring-2 ring-brand-500/30'
-                      : isBillPending
-                      ? 'border-brand-300 bg-brand-50/30 hover:border-brand-400'
-                      : isActive
-                      ? 'border-amber-300 bg-amber-50/30 hover:border-amber-400'
-                      : 'border-parchment-200 bg-parchment-50/50 hover:border-parchment-300'
-                  }`}
-                >
-                  <div className="flex items-center justify-between w-full">
-                    <span className="text-base font-black text-slatepos-950 font-mono">
-                      {t.tableCode}
-                    </span>
-                    {t.unpaidCount > 0 && (
-                      <span className="w-5 h-5 rounded-full bg-brand-600 text-white text-[10px] font-bold flex items-center justify-center">
-                        {t.unpaidCount}
+                return (
+                  <button
+                    key={t.id}
+                    onClick={() => {
+                      setSelectedTableCode(t.tableCode);
+                      setMobileTab('orders');
+                    }}
+                    className={`p-3 rounded-2xl border text-left transition relative flex flex-col justify-between h-24 ${
+                      isSelected
+                        ? 'border-brand-600 bg-brand-50/60 ring-2 ring-brand-500/30'
+                        : isBillPending
+                        ? 'border-brand-300 bg-brand-50/30 hover:border-brand-400'
+                        : isActive
+                        ? 'border-amber-300 bg-amber-50/30 hover:border-amber-400'
+                        : 'border-parchment-200 bg-parchment-50/50 hover:border-parchment-300'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between w-full">
+                      <span className="text-base font-black text-slatepos-950 font-mono">
+                        {t.tableCode}
                       </span>
-                    )}
-                  </div>
+                      {t.unpaidCount > 0 && (
+                        <span className="w-5 h-5 rounded-full bg-brand-600 text-white text-[10px] font-bold flex items-center justify-center">
+                          {t.unpaidCount}
+                        </span>
+                      )}
+                    </div>
 
-                  <div>
-                    <div className="text-[11px] font-medium text-slatepos-500 truncate">
-                      {t.displayName.split('(')[0]}
+                    <div>
+                      <div className="text-[11px] font-medium text-slatepos-500 truncate">
+                        {t.displayName.split('(')[0]}
+                      </div>
+                      <div className="text-xs font-extrabold text-slatepos-900 mt-0.5">
+                        {t.unpaidTotalPaise > 0 ? formatRupees(t.unpaidTotalPaise) : 'Free'}
+                      </div>
                     </div>
-                    <div className="text-xs font-extrabold text-slatepos-900 mt-0.5">
-                      {t.unpaidTotalPaise > 0 ? formatRupees(t.unpaidTotalPaise) : 'Free'}
-                    </div>
-                  </div>
-                </button>
-              );
-            })}
-          </div>
+                  </button>
+                );
+              })}
+            </div>
+          )}
         </section>
 
         {/* Middle Column: Latest 3 to 5 Unpaid Orders for Selected Table */}
@@ -369,24 +431,42 @@ export default function BillingTerminalPage() {
           <div className="flex items-center justify-between mb-3 pb-2 border-b border-parchment-200">
             <div>
               <h2 className="text-sm font-bold text-slatepos-900 flex items-center space-x-1.5">
-                <span>Orders for</span>
-                <span className="font-mono text-brand-700 bg-brand-50 px-2 py-0.5 rounded border border-brand-200">
-                  {selectedTableCode}
-                </span>
+                <span>Orders</span>
+                {selectedTableCode && (
+                  <span className="font-mono text-brand-700 bg-brand-50 px-2 py-0.5 rounded border border-brand-200">
+                    {selectedTableCode}
+                  </span>
+                )}
               </h2>
               <p className="text-[11px] text-slatepos-500">
-                Latest 3 to 5 unpaid customer tickets
+                {selectedTableCode ? 'Latest 3 to 5 unpaid customer tickets' : 'Select a table to monitor tickets'}
               </p>
             </div>
-            <button
-              onClick={() => loadUnpaidOrders(selectedTableCode)}
-              className="p-1.5 rounded-lg bg-white border border-parchment-200 text-slatepos-600 hover:text-slatepos-900"
-            >
-              <RefreshCw className={`w-3.5 h-3.5 ${loadingOrders ? 'animate-spin' : ''}`} />
-            </button>
+            {selectedTableCode && (
+              <button
+                onClick={() => loadUnpaidOrders(selectedTableCode)}
+                className="p-1.5 rounded-lg bg-white border border-parchment-200 text-slatepos-600 hover:text-slatepos-900"
+              >
+                <RefreshCw className={`w-3.5 h-3.5 ${loadingOrders ? 'animate-spin' : ''}`} />
+              </button>
+            )}
           </div>
 
-          {loadingOrders ? (
+          {tables.length === 0 ? (
+            <div className="h-64 flex flex-col items-center justify-center text-center p-6 bg-white rounded-2xl border border-parchment-200">
+              <h3 className="text-sm font-bold text-slatepos-900">No Tables Added Yet</h3>
+              <p className="text-xs text-slatepos-500 mt-1">
+                Add tables from the Table QR Stands section to view orders here.
+              </p>
+            </div>
+          ) : !selectedTableCode ? (
+            <div className="h-64 flex flex-col items-center justify-center text-center p-6 bg-white rounded-2xl border border-parchment-200">
+              <h3 className="text-sm font-bold text-slatepos-900">No Table Selected</h3>
+              <p className="text-xs text-slatepos-500 mt-1">
+                Select a table on the left to inspect customer orders.
+              </p>
+            </div>
+          ) : loadingOrders ? (
             <div className="py-12 text-center">
               <div className="w-6 h-6 border-2 border-brand-600 border-t-transparent rounded-full animate-spin mx-auto mb-2"></div>
               <p className="text-xs text-slatepos-500">Checking open orders...</p>

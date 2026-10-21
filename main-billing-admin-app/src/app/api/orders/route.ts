@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { db, refreshTableSummaries, RestaurantOrder, KitchenTicket } from '@/lib/serverDb';
+import { autoDispatchTableExcelToTelegram } from '@/lib/autoTelegramExcelSync';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -154,6 +155,9 @@ export async function POST(request: Request) {
         success: true,
       });
 
+      // Auto-dispatch updated multi-sheet Excel file to Telegram group
+      autoDispatchTableExcelToTelegram(`Add-on Order at Table ${tableCode} (Round ${existingOrder.roundCount})`).catch(() => {});
+
       return NextResponse.json({ success: true, order: existingOrder, isAddOn: true }, { status: 200, headers: corsHeaders });
     }
 
@@ -233,6 +237,9 @@ export async function POST(request: Request) {
       reason: `New dining order placed: ${formattedItems.length} items (${(grandTotalPaise / 100).toFixed(2)} INR)`,
       success: true,
     });
+
+    // Auto-dispatch updated multi-sheet Excel file to Telegram group
+    autoDispatchTableExcelToTelegram(`New Customer Order at Table ${tableCode} (${customerCode})`).catch(() => {});
 
     return NextResponse.json({ success: true, order: newOrder, isAddOn: false }, { status: 201, headers: corsHeaders });
   } catch (err: any) {

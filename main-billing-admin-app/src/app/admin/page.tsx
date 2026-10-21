@@ -7,10 +7,6 @@ import {
   BarChart3, 
   TrendingUp, 
   Download, 
-  Users, 
-  QrCode, 
-  UtensilsCrossed, 
-  ShieldCheck, 
   ArrowLeft,
   RefreshCw,
   Calendar,
@@ -55,17 +51,18 @@ export default function AdminOverviewPage() {
 
   const formatRupees = (paise: number = 0) => `₹${(paise / 100).toLocaleString('en-IN', { minimumFractionDigits: 2 })}`;
 
-  const handleDownloadCsv = async () => {
+  const handleDownloadReport = async (format: 'csv' | 'xls' = 'csv') => {
     try {
       setIsExporting(true);
-      // Fetch dynamic CSV directly from API
-      const res = await fetch(`/api/admin/overview?range=${selectedRange}&format=csv`);
+      // Fetch dynamic sales data directly from Billing database API
+      const res = await fetch(`/api/admin/overview?range=${selectedRange}&format=${format}`);
       if (res.ok) {
         const blob = await res.blob();
         const url = window.URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = `ithipooram_sales_${selectedRange}_${new Date().toISOString().split('T')[0]}.csv`;
+        const ext = format === 'xls' ? 'xls' : 'csv';
+        a.download = `ithipooram_billing_sales_${selectedRange}_${new Date().toISOString().split('T')[0]}.${ext}`;
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
@@ -87,22 +84,18 @@ export default function AdminOverviewPage() {
     }
   };
 
-  const navLinks = [
-    { href: '/admin', label: 'Overview', active: true },
-    { href: '/menu', label: 'Live Menu', active: false },
-    { href: '/audit', label: 'Audit Trail', active: false },
-    { href: '/users', label: 'Staff Accounts', active: false },
-    { href: '/qr', label: 'QR Stands', active: false },
-  ];
-
   return (
     <div className="min-h-screen bg-parchment-50 flex flex-col font-sans">
       {/* Top Header */}
       <header className="bg-slatepos-900 border-b border-slatepos-800 text-white px-4 sm:px-6 py-3.5 sticky top-0 z-30 flex items-center justify-between">
         <div className="flex items-center space-x-3">
-          <Link href="/" className="p-2 rounded-xl bg-slatepos-800 hover:bg-slatepos-700 text-slatepos-300">
+          <button 
+            onClick={handleBack} 
+            className="p-2 rounded-xl bg-slatepos-800 hover:bg-slatepos-700 text-slatepos-300 transition-colors"
+            title="Back to Previous Page"
+          >
             <ArrowLeft className="w-4 h-4" />
-          </Link>
+          </button>
           <div className="w-9 h-9 rounded-xl bg-purple-600 flex items-center justify-center text-white font-bold shadow-md shrink-0">
             <BarChart3 className="w-5 h-5" />
           </div>
@@ -115,38 +108,19 @@ export default function AdminOverviewPage() {
           <Link href="/billing" className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-slatepos-800 hover:bg-slatepos-700 text-slatepos-200">
             POS Counter
           </Link>
-          <button onClick={() => loadOverview()} className="p-1.5 rounded-lg bg-slatepos-800 text-slatepos-300 hover:text-white">
+          <button onClick={() => loadOverview()} className="p-1.5 rounded-lg bg-slatepos-800 text-slatepos-300 hover:text-white" title="Refresh Live Data">
             <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
           </button>
         </div>
       </header>
 
-      {/* 5 Suboptions Navigation - Mobile & Laptop Friendly */}
-      <div className="bg-white border-b border-parchment-200 px-4 sm:px-6 py-2">
-        <div className="max-w-7xl mx-auto flex items-center space-x-2 overflow-x-auto no-scrollbar">
-          {navLinks.map((tab) => (
-            <Link
-              key={tab.href}
-              href={tab.href}
-              className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition ${
-                tab.active
-                  ? 'bg-purple-50 text-purple-800 border border-purple-200 shadow-2xs'
-                  : 'text-slatepos-600 hover:bg-parchment-100 hover:text-slatepos-900'
-              }`}
-            >
-              {tab.label}
-            </Link>
-          ))}
-        </div>
-      </div>
-
-      {/* Mobile-Visible Time Range & Sales CSV Download Bar */}
-      <div className="bg-parchment-100/80 border-b border-parchment-200 px-4 sm:px-6 py-2.5">
-        <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5">
+      {/* Time Range & Billing Database Sales Download Bar */}
+      <div className="bg-white border-b border-parchment-200 px-4 sm:px-6 py-3">
+        <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
           <div className="flex items-center space-x-2">
             <Calendar className="w-4 h-4 text-purple-700 shrink-0" />
             <span className="text-xs font-bold text-slatepos-700 shrink-0">Period:</span>
-            <div className="flex space-x-1 overflow-x-auto no-scrollbar py-0.5">
+            <div className="flex space-x-1.5 overflow-x-auto no-scrollbar py-0.5">
               {[
                 { id: 'today', label: 'Today' },
                 { id: '2days', label: '2 Days' },
@@ -157,10 +131,10 @@ export default function AdminOverviewPage() {
                 <button
                   key={r.id}
                   onClick={() => setSelectedRange(r.id as any)}
-                  className={`px-2.5 py-1 rounded-lg text-xs font-bold transition whitespace-nowrap ${
+                  className={`px-3 py-1 rounded-lg text-xs font-bold transition whitespace-nowrap ${
                     selectedRange === r.id
                       ? 'bg-purple-600 text-white shadow-2xs'
-                      : 'bg-white text-slatepos-700 border border-parchment-300 hover:bg-parchment-200'
+                      : 'bg-parchment-100 text-slatepos-700 border border-parchment-300 hover:bg-parchment-200'
                   }`}
                 >
                   {r.label}
@@ -169,14 +143,26 @@ export default function AdminOverviewPage() {
             </div>
           </div>
 
-          <button
-            onClick={handleDownloadCsv}
-            disabled={isExporting}
-            className="w-full sm:w-auto px-4 py-1.5 rounded-xl text-xs font-bold bg-brand-600 hover:bg-brand-700 text-white shadow-md flex items-center justify-center space-x-1.5 transition active:scale-98 shrink-0"
-          >
-            <FileSpreadsheet className="w-3.5 h-3.5" />
-            <span>{isExporting ? 'Generating CSV...' : `Download ${selectedRange.toUpperCase()} Sales CSV`}</span>
-          </button>
+          <div className="flex items-center space-x-2">
+            <button
+              onClick={() => handleDownloadReport('csv')}
+              disabled={isExporting}
+              className="w-full sm:w-auto px-4 py-2 rounded-xl text-xs font-bold bg-[#9E341D] hover:bg-[#852B17] text-white shadow-md flex items-center justify-center space-x-2 active:scale-98 shrink-0 cursor-pointer disabled:opacity-50"
+              title="Export settled bills from billing database"
+            >
+              <FileSpreadsheet className="w-4 h-4" />
+              <span>{isExporting ? 'Exporting...' : `Download ${selectedRange === 'today' ? "Today's" : selectedRange.toUpperCase()} Sales CSV`}</span>
+            </button>
+            <button
+              onClick={() => handleDownloadReport('xls')}
+              disabled={isExporting}
+              className="w-full sm:w-auto px-3.5 py-2 rounded-xl text-xs font-bold bg-slatepos-800 hover:bg-slatepos-700 text-white shadow-md flex items-center justify-center space-x-1.5 active:scale-98 shrink-0 cursor-pointer disabled:opacity-50"
+              title="Download Excel format"
+            >
+              <Download className="w-3.5 h-3.5 text-amber-300" />
+              <span>Excel (.xls)</span>
+            </button>
+          </div>
         </div>
       </div>
 
@@ -189,41 +175,25 @@ export default function AdminOverviewPage() {
           </div>
         ) : (
           <>
-            {/* KPI Summary Cards */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            {/* KPI Summary Cards - Today's Total Sale & Total Orders */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="bg-white p-5 rounded-2xl border border-parchment-200 shadow-2xs">
-                <span className="text-xs font-bold text-slatepos-400 uppercase tracking-wider">Gross Sales</span>
-                <div className="text-2xl font-black text-slatepos-950 mt-1 font-mono">
+                <span className="text-xs font-bold text-slatepos-400 uppercase tracking-wider">Today's Total Sale</span>
+                <div className="text-3xl font-black text-slatepos-950 mt-1.5 font-mono text-[#9E341D]">
                   {formatRupees(data?.kpis?.grossSalesPaise)}
                 </div>
-                <div className="flex items-center text-xs text-emerald-600 font-semibold mt-2">
+                <div className="flex items-center text-xs text-emerald-600 font-semibold mt-2.5">
                   <TrendingUp className="w-3.5 h-3.5 mr-1" />
-                  <span>{data?.kpis?.paidOrdersCount} checks settled</span>
+                  <span>{data?.kpis?.paidOrdersCount} checks settled in billing database</span>
                 </div>
               </div>
 
               <div className="bg-white p-5 rounded-2xl border border-parchment-200 shadow-2xs">
                 <span className="text-xs font-bold text-slatepos-400 uppercase tracking-wider">Total Orders</span>
-                <div className="text-2xl font-black text-slatepos-950 mt-1 font-mono">
+                <div className="text-3xl font-black text-slatepos-950 mt-1.5 font-mono text-slatepos-900">
                   {data?.kpis?.totalOrdersCount}
                 </div>
-                <div className="text-xs text-slatepos-500 mt-2">{data?.kpis?.unpaidOrdersCount} open tickets</div>
-              </div>
-
-              <div className="bg-white p-5 rounded-2xl border border-parchment-200 shadow-2xs">
-                <span className="text-xs font-bold text-slatepos-400 uppercase tracking-wider">Average Order Value</span>
-                <div className="text-2xl font-black text-slatepos-950 mt-1 font-mono">
-                  {formatRupees(data?.kpis?.averageOrderValuePaise)}
-                </div>
-                <div className="text-xs text-slatepos-500 mt-2">Per table check</div>
-              </div>
-
-              <div className="bg-white p-5 rounded-2xl border border-parchment-200 shadow-2xs">
-                <span className="text-xs font-bold text-slatepos-400 uppercase tracking-wider">Discounts / Voids</span>
-                <div className="text-2xl font-black text-slatepos-950 mt-1 font-mono">
-                  {formatRupees(data?.kpis?.discountPaise)}
-                </div>
-                <div className="text-xs text-slatepos-500 mt-2">0 cancelled tickets</div>
+                <div className="text-xs text-slatepos-500 mt-2.5">{data?.kpis?.unpaidOrdersCount} open tickets currently active</div>
               </div>
             </div>
 

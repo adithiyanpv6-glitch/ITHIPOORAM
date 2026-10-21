@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { db, refreshTableSummaries } from '@/lib/serverDb';
 import { generateMultiSheetTableExcelXml } from '@/lib/tableExcelDatabase';
+import { getTelegramCredentials } from '@/config/telegram';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -17,9 +18,10 @@ export async function POST(request: Request) {
     refreshTableSummaries();
     const body = await request.json().catch(() => ({}));
     
-    // Bot token & chat id priority: 1) Body from UI, 2) Environment variables
-    const botToken = (body.botToken || process.env.TELEGRAM_BOT_TOKEN || '').trim();
-    const chatId = (body.chatId || process.env.TELEGRAM_CHAT_ID || '').trim();
+    // Bot token & chat id priority: 1) Body, 2) telegram.ts config / process.env
+    const fallback = getTelegramCredentials();
+    const botToken = (body.botToken || fallback.botToken || '').trim();
+    const chatId = (body.chatId || fallback.chatId || '').trim();
 
     let tables = db.tables;
     if (Array.isArray(body.tables) && body.tables.length > 0) {

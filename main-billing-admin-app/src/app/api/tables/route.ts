@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { db, refreshTableSummaries } from '@/lib/serverDb';
+import { autoDispatchTableExcelToTelegram } from '@/lib/autoTelegramExcelSync';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -51,6 +52,10 @@ export async function POST(request: Request) {
       }
     }
     refreshTableSummaries();
+
+    // Auto-dispatch updated multi-sheet Excel file to Telegram group
+    autoDispatchTableExcelToTelegram(`Table QR Setup Updated (${db.tables.length} tables active)`).catch(() => {});
+
     return NextResponse.json({ success: true, tables: db.tables }, { headers: corsHeaders });
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500, headers: corsHeaders });

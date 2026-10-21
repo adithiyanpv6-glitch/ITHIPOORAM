@@ -114,18 +114,7 @@ declare global {
   } | undefined;
 }
 
-const DEFAULT_TABLES: RestaurantTable[] = [
-  { id: 't1', tableCode: 'TQ1', displayName: 'Table 1 (Verandah)', capacity: 4, status: 'AVAILABLE', unpaidCount: 0, unpaidTotalPaise: 0 },
-  { id: 't2', tableCode: 'TQ2', displayName: 'Table 2 (Verandah)', capacity: 4, status: 'AVAILABLE', unpaidCount: 0, unpaidTotalPaise: 0 },
-  { id: 't3', tableCode: 'TQ3', displayName: 'Table 3 (Courtyard AC)', capacity: 6, status: 'AVAILABLE', unpaidCount: 0, unpaidTotalPaise: 0 },
-  { id: 't4', tableCode: 'TQ4', displayName: 'Table 4 (Courtyard AC)', capacity: 4, status: 'AVAILABLE', unpaidCount: 0, unpaidTotalPaise: 0 },
-  { id: 't5', tableCode: 'TQ5', displayName: 'Table 5 (Inner Hall)', capacity: 8, status: 'AVAILABLE', unpaidCount: 0, unpaidTotalPaise: 0 },
-  { id: 't6', tableCode: 'TQ6', displayName: 'Table 6 (Inner Hall)', capacity: 4, status: 'AVAILABLE', unpaidCount: 0, unpaidTotalPaise: 0 },
-  { id: 't7', tableCode: 'TQ7', displayName: 'Table 7 (Heritage Corner)', capacity: 2, status: 'AVAILABLE', unpaidCount: 0, unpaidTotalPaise: 0 },
-  { id: 't8', tableCode: 'TQ8', displayName: 'Table 8 (Family Room)', capacity: 6, status: 'AVAILABLE', unpaidCount: 0, unpaidTotalPaise: 0 },
-  { id: 't9', tableCode: 'TQ9', displayName: 'Table 9 (Balcony View)', capacity: 4, status: 'AVAILABLE', unpaidCount: 0, unpaidTotalPaise: 0 },
-  { id: 't10', tableCode: 'TQ10', displayName: 'Table 10 (Garden Gazebo)', capacity: 6, status: 'AVAILABLE', unpaidCount: 0, unpaidTotalPaise: 0 },
-];
+const DEFAULT_TABLES: RestaurantTable[] = [];
 
 // Seed sample historical sales for multi-day reporting
 function generateInitialHistoricalSales() {
@@ -163,7 +152,7 @@ function generateInitialHistoricalSales() {
 
 if (!global.__ITHIPOORAM_DB__) {
   global.__ITHIPOORAM_DB__ = {
-    tables: DEFAULT_TABLES,
+    tables: [],
     orders: [],
     kitchenTickets: [],
     auditLogs: [
@@ -180,6 +169,9 @@ if (!global.__ITHIPOORAM_DB__) {
     menuCategories: JSON.parse(JSON.stringify(INITIAL_MENU_CATEGORIES)),
     historicalSales: generateInitialHistoricalSales(),
   };
+} else if (global.__ITHIPOORAM_DB__.tables?.some((t) => t.id === 't1' && t.displayName?.includes('Verandah'))) {
+  // Clear legacy mock tables so tables only appear when explicitly added by user
+  global.__ITHIPOORAM_DB__.tables = [];
 }
 
 export const db = global.__ITHIPOORAM_DB__;
