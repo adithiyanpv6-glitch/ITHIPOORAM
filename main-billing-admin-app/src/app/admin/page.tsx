@@ -25,6 +25,14 @@ export default function AdminOverviewPage() {
   const [selectedRange, setSelectedRange] = useState<'today' | '2days' | '3days' | 'week' | 'month'>('today');
   const [isExporting, setIsExporting] = useState(false);
 
+  const handleBack = () => {
+    if (typeof window !== 'undefined' && window.history.length > 1) {
+      router.back();
+    } else {
+      router.push('/');
+    }
+  };
+
   const loadOverview = async (range = selectedRange) => {
     try {
       setLoading(true);

@@ -20,21 +20,33 @@ export async function POST(request: Request) {
   try {
     const body = await request.json();
     if (Array.isArray(body.tables)) {
-      for (const t of body.tables) {
-        const existing = db.tables.find((ex) => ex.tableCode.toUpperCase() === t.tableCode.toUpperCase());
-        if (existing) {
-          existing.displayName = t.displayName;
-          existing.capacity = t.capacity || existing.capacity;
-        } else {
-          db.tables.push({
-            id: t.id || `t-${t.tableCode.toLowerCase()}-${Date.now()}`,
-            tableCode: t.tableCode.toUpperCase(),
-            displayName: t.displayName || `Table ${t.tableCode}`,
-            capacity: t.capacity || 4,
-            status: 'AVAILABLE',
-            unpaidCount: 0,
-            unpaidTotalPaise: 0,
-          });
+      if (body.replace || body.tables.length === 0) {
+        db.tables = body.tables.map((t: any) => ({
+          id: t.id || `t-${t.tableCode.toLowerCase()}-${Date.now()}`,
+          tableCode: t.tableCode.toUpperCase(),
+          displayName: t.displayName || `Table ${t.tableCode}`,
+          capacity: t.capacity || 4,
+          status: (t.status as any) || 'AVAILABLE',
+          unpaidCount: t.unpaidCount || 0,
+          unpaidTotalPaise: t.unpaidTotalPaise || 0,
+        }));
+      } else {
+        for (const t of body.tables) {
+          const existing = db.tables.find((ex) => ex.tableCode.toUpperCase() === t.tableCode.toUpperCase());
+          if (existing) {
+            existing.displayName = t.displayName;
+            existing.capacity = t.capacity || existing.capacity;
+          } else {
+            db.tables.push({
+              id: t.id || `t-${t.tableCode.toLowerCase()}-${Date.now()}`,
+              tableCode: t.tableCode.toUpperCase(),
+              displayName: t.displayName || `Table ${t.tableCode}`,
+              capacity: t.capacity || 4,
+              status: 'AVAILABLE',
+              unpaidCount: 0,
+              unpaidTotalPaise: 0,
+            });
+          }
         }
       }
     }

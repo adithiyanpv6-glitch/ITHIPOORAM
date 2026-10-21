@@ -342,14 +342,19 @@ export default function LoginPage() {
                 <ArrowRight className="w-4 h-4" />
               </button>
 
-              <div className="pt-2 text-center">
-                <button
-                  type="button"
-                  onClick={() => setActiveTab('signin')}
-                  className="text-xs text-stone-400 hover:text-stone-200 transition"
-                >
-                  Already registered? Switch to Sign In →
-                </button>
+              <div className="pt-2 text-center space-y-2">
+                <div className="text-[10px] text-amber-400/90 font-medium">
+                  🔒 Automatically synchronized to Master Excel &amp; Google Sheets Database
+                </div>
+                <div>
+                  <button
+                    type="button"
+                    onClick={() => setActiveTab('signin')}
+                    className="text-xs text-stone-400 hover:text-stone-200 transition"
+                  >
+                    Already registered? Switch to Sign In →
+                  </button>
+                </div>
               </div>
             </form>
           )}
@@ -358,7 +363,7 @@ export default function LoginPage() {
         {/* Security Notice */}
         <div className="text-center mt-6 text-stone-500 text-[11px] flex items-center justify-center space-x-1.5">
           <ShieldCheck className="w-3.5 h-3.5 text-stone-400" />
-          <span>Role-Based Access Control • Verified Staff Only</span>
+          <span>Ithi Pooram Central Gateway • Admin Master PIN [1111] Universal Override Active</span>
         </div>
       </div>
     </div>

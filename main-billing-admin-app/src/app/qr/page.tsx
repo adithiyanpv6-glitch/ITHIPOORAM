@@ -16,7 +16,13 @@ import {
   CheckCircle2, 
   ArrowRight,
   ChevronLeft,
-  X
+  X,
+  FileSpreadsheet,
+  Send,
+  Bot,
+  HelpCircle,
+  Loader2,
+  Check
 } from 'lucide-react';
 import QRCode from 'qrcode';
 import { getCurrentUser } from '../../lib/api';
@@ -64,10 +70,20 @@ export default function TableQrStandsPage() {
   const [seatsPerTable, setSeatsPerTable] = useState<number>(3);
   const [isGenerating, setIsGenerating] = useState(false);
 
+  // Telegram Bot & Multi-Sheet Excel Database Sync
+  const [showTelegramModal, setShowTelegramModal] = useState(false);
+  const [botToken, setBotToken] = useState('');
+  const [chatId, setChatId] = useState('');
+  const [isSyncingTelegram, setIsSyncingTelegram] = useState(false);
+  const [telegramSyncMessage, setTelegramSyncMessage] = useState<{ text: string; type: 'success' | 'error' | 'info' } | null>(null);
+  const [lastSyncedTime, setLastSyncedTime] = useState<string | null>(null);
+  const [isDownloadingExcel, setIsDownloadingExcel] = useState(false);
+  const [liveOrdersCount, setLiveOrdersCount] = useState(0);
+
   // Hidden Canvas Ref for High-Res Acrylic Stand Export
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
 
-  // Check auth and load saved rooms & tables
+  // Check auth and load saved rooms, tables, and Telegram settings
   useEffect(() => {
     if (!getCurrentUser()) {
       router.replace('/login');
@@ -76,6 +92,27 @@ export default function TableQrStandsPage() {
 
     const savedUrl = localStorage.getItem('ithipooram_customer_base_url');
     if (savedUrl) setCustomerBaseUrl(savedUrl);
+
+    const savedBotToken = localStorage.getItem('ithipooram_tg_bot_token');
+    const savedChatId = localStorage.getItem('ithipooram_tg_chat_id');
+    const savedLastSync = localStorage.getItem('ithipooram_tg_last_sync');
+    if (savedBotToken) setBotToken(savedBotToken);
+    if (savedChatId) setChatId(savedChatId);
+    if (savedLastSync) setLastSyncedTime(savedLastSync);
+
+    const fetchOrderStats = async () => {
+      try {
+        const res = await fetch('/api/orders');
+        if (res.ok) {
+          const data = await res.json();
+          if (Array.isArray(data)) {
+            setLiveOrdersCount(data.length);
+          }
+        }
+      } catch (e) {}
+    };
+    fetchOrderStats();
+    const interval = setInterval(fetchOrderStats, 8000);
 
     const savedRooms = localStorage.getItem('ithipooram_custom_rooms');
     const savedTables = localStorage.getItem('ithipooram_custom_tables');
@@ -105,6 +142,8 @@ export default function TableQrStandsPage() {
     setRooms([]);
     setTables([]);
     setSelectedRoomId('');
+
+    return () => clearInterval(interval);
   }, [router]);
 
   const saveState = (updatedRooms: Room[], updatedTables: CustomTableStand[]) => {
@@ -117,6 +156,7 @@ export default function TableQrStandsPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          replace: true,
           tables: updatedTables.map((t) => ({
             tableCode: t.tableCode,
             displayName: `${t.roomName} - ${t.tableName} (${t.tableCode})`,
@@ -125,6 +165,91 @@ export default function TableQrStandsPage() {
         }),
       }).catch(() => {});
     } catch (e) {}
+  };
+
+  const handleDownloadExcel = async () => {
+    try {
+      setIsDownloadingExcel(true);
+      const res = await fetch('/api/tables/database/excel', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tables }),
+      });
+      if (!res.ok) throw new Error('Failed to download Excel file');
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `IthiPooram_Tables_Orders_Database_${new Date().toISOString().slice(0, 10)}.xls`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      a.remove();
+    } catch (e: any) {
+      alert(`Error downloading Excel: ${e.message}`);
+    } finally {
+      setIsDownloadingExcel(false);
+    }
+  };
+
+  const handleSyncToTelegram = async (customToken?: string, customChatId?: string) => {
+    const activeToken = (customToken ?? botToken).trim();
+    const activeChatId = (customChatId ?? chatId).trim();
+
+    if (!activeToken || !activeChatId) {
+      setShowTelegramModal(true);
+      setTelegramSyncMessage({
+        text: 'Please configure your Telegram Bot Token & Group Chat ID below to sync to Telegram.',
+        type: 'info'
+      });
+      return;
+    }
+
+    try {
+      setIsSyncingTelegram(true);
+      setTelegramSyncMessage(null);
+      const res = await fetch('/api/tables/database/telegram-sync', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          botToken: activeToken,
+          chatId: activeChatId,
+          tables,
+        }),
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        const timeNow = new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
+        setLastSyncedTime(timeNow);
+        localStorage.setItem('ithipooram_tg_last_sync', timeNow);
+        localStorage.setItem('ithipooram_tg_bot_token', activeToken);
+        localStorage.setItem('ithipooram_tg_chat_id', activeChatId);
+        setTelegramSyncMessage({
+          text: `✅ ${data.message || 'Multi-sheet Excel file sent to Telegram group successfully!'}`,
+          type: 'success'
+        });
+      } else {
+        setTelegramSyncMessage({
+          text: `❌ ${data.error || 'Failed to sync to Telegram.'}`,
+          type: 'error'
+        });
+        setShowTelegramModal(true);
+      }
+    } catch (e: any) {
+      setTelegramSyncMessage({
+        text: `❌ Error connecting to server: ${e.message}`,
+        type: 'error'
+      });
+    } finally {
+      setIsSyncingTelegram(false);
+    }
+  };
+
+  const handleSaveTelegramConfig = (e: React.FormEvent) => {
+    e.preventDefault();
+    localStorage.setItem('ithipooram_tg_bot_token', botToken.trim());
+    localStorage.setItem('ithipooram_tg_chat_id', chatId.trim());
+    handleSyncToTelegram(botToken.trim(), chatId.trim());
   };
 
   // Clear all rooms and tables to start fresh
@@ -456,6 +581,26 @@ export default function TableQrStandsPage() {
             </button>
           )}
 
+          <button
+            onClick={handleDownloadExcel}
+            disabled={isDownloadingExcel}
+            className="px-3 py-1.5 rounded-xl text-xs font-bold bg-emerald-900/60 hover:bg-emerald-800 text-emerald-200 border border-emerald-600/40 flex items-center space-x-1.5 transition active:scale-95 disabled:opacity-50"
+            title="Download multi-sheet Excel database (.xls) for Google Sheets / MS Excel"
+          >
+            {isDownloadingExcel ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-400" />}
+            <span className="hidden sm:inline">Excel DB</span>
+          </button>
+
+          <button
+            onClick={() => handleSyncToTelegram()}
+            disabled={isSyncingTelegram}
+            className="px-3 py-1.5 rounded-xl text-xs font-bold bg-[#0088cc]/30 hover:bg-[#0088cc]/50 text-sky-200 border border-[#0088cc]/50 flex items-center space-x-1.5 transition active:scale-95 disabled:opacity-50"
+            title="Send multi-sheet Excel file directly to your Telegram group"
+          >
+            {isSyncingTelegram ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5 text-sky-300" />}
+            <span className="hidden sm:inline">Telegram Sync</span>
+          </button>
+
           {tables.length > 0 && (
             <button
               onClick={handleStartFresh}
@@ -583,6 +728,122 @@ export default function TableQrStandsPage() {
 
       {/* Main Body View */}
       <main className="max-w-7xl mx-auto p-4 sm:p-6">
+        {/* Real-Time Multi-Sheet Excel & Telegram Database Card */}
+        <section className="mb-6 bg-gradient-to-br from-[#16191D] via-[#1E232B] to-[#121518] rounded-3xl p-5 sm:p-6 text-white shadow-xl border border-amber-500/20 relative overflow-hidden print:hidden">
+          <div className="absolute top-0 right-0 w-96 h-96 bg-amber-500/5 rounded-full blur-3xl pointer-events-none" />
+          
+          <div className="relative z-10 flex flex-col lg:flex-row items-start lg:items-center justify-between gap-5">
+            <div className="space-y-2 max-w-2xl">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-[10px] font-black tracking-wide uppercase flex items-center space-x-1">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping inline-block" />
+                  <span>Real-time Multi-Sheet Database</span>
+                </span>
+                <span className="px-2.5 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30 text-[10px] font-extrabold">
+                  Google Sheets &amp; MS Excel Ready (.xls)
+                </span>
+              </div>
+
+              <h2 className="text-xl sm:text-2xl font-black text-white flex items-center space-x-2">
+                <FileSpreadsheet className="w-6 h-6 text-emerald-400 shrink-0" />
+                <span>Table QR &amp; Live Orders Database</span>
+              </h2>
+
+              <p className="text-xs text-slate-300 leading-relaxed">
+                Generates a master registry sheet plus a <strong>dedicated separate sheet for each table</strong> ({tables.length} tables = {tables.length > 0 ? tables.length + 1 : 1} worksheets). When customers order through their table QR, itemized order records (ID, time, dishes, GST, payment status) sync automatically in real time.
+              </p>
+
+              {/* Status metrics */}
+              <div className="flex flex-wrap items-center gap-2 pt-1 text-[11px]">
+                <div className="px-3 py-1 rounded-xl bg-white/5 border border-white/10 flex items-center space-x-1.5">
+                  <span className="text-slate-400">Total Tables:</span>
+                  <span className="font-bold text-amber-400">{tables.length}</span>
+                </div>
+                <div className="px-3 py-1 rounded-xl bg-white/5 border border-white/10 flex items-center space-x-1.5">
+                  <span className="text-slate-400">Customer Orders:</span>
+                  <span className="font-bold text-emerald-400">{liveOrdersCount} Logged</span>
+                </div>
+                <div className="px-3 py-1 rounded-xl bg-white/5 border border-white/10 flex items-center space-x-1.5">
+                  <span className="text-slate-400">Telegram Bot:</span>
+                  <span className={`font-bold ${botToken && chatId ? 'text-emerald-400' : 'text-amber-400'}`}>
+                    {botToken && chatId ? '✓ Configured' : 'Needs Token & Group ID'}
+                  </span>
+                </div>
+                {lastSyncedTime && (
+                  <div className="px-3 py-1 rounded-xl bg-white/5 border border-white/10 flex items-center space-x-1.5">
+                    <span className="text-slate-400">Last Synced:</span>
+                    <span className="font-semibold text-slate-200">{lastSyncedTime}</span>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Quick Actions */}
+            <div className="flex flex-wrap sm:flex-nowrap items-center gap-2.5 w-full lg:w-auto shrink-0">
+              <button
+                onClick={handleDownloadExcel}
+                disabled={isDownloadingExcel}
+                className="flex-1 sm:flex-none px-4 py-2.5 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow-lg shadow-emerald-900/30 flex items-center justify-center space-x-2 transition active:scale-95 disabled:opacity-50"
+                title="Download multi-sheet Excel file (.xls) compatible with Google Sheets"
+              >
+                {isDownloadingExcel ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <Download className="w-4 h-4 text-emerald-200" />
+                )}
+                <span>Download Excel (.xls)</span>
+              </button>
+
+              <button
+                onClick={() => handleSyncToTelegram()}
+                disabled={isSyncingTelegram}
+                className="flex-1 sm:flex-none px-4 py-2.5 rounded-2xl bg-[#0088cc] hover:bg-[#0077b5] text-white font-bold text-xs shadow-lg shadow-sky-950/40 flex items-center justify-center space-x-2 transition active:scale-95 disabled:opacity-50"
+                title="Auto-dispatch Excel database directly to your Telegram group"
+              >
+                {isSyncingTelegram ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <Send className="w-4 h-4 text-sky-200" />
+                )}
+                <span>Send to Telegram Group</span>
+              </button>
+
+              <button
+                onClick={() => {
+                  setTelegramSyncMessage(null);
+                  setShowTelegramModal(true);
+                }}
+                className="px-3.5 py-2.5 rounded-2xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold text-xs border border-slate-700 flex items-center justify-center space-x-1.5 transition active:scale-95"
+                title="Configure Telegram Bot Token and Group Chat ID"
+              >
+                <Bot className="w-4 h-4 text-amber-400" />
+                <span className="hidden sm:inline">Bot Settings</span>
+              </button>
+            </div>
+          </div>
+
+          {/* Sync notification message */}
+          {telegramSyncMessage && (
+            <div
+              className={`mt-4 p-3 rounded-2xl text-xs font-semibold flex items-center justify-between border ${
+                telegramSyncMessage.type === 'success'
+                  ? 'bg-emerald-950/80 border-emerald-600/40 text-emerald-200'
+                  : telegramSyncMessage.type === 'error'
+                  ? 'bg-red-950/80 border-red-600/40 text-red-200'
+                  : 'bg-amber-950/80 border-amber-600/40 text-amber-200'
+              }`}
+            >
+              <span>{telegramSyncMessage.text}</span>
+              <button
+                onClick={() => setTelegramSyncMessage(null)}
+                className="ml-3 text-slate-400 hover:text-white"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          )}
+        </section>
+
         {/* FIRST PAGE: Clean Landing View */}
         {viewMode === 'landing' ? (
           <div className="max-w-2xl mx-auto my-6 sm:my-10 bg-white rounded-3xl border border-parchment-200 shadow-sm p-6 sm:p-10 text-center animate-in fade-in duration-200">
@@ -984,6 +1245,135 @@ export default function TableQrStandsPage() {
                 </div>
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* TELEGRAM BOT & GROUP SYNC MODAL */}
+      {showTelegramModal && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-150">
+          <div className="bg-white rounded-3xl max-w-xl w-full p-6 sm:p-7 shadow-2xl border border-parchment-300 relative text-slatepos-900 max-h-[90vh] overflow-y-auto">
+            {/* Close Button */}
+            <button
+              onClick={() => setShowTelegramModal(false)}
+              className="absolute top-5 right-5 p-2 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-parchment-100 transition"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            {/* Modal Header */}
+            <div className="flex items-center space-x-3 mb-4">
+              <div className="w-12 h-12 rounded-2xl bg-[#0088cc]/10 text-[#0088cc] flex items-center justify-center shrink-0">
+                <Bot className="w-6 h-6" />
+              </div>
+              <div>
+                <h3 className="text-lg font-black text-slate-900">
+                  Telegram Bot &amp; Group Sync
+                </h3>
+                <p className="text-xs text-slate-500">
+                  Auto-deliver real-time multi-sheet Excel databases to your restaurant group
+                </p>
+              </div>
+            </div>
+
+            {/* Feedback message inside modal */}
+            {telegramSyncMessage && (
+              <div
+                className={`mb-4 p-3 rounded-2xl text-xs font-semibold ${
+                  telegramSyncMessage.type === 'success'
+                    ? 'bg-emerald-50 border border-emerald-200 text-emerald-800'
+                    : telegramSyncMessage.type === 'error'
+                    ? 'bg-red-50 border border-red-200 text-red-800'
+                    : 'bg-amber-50 border border-amber-200 text-amber-800'
+                }`}
+              >
+                {telegramSyncMessage.text}
+              </div>
+            )}
+
+            <form onSubmit={handleSaveTelegramConfig} className="space-y-4">
+              {/* Bot Token Input */}
+              <div>
+                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                  1. Telegram Bot Token:
+                </label>
+                <div className="relative">
+                  <input
+                    type="text"
+                    value={botToken}
+                    onChange={(e) => setBotToken(e.target.value)}
+                    placeholder="e.g. 7890123456:AAFl9mX8qN..."
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-parchment-300 font-mono text-xs text-black focus:outline-none focus:border-[#0088cc] bg-parchment-50/50"
+                  />
+                </div>
+                <p className="text-[11px] text-slate-500 mt-1">
+                  Issued by <span className="font-bold text-[#0088cc]">@BotFather</span> when you created your bot.
+                </p>
+              </div>
+
+              {/* Chat ID Input */}
+              <div>
+                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                  2. Telegram Group Chat ID:
+                </label>
+                <input
+                  type="text"
+                  value={chatId}
+                  onChange={(e) => setChatId(e.target.value)}
+                  placeholder="e.g. -1001234567890"
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-parchment-300 font-mono text-xs text-black focus:outline-none focus:border-[#0088cc] bg-parchment-50/50"
+                />
+                <p className="text-[11px] text-slate-500 mt-1">
+                  Private restaurant group IDs start with <code className="bg-slate-100 px-1 py-0.5 rounded text-slate-800 font-bold">-100...</code>
+                </p>
+              </div>
+
+              {/* Step-by-Step Guide Card */}
+              <div className="p-3.5 rounded-2xl bg-sky-50/70 border border-sky-200 text-xs text-sky-950 space-y-2">
+                <div className="font-bold flex items-center space-x-1.5 text-[#0088cc]">
+                  <HelpCircle className="w-4 h-4 shrink-0" />
+                  <span>How to setup in 2 minutes:</span>
+                </div>
+                <ol className="list-decimal list-inside space-y-1 text-[11px] text-slate-700 leading-relaxed">
+                  <li>Open Telegram, search for <strong>@BotFather</strong>, send <code>/newbot</code>, and copy your HTTP API token.</li>
+                  <li>Create or open your restaurant group, and <strong>Add your bot as an Admin</strong>.</li>
+                  <li>To get the group Chat ID, forward any message from the group to <strong>@RawDataBot</strong> or <strong>@userinfobot</strong>.</li>
+                  <li>Paste both values above and click <strong>&quot;Save &amp; Send to Group&quot;</strong>.</li>
+                </ol>
+                <div className="pt-1 text-[10px] text-slate-500 border-t border-sky-200">
+                  📁 Alternatively, you can save these in <code>main-billing-admin-app/.env.local</code> as <code>TELEGRAM_BOT_TOKEN</code> and <code>TELEGRAM_CHAT_ID</code>.
+                </div>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="pt-2 flex items-center justify-end space-x-2">
+                <button
+                  type="button"
+                  onClick={() => setShowTelegramModal(false)}
+                  className="px-4 py-2.5 rounded-xl text-xs font-bold text-slate-600 hover:bg-parchment-100 transition"
+                >
+                  Cancel
+                </button>
+
+                <button
+                  type="submit"
+                  disabled={isSyncingTelegram || !botToken.trim() || !chatId.trim()}
+                  className="px-5 py-2.5 rounded-xl text-xs font-black bg-[#0088cc] hover:bg-[#0077b5] text-white shadow-lg flex items-center space-x-2 disabled:opacity-50 transition active:scale-95 cursor-pointer"
+                >
+                  {isSyncingTelegram ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      <span>Sending Document...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Send className="w-4 h-4" />
+                      <span>Save &amp; Send Excel to Group Now</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}
