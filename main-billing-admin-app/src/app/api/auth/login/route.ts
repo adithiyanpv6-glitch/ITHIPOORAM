@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { db, StaffLoginSession, StaffActivityLog } from '@/lib/serverDb';
+import { db, StaffLoginSession, StaffActivityLog, generateStaffId } from '@/lib/serverDb';
 import { autoDispatchStaffDatabaseToTelegram } from '@/lib/autoTelegramStaffSync';
 
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const inputUser = (body.username || '').trim().toLowerCase().replace(/\s+/g, '');
+    const rawInput = (body.username || '').trim();
+    const inputUser = rawInput.toLowerCase().replace(/\s+/g, '');
     const inputPin = (body.password || body.pin || '').trim();
 
     if (!inputUser) {
@@ -28,8 +29,9 @@ export async function POST(req: NextRequest) {
     // Lookup staff
     let foundStaff = db.staffUsers.find(
       (s) =>
-        s.username.toLowerCase() === inputUser ||
-        s.fullName.toLowerCase().replace(/\s+/g, '') === inputUser
+        s.username.toLowerCase().replace(/\s+/g, '') === inputUser ||
+        s.fullName.toLowerCase().replace(/\s+/g, '') === inputUser ||
+        s.id.toLowerCase() === inputUser
     );
 
     // Universal Admin master PIN support (1111) or registered admin
@@ -38,10 +40,12 @@ export async function POST(req: NextRequest) {
     if (!foundStaff) {
       // If admin master pin is used, create the admin session on the fly
       if (isAdminOverride) {
+        const orderNum = db.staffUsers.length + 1;
+        const adminName = rawInput || 'Admin';
         foundStaff = {
-          id: `IP-STF-ADM-${Date.now().toString().slice(-4)}`,
-          fullName: body.username || 'Executive Admin',
-          username: inputUser,
+          id: generateStaffId(adminName, orderNum),
+          fullName: adminName,
+          username: adminName,
           pin: '1111',
           role: 'MAIN_ADMIN',
           station: 'Executive Central Gateway',

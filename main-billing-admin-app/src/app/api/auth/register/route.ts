@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { db, StaffUserRecord, StaffLoginSession, StaffActivityLog } from '@/lib/serverDb';
+import { db, StaffUserRecord, StaffLoginSession, StaffActivityLog, generateStaffId } from '@/lib/serverDb';
 import { autoDispatchStaffDatabaseToTelegram } from '@/lib/autoTelegramStaffSync';
 
 export async function POST(req: NextRequest) {
@@ -26,8 +26,6 @@ export async function POST(req: NextRequest) {
       db.staffActivityLogs = [];
     }
 
-    const cleanUsername = rawName.toLowerCase().replace(/\s+/g, '');
-
     // Default station based on role
     let station = 'Billing Counter POS 1';
     if (role === 'MAIN_ADMIN') station = 'Executive Central Gateway';
@@ -36,10 +34,11 @@ export async function POST(req: NextRequest) {
     else if (role === 'MENU_EDITOR') station = 'QR & Menu Control Desk';
 
     const now = new Date();
-    const staffId = `IP-STF-${String(db.staffUsers.length + 1).padStart(3, '0')}`;
 
-    // Check if username exists
-    const existingIdx = db.staffUsers.findIndex((s) => s.username === cleanUsername);
+    // Check if staff name already exists
+    const existingIdx = db.staffUsers.findIndex(
+      (s) => s.fullName.toLowerCase() === rawName.toLowerCase() || s.username.toLowerCase() === rawName.toLowerCase()
+    );
     let targetStaff: StaffUserRecord;
 
     if (existingIdx >= 0) {
@@ -48,19 +47,22 @@ export async function POST(req: NextRequest) {
       db.staffUsers[existingIdx].role = role;
       db.staffUsers[existingIdx].station = station;
       db.staffUsers[existingIdx].fullName = rawName;
+      db.staffUsers[existingIdx].username = rawName;
       targetStaff = db.staffUsers[existingIdx];
     } else {
+      const orderNumber = db.staffUsers.length + 1;
+      const staffId = generateStaffId(rawName, orderNumber);
       targetStaff = {
         id: staffId,
         fullName: rawName,
-        username: cleanUsername,
+        username: rawName,
         pin,
         role,
         station,
         isActive: true,
         registeredAt: now.toLocaleString('en-IN', { hour12: true }),
         totalLogins: 1,
-        notes: `Registered via Staff Portal for ${station}`,
+        notes: `Registered staff account`,
       };
       db.staffUsers.push(targetStaff);
     }

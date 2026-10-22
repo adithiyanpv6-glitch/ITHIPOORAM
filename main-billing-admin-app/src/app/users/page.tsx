@@ -61,33 +61,21 @@ export default function UsersPage() {
     }
   };
 
-  // Load staff records from localStorage or defaults
+  // Load staff records from server / state
   const loadStaffDatabase = () => {
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem('ithipooram_registered_users');
       if (saved) {
         try {
           const parsed = JSON.parse(saved);
-          if (Array.isArray(parsed) && parsed.length > 0) {
-            const formatted: StaffRecord[] = parsed.map((u: any, idx: number) => ({
-              id: u.id || `IP-USR-${String(idx + 1).padStart(3, '0')}`,
-              fullName: u.fullName || u.name || 'Staff Member',
-              username: u.username || 'user',
-              pin: u.pin || u.password || '1234',
-              role: u.role || 'CASHIER',
-              station: u.station || 'General Counter',
-              isActive: u.isActive !== false,
-              registeredAt: u.registeredAt || 'Recent',
-              isAdminMasterOverride: u.role === 'MAIN_ADMIN',
-              notes: u.notes || 'Registered Staff',
-            }));
-            setUsers(formatted);
+          if (Array.isArray(parsed) && parsed.length > 0 && !parsed.some((u: any) => u.id?.startsWith('IP-USR-001'))) {
+            setUsers(parsed);
             return;
           }
         } catch (e) {}
       }
     }
-    setUsers([...DEFAULT_MASTER_STAFF_DATABASE]);
+    setUsers([]);
   };
 
   useEffect(() => {
@@ -105,7 +93,7 @@ export default function UsersPage() {
           if (Array.isArray(data.sessions)) {
             setSessions(data.sessions);
           }
-          if (Array.isArray(data.staff) && data.staff.length > 0) {
+          if (Array.isArray(data.staff)) {
             setUsers(data.staff);
           }
         }
@@ -154,7 +142,7 @@ export default function UsersPage() {
   };
 
   // Add new staff member
-  const handleAddNewStaff = (e: React.FormEvent) => {
+  const handleAddNewStaff = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newName.trim()) return;
     if (!newPin.trim() || newPin.length !== 4) {
@@ -162,26 +150,32 @@ export default function UsersPage() {
       return;
     }
 
-    const cleanUser = newUsername.trim() 
-      ? newUsername.trim().toLowerCase().replace(/\s+/g, '')
-      : newName.trim().toLowerCase().replace(/\s+/g, '');
+    try {
+      const res = await fetch('/api/auth/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: newName.trim(),
+          pin: newPin.trim(),
+          role: newRole,
+        }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        // Refresh live data
+        const sessRes = await fetch('/api/staff/sessions');
+        if (sessRes.ok) {
+          const sessData = await sessRes.json();
+          if (Array.isArray(sessData.staff)) setUsers(sessData.staff);
+          if (Array.isArray(sessData.sessions)) setSessions(sessData.sessions);
+        }
+      } else {
+        alert(data.error || 'Failed to register staff');
+      }
+    } catch (e: any) {
+      alert(e.message || 'Error adding staff');
+    }
 
-    const newStaff: StaffRecord = {
-      id: `IP-USR-${String(users.length + 1).padStart(3, '0')}`,
-      fullName: newName.trim(),
-      username: cleanUser,
-      pin: newPin.trim(),
-      role: newRole,
-      station: newStation.trim() || 'General Counter',
-      isActive: true,
-      registeredAt: new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }),
-      isAdminMasterOverride: newRole === 'MAIN_ADMIN',
-      notes: newNotes.trim() || 'Standard staff access',
-    };
-
-    const updated = [...users, newStaff];
-    saveDatabaseState(updated);
-    
     // Reset form
     setNewName('');
     setNewUsername('');
@@ -388,105 +382,91 @@ export default function UsersPage() {
               <thead className="bg-slatepos-900 text-[11px] font-bold uppercase tracking-wider text-white border-b border-slatepos-800">
                 <tr>
                   <th className="py-3.5 px-4">Staff ID</th>
-                  <th className="py-3.5 px-4">Employee Full Name</th>
-                  <th className="py-3.5 px-4">Login Username</th>
+                  <th className="py-3.5 px-4">Employee Name</th>
                   <th className="py-3.5 px-4">4-Digit Security PIN</th>
-                  <th className="py-3.5 px-4">Assigned Role</th>
-                  <th className="py-3.5 px-4">Counter / Station</th>
-                  <th className="py-3.5 px-4 text-center">Status</th>
+                  <th className="py-3.5 px-4">Role</th>
+                  <th className="py-3.5 px-4">Registration Date &amp; Time</th>
                   <th className="py-3.5 px-4 text-right">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-parchment-100">
-                {users.map((staff, idx) => {
-                  const isPinShown = revealedPins[staff.id];
-                  const isZebra = idx % 2 === 1;
+                {users.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} className="py-8 text-center text-slatepos-400 font-medium">
+                      Database is clean and ready. No staff registered yet.
+                    </td>
+                  </tr>
+                ) : (
+                  users.map((staff, idx) => {
+                    const isPinShown = revealedPins[staff.id];
+                    const isZebra = idx % 2 === 1;
 
-                  return (
-                    <tr 
-                      key={staff.id} 
-                      className={`hover:bg-amber-50/40 transition ${isZebra ? 'bg-parchment-50/50' : 'bg-white'}`}
-                    >
-                      {/* Staff ID */}
-                      <td className="py-3 px-4 font-mono font-bold text-slatepos-500">
-                        {staff.id}
-                      </td>
+                    return (
+                      <tr 
+                        key={staff.id} 
+                        className={`hover:bg-amber-50/40 transition ${isZebra ? 'bg-parchment-50/50' : 'bg-white'}`}
+                      >
+                        {/* Staff ID */}
+                        <td className="py-3 px-4 font-mono font-bold text-slatepos-600">
+                          {staff.id}
+                        </td>
 
-                      {/* Full Name */}
-                      <td className="py-3 px-4">
-                        <div className="font-extrabold text-slatepos-950 text-sm">{staff.fullName}</div>
-                        <div className="text-[11px] text-slatepos-400">{staff.notes}</div>
-                      </td>
+                        {/* Employee Name */}
+                        <td className="py-3 px-4">
+                          <div className="font-extrabold text-slatepos-950 text-sm">{staff.fullName}</div>
+                        </td>
 
-                      {/* Username */}
-                      <td className="py-3 px-4 font-mono font-bold text-slatepos-700 bg-parchment-100/60 rounded-lg">
-                        @{staff.username}
-                      </td>
+                        {/* 4-Digit Security PIN (Masked with Eye reveal) */}
+                        <td className="py-3 px-4">
+                          <div className="inline-flex items-center space-x-1.5 px-2.5 py-1 rounded-xl bg-amber-50 border border-amber-200">
+                            <span className="font-mono font-black text-sm text-[#9E341D] tracking-wider">
+                              {isPinShown ? staff.pin : '••••'}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => togglePinReveal(staff.id)}
+                              className="p-1 rounded-lg text-slatepos-400 hover:text-slatepos-800 cursor-pointer"
+                              title={isPinShown ? 'Hide PIN' : 'Reveal PIN for Verification'}
+                            >
+                              {isPinShown ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                            </button>
+                          </div>
+                        </td>
 
-                      {/* 4-Digit Security PIN (Masked with Eye reveal) */}
-                      <td className="py-3 px-4">
-                        <div className="inline-flex items-center space-x-1.5 px-2.5 py-1 rounded-xl bg-amber-50 border border-amber-200">
-                          <span className="font-mono font-black text-sm text-[#9E341D] tracking-wider">
-                            {isPinShown ? staff.pin : '••••'}
+                        {/* Role Pill */}
+                        <td className="py-3 px-4">
+                          <span className={`px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider ${
+                            staff.role === 'MAIN_ADMIN' 
+                              ? 'bg-[#9E341D] text-white' 
+                              : staff.role === 'MANAGER'
+                              ? 'bg-slatepos-800 text-white'
+                              : staff.role === 'KITCHEN_STAFF'
+                              ? 'bg-amber-500 text-slatepos-950 font-black'
+                              : 'bg-emerald-100 text-emerald-800'
+                          }`}>
+                            {staff.role}
                           </span>
+                        </td>
+
+                        {/* Registration Date */}
+                        <td className="py-3 px-4 text-slatepos-600 font-medium">
+                          {staff.registeredAt || 'Today'}
+                        </td>
+
+                        {/* Actions */}
+                        <td className="py-3 px-4 text-right">
                           <button
-                            type="button"
-                            onClick={() => togglePinReveal(staff.id)}
-                            className="p-1 rounded-lg text-slatepos-400 hover:text-slatepos-800"
-                            title={isPinShown ? 'Hide PIN' : 'Reveal PIN for Verification'}
+                            onClick={() => handleDeleteStaff(staff.id, staff.fullName)}
+                            className="p-1.5 rounded-lg text-slatepos-400 hover:text-red-600 transition cursor-pointer"
+                            title="Remove Staff Access"
                           >
-                            {isPinShown ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                            <Trash2 className="w-4 h-4" />
                           </button>
-                        </div>
-                      </td>
-
-                      {/* Role Pill */}
-                      <td className="py-3 px-4">
-                        <span className={`px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider ${
-                          staff.role === 'MAIN_ADMIN' 
-                            ? 'bg-[#9E341D] text-white' 
-                            : staff.role === 'MANAGER'
-                            ? 'bg-slatepos-800 text-white'
-                            : staff.role === 'KITCHEN_STAFF'
-                            ? 'bg-amber-500 text-slatepos-950 font-black'
-                            : 'bg-emerald-100 text-emerald-800'
-                        }`}>
-                          {staff.role}
-                        </span>
-                      </td>
-
-                      {/* Counter Station */}
-                      <td className="py-3 px-4 text-slatepos-600 font-medium">
-                        {staff.station}
-                      </td>
-
-                      {/* Account Status Toggle */}
-                      <td className="py-3 px-4 text-center">
-                        <button
-                          onClick={() => handleToggleActive(staff.id)}
-                          className={`px-3 py-1 rounded-full text-[10px] font-extrabold transition ${
-                            staff.isActive 
-                              ? 'bg-emerald-100 text-emerald-800 hover:bg-emerald-200' 
-                              : 'bg-red-100 text-red-800 hover:bg-red-200'
-                          }`}
-                        >
-                          {staff.isActive ? 'ACTIVE' : 'SUSPENDED'}
-                        </button>
-                      </td>
-
-                      {/* Actions */}
-                      <td className="py-3 px-4 text-right">
-                        <button
-                          onClick={() => handleDeleteStaff(staff.id, staff.fullName)}
-                          className="p-1.5 rounded-lg text-slatepos-400 hover:text-red-600 transition"
-                          title="Remove Staff Access"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      </td>
-                    </tr>
-                  );
-                })}
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
               </tbody>
             </table>
           </div>
@@ -509,7 +489,7 @@ export default function UsersPage() {
               <button
                 onClick={handleSendToTelegram}
                 disabled={isSendingTelegram}
-                className="px-3 py-1 rounded-xl text-xs font-bold bg-[#9E341D] text-white hover:bg-[#852B17] transition flex items-center space-x-1"
+                className="px-3 py-1 rounded-xl text-xs font-bold bg-[#9E341D] text-white hover:bg-[#852B17] transition flex items-center space-x-1 cursor-pointer"
                 title="Send updated session Excel to Telegram"
               >
                 <Send className="w-3 h-3" />
@@ -523,35 +503,33 @@ export default function UsersPage() {
               <thead className="bg-slatepos-900 text-[11px] font-bold uppercase tracking-wider text-white border-b border-slatepos-800">
                 <tr>
                   <th className="px-4 py-3">Session ID</th>
-                  <th className="px-4 py-3">Staff Name</th>
-                  <th className="px-4 py-3">Sign-in ID</th>
+                  <th className="px-4 py-3">Staff ID</th>
+                  <th className="px-4 py-3">Employee Name</th>
                   <th className="px-4 py-3">Role</th>
                   <th className="px-4 py-3">Login Date &amp; Time</th>
-                  <th className="px-4 py-3">Terminal / Device</th>
-                  <th className="px-4 py-3 text-center">Status</th>
-                  <th className="px-4 py-3 text-right">Last Active</th>
+                  <th className="px-4 py-3 text-center">Session Status</th>
+                  <th className="px-4 py-3 text-right">Last Active Time</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-parchment-100">
                 {sessions.length === 0 ? (
                   <tr>
-                    <td colSpan={8} className="px-4 py-8 text-center text-slatepos-400">
-                      No active sessions recorded yet today. When staff sign in, sessions appear live here and in Telegram.
+                    <td colSpan={7} className="px-4 py-8 text-center text-slatepos-400 font-medium">
+                      No active sessions recorded yet today. Fresh database ready for testing.
                     </td>
                   </tr>
                 ) : (
                   sessions.map((ses) => (
                     <tr key={ses.sessionId} className="hover:bg-parchment-50 transition">
                       <td className="px-4 py-3 font-mono font-bold text-slatepos-850">{ses.sessionId}</td>
+                      <td className="px-4 py-3 font-mono font-bold text-slatepos-600">{ses.staffId || '-'}</td>
                       <td className="px-4 py-3 font-bold text-slatepos-950">{ses.fullName}</td>
-                      <td className="px-4 py-3 text-slatepos-600 font-mono">@{ses.username}</td>
                       <td className="px-4 py-3">
                         <span className="px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-700 font-bold text-[10px] border border-indigo-200">
                           {ses.role}
                         </span>
                       </td>
                       <td className="px-4 py-3 text-slatepos-600">{ses.loginDate} {ses.loginTime}</td>
-                      <td className="px-4 py-3 text-slatepos-600">{ses.clientIp || 'POS Tablet'}</td>
                       <td className="px-4 py-3 text-center">
                         <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold ${
                           ses.status === 'ACTIVE'
@@ -619,17 +597,20 @@ export default function UsersPage() {
               </div>
 
               <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block font-bold text-slatepos-700 uppercase tracking-wider mb-1">
-                    Login Username (Optional):
+                    Employee Name:
                   </label>
                   <input
                     type="text"
-                    value={newUsername}
-                    onChange={(e) => setNewUsername(e.target.value)}
-                    placeholder="Auto-generated if blank"
-                    className="w-full px-3.5 py-2.5 rounded-xl border border-parchment-300 text-sm font-mono text-black bg-white focus:outline-none focus:border-[#9E341D]"
+                    required
+                    value={newName}
+                    onChange={(e) => setNewName(e.target.value)}
+                    placeholder="e.g. Rahul / Adhithiyan"
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-parchment-300 text-sm font-semibold text-black bg-white focus:outline-none focus:border-[#9E341D]"
                   />
+                  <p className="text-[11px] text-slatepos-400 mt-1">Used for both login &amp; staff records.</p>
                 </div>
 
                 <div>
@@ -642,55 +623,27 @@ export default function UsersPage() {
                     required
                     value={newPin}
                     onChange={(e) => setNewPin(e.target.value.replace(/\D/g, ''))}
-                    placeholder="4 Digits (e.g. 3344)"
+                    placeholder="4 Digits (e.g. 1234)"
                     className="w-full px-3.5 py-2.5 rounded-xl border border-parchment-300 text-sm font-mono font-bold text-[#9E341D] bg-white focus:outline-none focus:border-[#9E341D]"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block font-bold text-slatepos-700 uppercase tracking-wider mb-1">
-                    Staff Role:
-                  </label>
-                  <select
-                    value={newRole}
-                    onChange={(e: any) => setNewRole(e.target.value)}
-                    className="w-full px-3 py-2.5 rounded-xl border border-parchment-300 text-xs font-bold text-black bg-white focus:outline-none focus:border-[#9E341D]"
-                  >
-                    <option value="CASHIER">CASHIER (Counter POS)</option>
-                    <option value="MANAGER">MANAGER (Floor &amp; Audit)</option>
-                    <option value="KITCHEN_STAFF">KITCHEN_STAFF (KDS Chef)</option>
-                    <option value="MENU_EDITOR">MENU_EDITOR (Menu &amp; QR)</option>
-                    <option value="MAIN_ADMIN">MAIN_ADMIN (Full Access)</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block font-bold text-slatepos-700 uppercase tracking-wider mb-1">
-                    Counter Station:
-                  </label>
-                  <input
-                    type="text"
-                    value={newStation}
-                    onChange={(e) => setNewStation(e.target.value)}
-                    placeholder="e.g. Billing Counter POS 1"
-                    className="w-full px-3 py-2.5 rounded-xl border border-parchment-300 text-xs text-black bg-white focus:outline-none focus:border-[#9E341D]"
                   />
                 </div>
               </div>
 
               <div>
                 <label className="block font-bold text-slatepos-700 uppercase tracking-wider mb-1">
-                  Security Notes / Allocation:
+                  Staff Role:
                 </label>
-                <input
-                  type="text"
-                  value={newNotes}
-                  onChange={(e) => setNewNotes(e.target.value)}
-                  placeholder="e.g. Morning shift cashier, authorized for UPI billing"
-                  className="w-full px-3 py-2 rounded-xl border border-parchment-300 text-xs text-black bg-white"
-                />
+                <select
+                  value={newRole}
+                  onChange={(e: any) => setNewRole(e.target.value)}
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-parchment-300 text-xs font-bold text-black bg-white focus:outline-none focus:border-[#9E341D]"
+                >
+                  <option value="CASHIER">CASHIER (Counter POS)</option>
+                  <option value="MANAGER">MANAGER (Floor &amp; Audit)</option>
+                  <option value="KITCHEN_STAFF">KITCHEN_STAFF (KDS Chef)</option>
+                  <option value="MENU_EDITOR">MENU_EDITOR (Menu &amp; QR)</option>
+                  <option value="MAIN_ADMIN">MAIN_ADMIN (Full Access)</option>
+                </select>
               </div>
 
               <div className="pt-3 flex justify-end space-x-2">

@@ -13,3 +13,14 @@ export async function GET() {
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
 }
+
+export async function DELETE() {
+  try {
+    db.staffUsers = [];
+    db.loginSessions = [];
+    db.staffActivityLogs = [];
+    return NextResponse.json({ success: true, message: 'All staff, session, and activity data reset cleanly.' });
+  } catch (err: any) {
+    return NextResponse.json({ error: err.message }, { status: 500 });
+  }
+}

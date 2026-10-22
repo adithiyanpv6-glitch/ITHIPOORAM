@@ -64,19 +64,22 @@ export async function autoDispatchStaffDatabaseToTelegram(
     const dateFormatted = now.toISOString().slice(0, 10);
     const filename = `IthiPooram_Staff_Sessions_Database_${dateFormatted}.xls`;
 
-    const activeSessionsCount = sessions.filter((s) => s.status === 'ACTIVE').length;
+    const updatedTime = now.toLocaleString('en-IN', {
+      timeZone: 'Asia/Kolkata',
+      dateStyle: 'medium',
+      timeStyle: 'short',
+    });
 
     const caption =
-      `🔐 *ITHI POORAM (ഇത്തിപ്പൂരം) — Staff & Sessions Database*\n` +
+      `📊 *ITHI POORAM — Staff & Sessions Database*\n` +
       `━━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
-      `⚡ *Trigger:* ${reason}\n` +
-      `📅 *Date:* ${now.toLocaleDateString('en-GB')}\n` +
-      `⏰ *Time:* ${now.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}\n` +
-      `👥 *Registered Staff:* ${staffList.length} Accounts\n` +
-      `🟢 *Live Active Sessions:* ${activeSessionsCount} Staff Online\n` +
-      `📝 *Recorded Sessions:* ${sessions.length}\n` +
-      `━━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
-      `📂 *Multi-Sheet Excel Database (.xls) attached below.* Open in Google Sheets or Microsoft Excel to monitor all staff IDs, passwords & active sessions in real time!`;
+      `📁 *Sheet 1: Staff Register*\n` +
+      `🕒 *Last Updated:* ${updatedTime}\n\n` +
+      `📁 *Sheet 2: Live Login Sessions*\n` +
+      `🕒 *Last Updated:* ${updatedTime}\n\n` +
+      `📁 *Sheet 3: Activity Logs*\n` +
+      `🕒 *Last Updated:* ${updatedTime}\n` +
+      `━━━━━━━━━━━━━━━━━━━━━━━━━━`;
 
     const blob = new Blob([xmlContent], { type: 'application/vnd.ms-excel' });
     const formData = new FormData();
