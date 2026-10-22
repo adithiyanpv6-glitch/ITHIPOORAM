@@ -110,16 +110,23 @@ async function dispatchOrEditDocument(
       });
 
       const editData = await editRes.json();
-      if (editData.ok) {
+      if (editData.ok || editData.description?.includes('message is not modified')) {
         return { success: true, messageId: existingMsgId, action: 'EDITED' };
       }
+
       console.warn(`[Vault] In-place edit for ${stateKey} returned not ok:`, editData.description);
+      
+      // If error is NOT that the message doesn't exist, do NOT send a new message!
+      if (!editData.description?.includes('message to edit not found')) {
+        return { success: true, messageId: existingMsgId, action: 'EDITED' };
+      }
     } catch (err) {
       console.error(`[Vault] Failed to edit existing message for ${stateKey}:`, err);
+      return { success: false, messageId: existingMsgId, action: 'EDITED' };
     }
   }
 
-  // Attempt 2: If message not found or edit failed, send new and pin it
+  // Attempt 2: ONLY if message was never sent or was deleted from group, send new and pin it
   const sendFormData = new FormData();
   sendFormData.append('chat_id', chatId);
   sendFormData.append('caption', caption);
