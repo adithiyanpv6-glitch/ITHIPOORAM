@@ -1,6 +1,6 @@
 // ============================================================================
-// ITHI POORAM (ഇത്തിപ്പൂരം) — STAFF SIGN-IN CREDENTIALS & SESSIONS DATABASE
-// Multi-sheet XML Spreadsheet (.xls) compatible with Excel & Google Sheets
+// ITHI POORAM (ഇത്തിപ്പൂരം) — STAFF & SESSIONS EXCEL SPREADSHEETS
+// Multi-sheet XML Spreadsheet (.xls) compatible with Microsoft Excel & Google Sheets
 // ============================================================================
 
 import { StaffUserRecord, StaffLoginSession, StaffActivityLog } from './serverDb';
@@ -15,32 +15,7 @@ function escapeXml(unsafe: any): string {
     .replace(/'/g, '&apos;');
 }
 
-export function generateStaffSessionsExcelXml(
-  staffList: StaffUserRecord[],
-  sessions: StaffLoginSession[],
-  activityLogs: StaffActivityLog[]
-): string {
-  const generatedAt = new Date().toLocaleString('en-IN', {
-    timeZone: 'Asia/Kolkata',
-    dateStyle: 'medium',
-    timeStyle: 'short',
-  });
-
-  return `<?xml version="1.0" encoding="UTF-8"?>
-<?mso-application progid="Excel.Sheet"?>
-<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet"
- xmlns:o="urn:schemas-microsoft-com:office:office"
- xmlns:x="urn:schemas-microsoft-com:office:excel"
- xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet"
- xmlns:html="http://www.w3.org/TR/REC-html40">
- <DocumentProperties xmlns="urn:schemas-microsoft-com:office:office">
-  <Author>Ithi Pooram</Author>
-  <LastAuthor>Ithi Pooram Security System</LastAuthor>
-  <Created>${new Date().toISOString()}</Created>
-  <Company>Ithi Pooram, Vanchiyoor, Trivandrum</Company>
-  <Title>Staff Register &amp; Live Login Sessions Database</Title>
- </DocumentProperties>
- <Styles>
+const COMMON_EXCEL_STYLES = `
   <!-- Base Style -->
   <Style ss:ID="Default" ss:Name="Normal">
    <Alignment ss:Vertical="Center"/>
@@ -160,11 +135,38 @@ export function generateStaffSessionsExcelXml(
    <Font ss:FontName="Segoe UI" ss:Size="9" ss:Color="#4338CA" ss:Bold="1"/>
    <Interior ss:Color="#EEF2FF" ss:Pattern="Solid"/>
   </Style>
+`;
+
+/**
+ * FILE 1: Staff Database (Staff Register)
+ * Single Sheet: Staff Register
+ * Columns: # | Staff ID | Employee Name | Access PIN / Password | Role | Registration Date & Time
+ */
+export function generateStaffDatabaseXml(staffList: StaffUserRecord[]): string {
+  const generatedAt = new Date().toLocaleString('en-IN', {
+    timeZone: 'Asia/Kolkata',
+    dateStyle: 'medium',
+    timeStyle: 'short',
+  });
+
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<?mso-application progid="Excel.Sheet"?>
+<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet"
+ xmlns:o="urn:schemas-microsoft-com:office:office"
+ xmlns:x="urn:schemas-microsoft-com:office:excel"
+ xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet"
+ xmlns:html="http://www.w3.org/TR/REC-html40">
+ <DocumentProperties xmlns="urn:schemas-microsoft-com:office:office">
+  <Author>Ithi Pooram</Author>
+  <LastAuthor>Ithi Pooram Admin</LastAuthor>
+  <Created>${new Date().toISOString()}</Created>
+  <Company>Ithi Pooram, Vanchiyoor, Trivandrum</Company>
+  <Title>Staff Database</Title>
+ </DocumentProperties>
+ <Styles>
+  ${COMMON_EXCEL_STYLES}
  </Styles>
 
- <!-- ======================================================================= -->
- <!-- SHEET 1: STAFF REGISTER                                                 -->
- <!-- ======================================================================= -->
  <Worksheet ss:Name="Staff Register">
   <Table ss:DefaultRowHeight="20">
    <Column ss:Width="35"/>
@@ -192,7 +194,7 @@ export function generateStaffSessionsExcelXml(
    <Row ss:Height="22">
     <Cell ss:StyleID="KpiLabel"><Data ss:Type="String">Last Updated:</Data></Cell>
     <Cell ss:MergeAcross="2" ss:StyleID="KpiValue"><Data ss:Type="String">${escapeXml(generatedAt)}</Data></Cell>
-    <Cell ss:StyleID="KpiLabel"><Data ss:Type="String">Total Registered Staff:</Data></Cell>
+    <Cell ss:StyleID="KpiLabel"><Data ss:Type="String">Total Staff:</Data></Cell>
     <Cell ss:StyleID="KpiValue"><Data ss:Type="Number">${staffList.length}</Data></Cell>
    </Row>
    <Row ss:Height="8"/>
@@ -230,10 +232,44 @@ export function generateStaffSessionsExcelXml(
    <ActivePane>2</ActivePane>
   </WorksheetOptions>
  </Worksheet>
+</Workbook>`;
+}
 
- <!-- ======================================================================= -->
- <!-- SHEET 2: LIVE LOGIN SESSIONS                                            -->
- <!-- ======================================================================= -->
+/**
+ * FILE 2: Staff Session Database
+ * Sheet 1: Live Login Sessions
+ * Sheet 2: Activity Logs
+ */
+export function generateStaffSessionDatabaseXml(
+  sessions: StaffLoginSession[],
+  activityLogs: StaffActivityLog[],
+  staffList: StaffUserRecord[] = []
+): string {
+  const generatedAt = new Date().toLocaleString('en-IN', {
+    timeZone: 'Asia/Kolkata',
+    dateStyle: 'medium',
+    timeStyle: 'short',
+  });
+
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<?mso-application progid="Excel.Sheet"?>
+<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet"
+ xmlns:o="urn:schemas-microsoft-com:office:office"
+ xmlns:x="urn:schemas-microsoft-com:office:excel"
+ xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet"
+ xmlns:html="http://www.w3.org/TR/REC-html40">
+ <DocumentProperties xmlns="urn:schemas-microsoft-com:office:office">
+  <Author>Ithi Pooram</Author>
+  <LastAuthor>Ithi Pooram Security System</LastAuthor>
+  <Created>${new Date().toISOString()}</Created>
+  <Company>Ithi Pooram, Vanchiyoor, Trivandrum</Company>
+  <Title>Staff Session Database</Title>
+ </DocumentProperties>
+ <Styles>
+  ${COMMON_EXCEL_STYLES}
+ </Styles>
+
+ <!-- SHEET 1: LIVE LOGIN SESSIONS -->
  <Worksheet ss:Name="Live Login Sessions">
   <Table ss:DefaultRowHeight="20">
    <Column ss:Width="35"/>
@@ -305,9 +341,7 @@ export function generateStaffSessionsExcelXml(
   </WorksheetOptions>
  </Worksheet>
 
- <!-- ======================================================================= -->
- <!-- SHEET 3: ACTIVITY LOGS                                                  -->
- <!-- ======================================================================= -->
+ <!-- SHEET 2: ACTIVITY LOGS -->
  <Worksheet ss:Name="Activity Logs">
   <Table ss:DefaultRowHeight="20">
    <Column ss:Width="35"/>
@@ -359,7 +393,6 @@ export function generateStaffSessionsExcelXml(
    <Row ss:Height="26">
     <Cell ss:MergeAcross="7" ss:StyleID="DataCellCenter"><Data ss:Type="String">No activity logs recorded yet. Fresh database ready for testing.</Data></Cell>
    </Row>` : activityLogs.map((log, idx) => {
-     // Find staff ID if available from staffUsers
      const matched = staffList.find((s) => s.fullName === log.fullNameSnapshot || s.username === log.usernameSnapshot);
      const staffIdVal = matched ? matched.id : '-';
      return `
@@ -384,4 +417,13 @@ export function generateStaffSessionsExcelXml(
   </WorksheetOptions>
  </Worksheet>
 </Workbook>`;
+}
+
+// Backwards-compatible export
+export function generateStaffSessionsExcelXml(
+  staffList: StaffUserRecord[],
+  sessions: StaffLoginSession[],
+  activityLogs: StaffActivityLog[]
+): string {
+  return generateStaffDatabaseXml(staffList);
 }

@@ -1,16 +1,24 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/serverDb';
-import { generateStaffSessionsExcelXml } from '@/lib/staffSessionExcelDatabase';
+import { generateStaffDatabaseXml, generateStaffSessionDatabaseXml } from '@/lib/staffSessionExcelDatabase';
+import { generateMultiSheetTableExcelXml } from '@/lib/tableExcelDatabase';
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   try {
-    const staffList = db.staffUsers || [];
-    const sessions = db.loginSessions || [];
-    const logs = db.staffActivityLogs || [];
+    const type = req.nextUrl.searchParams.get('type') || 'staff';
+    let xml = '';
+    let filename = '';
 
-    const xml = generateStaffSessionsExcelXml(staffList, sessions, logs);
-    const dateFormatted = new Date().toISOString().slice(0, 10);
-    const filename = `IthiPooram_Staff_And_Sessions_Database_${dateFormatted}.xls`;
+    if (type === 'sessions') {
+      xml = generateStaffSessionDatabaseXml(db.loginSessions || [], db.staffActivityLogs || [], db.staffUsers || []);
+      filename = `IthiPooram_Staff_Session_Database.xls`;
+    } else if (type === 'tables') {
+      xml = generateMultiSheetTableExcelXml(db.tables || [], db.orders || []);
+      filename = `IthiPooram_Table_Orders_Database.xls`;
+    } else {
+      xml = generateStaffDatabaseXml(db.staffUsers || []);
+      filename = `IthiPooram_Staff_Database.xls`;
+    }
 
     return new NextResponse(xml, {
       status: 200,

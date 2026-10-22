@@ -8,7 +8,7 @@
  <DocumentProperties xmlns="urn:schemas-microsoft-com:office:office">
   <Author>Ithi Pooram</Author>
   <LastAuthor>Ithi Pooram Security System</LastAuthor>
-  <Created>2026-10-22T13:56:42.581Z</Created>
+  <Created>2026-10-22T14:00:19.852Z</Created>
   <Company>Ithi Pooram, Vanchiyoor, Trivandrum</Company>
   <Title>Staff Register &amp; Live Login Sessions Database</Title>
  </DocumentProperties>
@@ -163,7 +163,7 @@
    <!-- Meta Summary Row -->
    <Row ss:Height="22">
     <Cell ss:StyleID="KpiLabel"><Data ss:Type="String">Last Updated:</Data></Cell>
-    <Cell ss:MergeAcross="2" ss:StyleID="KpiValue"><Data ss:Type="String">22 Oct 2026, 7:26 pm</Data></Cell>
+    <Cell ss:MergeAcross="2" ss:StyleID="KpiValue"><Data ss:Type="String">22 Oct 2026, 7:30 pm</Data></Cell>
     <Cell ss:StyleID="KpiLabel"><Data ss:Type="String">Total Registered Staff:</Data></Cell>
     <Cell ss:StyleID="KpiValue"><Data ss:Type="Number">0</Data></Cell>
    </Row>
@@ -226,7 +226,7 @@
    <!-- Meta Summary Row -->
    <Row ss:Height="22">
     <Cell ss:StyleID="KpiLabel"><Data ss:Type="String">Last Updated:</Data></Cell>
-    <Cell ss:MergeAcross="2" ss:StyleID="KpiValue"><Data ss:Type="String">22 Oct 2026, 7:26 pm</Data></Cell>
+    <Cell ss:MergeAcross="2" ss:StyleID="KpiValue"><Data ss:Type="String">22 Oct 2026, 7:30 pm</Data></Cell>
     <Cell ss:StyleID="KpiLabel"><Data ss:Type="String">Active Sessions:</Data></Cell>
     <Cell ss:MergeAcross="2" ss:StyleID="KpiValue"><Data ss:Type="String">0 Staff Online</Data></Cell>
    </Row>
@@ -290,7 +290,7 @@
    <!-- Meta Summary Row -->
    <Row ss:Height="22">
     <Cell ss:StyleID="KpiLabel"><Data ss:Type="String">Last Updated:</Data></Cell>
-    <Cell ss:MergeAcross="2" ss:StyleID="KpiValue"><Data ss:Type="String">22 Oct 2026, 7:26 pm</Data></Cell>
+    <Cell ss:MergeAcross="2" ss:StyleID="KpiValue"><Data ss:Type="String">22 Oct 2026, 7:30 pm</Data></Cell>
     <Cell ss:StyleID="KpiLabel"><Data ss:Type="String">Total Events:</Data></Cell>
     <Cell ss:MergeAcross="2" ss:StyleID="KpiValue"><Data ss:Type="Number">0</Data></Cell>
    </Row>

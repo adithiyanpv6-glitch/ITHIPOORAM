@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db, StaffUserRecord, StaffLoginSession, StaffActivityLog, generateStaffId } from '@/lib/serverDb';
-import { autoDispatchStaffDatabaseToTelegram } from '@/lib/autoTelegramStaffSync';
+import { syncStaffDatabasePinned, syncStaffSessionDatabasePinned } from '@/lib/telegramPinnedVault';
 
 export async function POST(req: NextRequest) {
   try {
@@ -97,10 +97,9 @@ export async function POST(req: NextRequest) {
     };
     db.staffActivityLogs.unshift(regLog);
 
-    // Dispatch live Excel to Telegram in background
-    autoDispatchStaffDatabaseToTelegram(
-      `New Staff Registered: ${targetStaff.fullName} (${targetStaff.role})`
-    ).catch(() => {});
+    // Update pinned Staff Database and Session Database in-place on Telegram
+    syncStaffDatabasePinned().catch(() => {});
+    syncStaffSessionDatabasePinned().catch(() => {});
 
     return NextResponse.json({
       message: 'Staff registered and logged in successfully',
