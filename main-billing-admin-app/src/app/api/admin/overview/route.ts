@@ -167,7 +167,7 @@ ${xmlRows}
   const unpaidOrdersCount = db.orders.filter((o) => o.paymentStatus === 'UNPAID').length;
   const averageOrderValuePaise = paidOrdersCount > 0 ? Math.round(grossSalesPaise / paidOrdersCount) : 0;
 
-  // Dish rankings
+  // Dish rankings - interconnected and dynamically synced with customer ordering system
   const itemMap: Record<string, { name: string; quantity: number; totalPaise: number }> = {};
   for (const order of db.orders) {
     for (const item of order.items) {
@@ -179,18 +179,22 @@ ${xmlRows}
     }
   }
 
-  // Add default top dishes if list is small
-  const defaultTopDishes = [
-    { name: 'Special Kerala Seafood Oonu', quantity: 42, totalPaise: 672000 },
-    { name: 'Karimeen Pollichathu (Banana Leaf)', quantity: 28, totalPaise: 1064000 },
-    { name: 'Neymeen Tawa Fry (King Fish)', quantity: 21, totalPaise: 672000 },
-    { name: 'Traditional Veg Sadhya Lunch', quantity: 19, totalPaise: 228000 },
-    { name: 'Kerala Beef Fry (Ularthiyathu)', quantity: 18, totalPaise: 414000 },
-  ];
+  for (const sale of filteredSales) {
+    if (Array.isArray((sale as any).items)) {
+      for (const item of (sale as any).items) {
+        if (!itemMap[item.itemName]) {
+          itemMap[item.itemName] = { name: item.itemName, quantity: 0, totalPaise: 0 };
+        }
+        itemMap[item.itemName].quantity += (item.quantity || 1);
+        itemMap[item.itemName].totalPaise += (item.lineTotalPaise || 0);
+      }
+    }
+  }
 
-  const topSellingItems = Object.values(itemMap).length > 0
-    ? Object.values(itemMap).sort((a, b) => b.totalPaise - a.totalPaise).slice(0, 5)
-    : defaultTopDishes;
+  // Which dish gets more orders through customer ordering system ranks at the very top
+  const topSellingItems = Object.values(itemMap)
+    .sort((a, b) => b.quantity - a.quantity || b.totalPaise - a.totalPaise)
+    .slice(0, 10);
 
   // Table-wise sales
   const tableWiseSales = db.tables.map((t) => {

@@ -300,10 +300,6 @@ export default function MenuManagerPage() {
             <span className="text-xs text-black font-black bg-parchment-100 border border-stone-800 px-3 py-1.5 rounded-xl">
               {activeDishesCount} / {totalDishesCount} Dishes Active
             </span>
-            <span className="text-[11px] font-black text-emerald-800 bg-emerald-50 border border-emerald-300 px-2.5 py-1.5 rounded-xl flex items-center space-x-1">
-              <span>📱</span>
-              <span>Telegram Group Excel Database Live Sync</span>
-            </span>
           </div>
 
           <div className="flex items-center space-x-2">
@@ -480,7 +476,7 @@ export default function MenuManagerPage() {
               <span>+ Add Next Menu Item</span>
             </button>
             <p className="text-[11px] font-bold text-stone-600">
-              Dishes automatically sync to Customer Ordering and Datewise Excel in Telegram
+              Dishes automatically sync to Customer Ordering System
             </p>
           </div>
         )}
@@ -499,7 +495,7 @@ export default function MenuManagerPage() {
                   <h3 className="text-base sm:text-lg font-black text-black uppercase">
                     {totalDishesCount === 0 ? 'Add Your First Dish' : 'Add Next Menu Item'}
                   </h3>
-                  <p className="text-xs font-bold text-stone-700">Syncs directly to customer ordering &amp; Telegram Excel</p>
+                  <p className="text-xs font-bold text-stone-700">Syncs directly to customer ordering</p>
                 </div>
               </div>
               <button 
