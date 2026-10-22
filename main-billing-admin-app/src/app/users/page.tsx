@@ -582,21 +582,6 @@ export default function UsersPage() {
             </div>
 
             <form onSubmit={handleAddNewStaff} className="my-4 space-y-3.5 text-xs">
-              <div>
-                <label className="block font-bold text-slatepos-700 uppercase tracking-wider mb-1">
-                  Employee Full Name:
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={newName}
-                  onChange={(e) => setNewName(e.target.value)}
-                  placeholder="e.g. Arun Nair, Deepa V"
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-parchment-300 text-sm font-bold text-black bg-white focus:outline-none focus:border-[#9E341D]"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block font-bold text-slatepos-700 uppercase tracking-wider mb-1">
