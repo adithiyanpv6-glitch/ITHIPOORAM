@@ -112,9 +112,9 @@ export async function apiRequest<T = any>(endpoint: string, options: RequestInit
        Authentic Kerala Lunch & Seafood Spot
    Opp. Old Secretariat Gate, MG Road, Trivandrum
                   Ph: +91 471 233 4567
-     GSTIN: 32AAAAI0000A1Z5 | FSSAI: 11324007000890
+                 FSSAI: 11324007000890
 ================================================
-                  TAX INVOICE
+               RESTAURANT RECEIPT
 ------------------------------------------------
 Invoice: ${invoiceNumber}             Table: ${tCode}
 Order Ref: ${order.customerCode}        Time: ${new Date().toLocaleTimeString()}
@@ -124,9 +124,7 @@ ITEM [QTY x RATE]                    TOTAL (INR)
 ------------------------------------------------
 ${order.items.map((i: any) => `${i.itemNameSnapshot}\n  ${i.quantity} x ₹${(i.itemPriceSnapshotPaise/100).toFixed(2)}                      ₹${(i.lineTotalPaise/100).toFixed(2)}`).join('\n')}
 ------------------------------------------------
-Subtotal:                                ₹${(order.subtotalPaise/100).toFixed(2)}
-CGST (2.5%):                              ₹${((order.grandTotalPaise - order.subtotalPaise)/200).toFixed(2)}
-SGST (2.5%):                              ₹${((order.grandTotalPaise - order.subtotalPaise)/200).toFixed(2)}
+Total:                                   ₹${(order.grandTotalPaise/100).toFixed(2)}
 ================================================
 NET PAYABLE:                             ₹${(order.grandTotalPaise/100).toFixed(2)}
 ================================================

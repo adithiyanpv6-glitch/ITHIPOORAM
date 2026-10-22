@@ -193,15 +193,19 @@ function CustomerOrderingContent() {
     }
   };
 
-  // 3. Fetch Live Menu uploaded/managed by Admin
+  // 3. Fetch Live Menu uploaded/managed by Admin (Real-time live sync)
   useEffect(() => {
     const fetchLiveMenu = async () => {
-      if (!apiUrl) return;
       try {
-        const res = await fetch(`${apiUrl}/api/menu`);
+        const endpoint = apiUrl ? `${apiUrl}/api/menu` : '/api/menu';
+        const res = await fetch(endpoint, { cache: 'no-store' });
         if (res.ok) {
           const data = await res.json();
-          if (Array.isArray(data) && data.length > 0) {
+          if (Array.isArray(data)) {
+            if (data.length === 0) {
+              setMenuCategories([]);
+              return;
+            }
             // Transform data into categories if required
             const validCategories: MenuCategory[] = data.map((cat: any) => ({
               id: cat.id || `cat-${Math.random()}`,
@@ -219,16 +223,55 @@ function CustomerOrderingContent() {
                 station: it.station || 'Main Kitchen',
                 category: cat.id,
               }))
-            }));
+            })).filter(cat => cat.items.length > 0);
             setMenuCategories(validCategories);
+            return;
           }
         }
       } catch (e) {
-        // Fallback to FALLBACK_CATEGORIES
+        // Network fallback
+      }
+
+      // Local storage fallback for instant sync across tabs in same browser
+      if (typeof window !== 'undefined') {
+        const saved = localStorage.getItem('ithipooram_custom_menu_dishes');
+        if (saved) {
+          try {
+            const list = JSON.parse(saved);
+            if (Array.isArray(list) && list.length > 0) {
+              const grouped: Record<string, MenuItem[]> = {};
+              for (const it of list) {
+                const catName = it.category || 'Dishes';
+                if (!grouped[catName]) grouped[catName] = [];
+                grouped[catName].push({
+                  id: it.id || `m-${Math.random()}`,
+                  name: it.name,
+                  malayalamName: it.malayalamName,
+                  description: '',
+                  pricePaise: Math.round(Number(it.priceInr || 0) * 100),
+                  dietary: it.dietary || 'SEAFOOD',
+                  isAvailable: it.isAvailable !== false,
+                  currentStock: it.currentStock,
+                  station: it.station || 'Main Kitchen',
+                  category: catName,
+                });
+              }
+              const cats: MenuCategory[] = Object.entries(grouped).map(([name, items]) => ({
+                id: `cat-${name}`,
+                name,
+                items,
+              }));
+              setMenuCategories(cats);
+            }
+          } catch (err) {}
+        }
       }
     };
 
     fetchLiveMenu();
+    // Live polling every 4 seconds to sync menu changes made by Admin instantly
+    const interval = setInterval(fetchLiveMenu, 4000);
+    return () => clearInterval(interval);
   }, [apiUrl]);
 
   // Flatten all menu items for quick filtering and lookups
@@ -289,11 +332,11 @@ function CustomerOrderingContent() {
 
   const formatRupees = (paise: number = 0) => `₹${(paise / 100).toFixed(2)}`;
 
-  // Price calculations
+  // Price calculations (Net final prices set by Admin, no GST added)
   const subtotalPaise = useMemo(() => cart.reduce((s, c) => s + c.item.pricePaise * c.qty, 0), [cart]);
-  const cgstPaise = Math.round((subtotalPaise * 2.5) / 100);
-  const sgstPaise = Math.round((subtotalPaise * 2.5) / 100);
-  const grandTotalPaise = subtotalPaise + cgstPaise + sgstPaise;
+  const cgstPaise = 0;
+  const sgstPaise = 0;
+  const grandTotalPaise = subtotalPaise;
   const totalItemCount = useMemo(() => cart.reduce((s, c) => s + c.qty, 0), [cart]);
 
   // Combined totals when adding items to an existing order
@@ -379,17 +422,15 @@ function CustomerOrderingContent() {
       const nextRound = (activeExistingOrder.roundCount || 1) + 1;
       const combinedItems = [...activeExistingOrder.items, ...formattedNewItems];
       const newSub = combinedItems.reduce((acc, it) => acc + it.lineTotalPaise, 0);
-      const newCgst = Math.round((newSub * 2.5) / 100);
-      const newSgst = Math.round((newSub * 2.5) / 100);
 
       resultingOrder = {
         ...activeExistingOrder,
         roundCount: nextRound,
         items: combinedItems,
         subtotalPaise: newSub,
-        cgstPaise: newCgst,
-        sgstPaise: newSgst,
-        grandTotalPaise: newSub + newCgst + newSgst,
+        cgstPaise: 0,
+        sgstPaise: 0,
+        grandTotalPaise: newSub, // Net final price (GST inclusive)
         fulfillmentStatus: 'PREPARING',
         updatedAt: new Date().toISOString(),
       };
@@ -403,9 +444,9 @@ function CustomerOrderingContent() {
         roundCount: 1,
         items: formattedNewItems,
         subtotalPaise,
-        cgstPaise,
-        sgstPaise,
-        grandTotalPaise,
+        cgstPaise: 0,
+        sgstPaise: 0,
+        grandTotalPaise: subtotalPaise,
         fulfillmentStatus: 'PREPARING',
         paymentStatus: 'UNPAID',
         createdAt: new Date().toISOString(),
@@ -723,13 +764,21 @@ function CustomerOrderingContent() {
 
           {/* Dishes List */}
           <main className="max-w-xl mx-auto px-4 py-4 space-y-3">
-            {displayedItems.length === 0 ? (
+            {allMenuItems.length === 0 ? (
+              <div className="text-center py-16 bg-white rounded-3xl border-2 border-dashed border-stone-200 p-8 shadow-xs">
+                <Utensils className="w-12 h-12 text-[#9E341D] mx-auto mb-3 opacity-60" />
+                <h3 className="text-base font-black text-black">Menu Being Updated</h3>
+                <p className="text-xs font-bold text-stone-600 mt-1 max-w-xs mx-auto">
+                  Our chef &amp; staff are currently setting today&apos;s live menu. Dishes will appear here instantly once added.
+                </p>
+              </div>
+            ) : displayedItems.length === 0 ? (
               <div className="text-center py-16 bg-white rounded-3xl border border-stone-200 p-8">
                 <Utensils className="w-10 h-10 text-stone-300 mx-auto mb-3" />
-                <h3 className="text-sm font-bold text-stone-800">No dishes found</h3>
+                <h3 className="text-sm font-bold text-stone-800">No dishes match your filter</h3>
                 <p className="text-xs text-stone-500 mt-1">Try clearing your search query or switching categories</p>
                 <button
-                  onClick={() => { setSearchQuery(''); setActiveCategoryTab('all'); }}
+                  onClick={() => { setSearchQuery(''); setActiveCategoryTab('all'); setDietaryFilter('ALL'); }}
                   className="mt-4 px-4 py-2 rounded-xl bg-stone-100 text-stone-700 text-xs font-bold"
                 >
                   Show All Menu Items
@@ -936,13 +985,12 @@ function CustomerOrderingContent() {
                 ))}
               </div>
 
-              <div className="mt-4 pt-3 border-t border-stone-200 flex justify-between text-xs text-stone-600">
-                <span>GST (5% split CGST + SGST):</span>
-                <span className="font-mono">{formatRupees(activeExistingOrder.cgstPaise + activeExistingOrder.sgstPaise)}</span>
-              </div>
-              <div className="mt-1 flex justify-between text-sm font-black text-stone-950">
+              <div className="mt-4 pt-3 border-t border-stone-200 flex justify-between text-sm font-black text-stone-950">
                 <span>Grand Total:</span>
-                <span className="font-mono text-[#9E341D]">{formatRupees(activeExistingOrder.grandTotalPaise)}</span>
+                <span className="font-mono text-[#9E341D]">{formatRupees(activeExistingOrder.grandTotalPaise || activeExistingOrder.subtotalPaise)}</span>
+              </div>
+              <div className="text-[10px] text-stone-500 font-semibold mt-1">
+                Net final price inclusive of all taxes.
               </div>
             </div>
 
@@ -1068,15 +1116,11 @@ function CustomerOrderingContent() {
                 ))}
               </div>
 
-              {/* Bill Breakdown */}
+              {/* Bill Breakdown (Net Final Prices, No Extra GST) */}
               <div className="py-3 border-t border-stone-200 space-y-1 text-xs text-stone-600">
                 <div className="flex justify-between">
-                  <span>New Dishes Subtotal:</span>
+                  <span>Cart Dishes Subtotal:</span>
                   <span className="font-mono font-bold">{formatRupees(subtotalPaise)}</span>
-                </div>
-                <div className="flex justify-between text-stone-400 text-[11px]">
-                  <span>GST (5% split CGST + SGST):</span>
-                  <span className="font-mono">{formatRupees(cgstPaise + sgstPaise)}</span>
                 </div>
                 {activeExistingOrder && (
                   <div className="flex justify-between text-stone-500 text-[11px] pt-1">
