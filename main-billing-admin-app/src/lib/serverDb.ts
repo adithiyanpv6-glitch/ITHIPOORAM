@@ -94,6 +94,44 @@ export interface MenuCategoryDb {
   items: MenuItemDb[];
 }
 
+export interface StaffUserRecord {
+  id: string;
+  fullName: string;
+  username: string;
+  pin: string;
+  role: 'MAIN_ADMIN' | 'MANAGER' | 'CASHIER' | 'KITCHEN_STAFF' | 'MENU_EDITOR';
+  station: string;
+  isActive: boolean;
+  registeredAt: string;
+  totalLogins: number;
+  notes?: string;
+}
+
+export interface StaffLoginSession {
+  sessionId: string;
+  staffId: string;
+  fullName: string;
+  username: string;
+  role: string;
+  station: string;
+  loginDate: string;
+  loginTime: string;
+  clientIp: string;
+  status: 'ACTIVE' | 'LOGGED_OUT';
+  lastActive: string;
+}
+
+export interface StaffActivityLog {
+  id: string;
+  timestamp: string;
+  actionType: 'STAFF_REGISTRATION' | 'LOGIN_SUCCESS' | 'LOGOUT' | 'LOGIN_FAILED' | 'STATUS_UPDATE';
+  usernameSnapshot: string;
+  fullNameSnapshot: string;
+  roleSnapshot: string;
+  details: string;
+  success: boolean;
+}
+
 // Global singleton to persist state in Node.js server environment across route calls
 declare global {
   var __ITHIPOORAM_DB__: {
@@ -102,6 +140,10 @@ declare global {
     kitchenTickets: KitchenTicket[];
     auditLogs: AuditLogEntry[];
     menuCategories: MenuCategoryDb[];
+    staffUsers: StaffUserRecord[];
+    loginSessions: StaffLoginSession[];
+    staffActivityLogs: StaffActivityLog[];
+    dailyMenuHistory?: any[];
     historicalSales: Array<{
       invoiceNumber: string;
       orderCode: string;
@@ -150,6 +192,131 @@ function generateInitialHistoricalSales() {
   return sales;
 }
 
+const DEFAULT_STAFF_DATABASE: StaffUserRecord[] = [
+  {
+    id: 'IP-STF-001',
+    fullName: 'Owner / Executive Admin',
+    username: 'admin',
+    pin: '1111',
+    role: 'MAIN_ADMIN',
+    station: 'Executive Central Gateway',
+    isActive: true,
+    registeredAt: '2026-10-15 09:00:00 AM',
+    totalLogins: 14,
+    notes: 'Primary Master Admin. Authorized for complete system governance & override.',
+  },
+  {
+    id: 'IP-STF-002',
+    fullName: 'Gokul Krishnan',
+    username: 'gokul',
+    pin: '1234',
+    role: 'CASHIER',
+    station: 'Billing Counter POS 1',
+    isActive: true,
+    registeredAt: '2026-10-15 10:30:00 AM',
+    totalLogins: 28,
+    notes: 'Lead cashier. Authorized for cash & UPI settlement and thermal receipt printing.',
+  },
+  {
+    id: 'IP-STF-003',
+    fullName: 'Meera Rajesh',
+    username: 'meera',
+    pin: '5678',
+    role: 'CASHIER',
+    station: 'Billing Counter POS 2',
+    isActive: true,
+    registeredAt: '2026-10-15 11:00:00 AM',
+    totalLogins: 19,
+    notes: 'Secondary cashier. Parcel counter and split bill operator.',
+  },
+  {
+    id: 'IP-STF-004',
+    fullName: 'Ananthu V',
+    username: 'ananthu',
+    pin: '9999',
+    role: 'MANAGER',
+    station: 'Floor Operations & Shift Desk',
+    isActive: true,
+    registeredAt: '2026-10-15 11:45:00 AM',
+    totalLogins: 9,
+    notes: 'Floor supervisor. Shift report sign-off and table reallocation rights.',
+  },
+  {
+    id: 'IP-STF-005',
+    fullName: 'Chef Suresh Kumar',
+    username: 'chef_suresh',
+    pin: '2233',
+    role: 'KITCHEN_STAFF',
+    station: 'Main Kitchen Display (KDS)',
+    isActive: true,
+    registeredAt: '2026-10-16 08:30:00 AM',
+    totalLogins: 32,
+    notes: 'Head seafood chef. Kitchen order status fulfillment (Preparing, Ready, Served).',
+  },
+];
+
+const INITIAL_SESSIONS: StaffLoginSession[] = [
+  {
+    sessionId: `SES-${new Date().toISOString().slice(0, 10).replace(/-/g, '')}-001`,
+    staffId: 'IP-STF-001',
+    fullName: 'Owner / Executive Admin',
+    username: 'admin',
+    role: 'MAIN_ADMIN',
+    station: 'Executive Central Gateway',
+    loginDate: new Date().toLocaleDateString('en-GB'),
+    loginTime: '09:00:00 AM',
+    clientIp: 'Terminal Gateway (Internal Tablet)',
+    status: 'ACTIVE',
+    lastActive: new Date().toLocaleTimeString('en-IN'),
+  },
+  {
+    sessionId: `SES-${new Date().toISOString().slice(0, 10).replace(/-/g, '')}-002`,
+    staffId: 'IP-STF-002',
+    fullName: 'Gokul Krishnan',
+    username: 'gokul',
+    role: 'CASHIER',
+    station: 'Billing Counter POS 1',
+    loginDate: new Date().toLocaleDateString('en-GB'),
+    loginTime: '10:15:00 AM',
+    clientIp: 'Cashier Terminal 1 (Android 14)',
+    status: 'ACTIVE',
+    lastActive: new Date().toLocaleTimeString('en-IN'),
+  },
+];
+
+const INITIAL_STAFF_ACTIVITY: StaffActivityLog[] = [
+  {
+    id: 'LOG-001',
+    timestamp: '2026-10-15 09:00:00 AM',
+    actionType: 'STAFF_REGISTRATION',
+    usernameSnapshot: 'admin',
+    fullNameSnapshot: 'Owner / Executive Admin',
+    roleSnapshot: 'MAIN_ADMIN',
+    details: 'Master Admin account initialized during restaurant setup.',
+    success: true,
+  },
+  {
+    id: 'LOG-002',
+    timestamp: '2026-10-15 10:30:00 AM',
+    actionType: 'STAFF_REGISTRATION',
+    usernameSnapshot: 'gokul',
+    fullNameSnapshot: 'Gokul Krishnan',
+    roleSnapshot: 'CASHIER',
+    details: 'Cashier 1 registered with 4-digit PIN for Billing Counter.',
+    success: true,
+  },
+  {
+    id: 'LOG-003',
+    timestamp: new Date().toLocaleString('en-IN'),
+    actionType: 'LOGIN_SUCCESS',
+    usernameSnapshot: 'admin',
+    fullNameSnapshot: 'Owner / Executive Admin',
+    roleSnapshot: 'MAIN_ADMIN',
+    details: 'Successful sign-in to Operational Gateway.',
+    success: true,
+  },
+];
+
 if (!global.__ITHIPOORAM_DB__) {
   global.__ITHIPOORAM_DB__ = {
     tables: [],
@@ -167,9 +334,23 @@ if (!global.__ITHIPOORAM_DB__) {
       }
     ],
     menuCategories: [],
+    staffUsers: [...DEFAULT_STAFF_DATABASE],
+    loginSessions: [...INITIAL_SESSIONS],
+    staffActivityLogs: [...INITIAL_STAFF_ACTIVITY],
     historicalSales: generateInitialHistoricalSales(),
   };
 } else {
+  // Ensure staffUsers, loginSessions, and staffActivityLogs exist if singleton was initialized earlier
+  if (!global.__ITHIPOORAM_DB__.staffUsers || global.__ITHIPOORAM_DB__.staffUsers.length === 0) {
+    global.__ITHIPOORAM_DB__.staffUsers = [...DEFAULT_STAFF_DATABASE];
+  }
+  if (!global.__ITHIPOORAM_DB__.loginSessions) {
+    global.__ITHIPOORAM_DB__.loginSessions = [...INITIAL_SESSIONS];
+  }
+  if (!global.__ITHIPOORAM_DB__.staffActivityLogs) {
+    global.__ITHIPOORAM_DB__.staffActivityLogs = [...INITIAL_STAFF_ACTIVITY];
+  }
+
   // Clear any legacy mock tables so tables only appear when explicitly added by user
   if (global.__ITHIPOORAM_DB__.tables?.some((t) => t.id === 't1' && t.displayName?.includes('Verandah'))) {
     global.__ITHIPOORAM_DB__.tables = [];

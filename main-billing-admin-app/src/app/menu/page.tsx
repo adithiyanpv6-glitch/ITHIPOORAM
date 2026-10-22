@@ -81,8 +81,8 @@ export default function MenuManagerPage() {
         }
       }
 
-      // 2. Fetch live menu from central API
-      const res = await fetch('/api/menu');
+      // 2. Fetch live menu from central API with no-store to always bypass any browser/Vercel caching
+      const res = await fetch('/api/menu', { cache: 'no-store' });
       if (res.ok) {
         const data = await res.json();
         setCategories(Array.isArray(data) ? data : []);
@@ -281,9 +281,6 @@ export default function MenuManagerPage() {
                 Customer Synced
               </span>
             </div>
-            <p className="text-[11px] text-slatepos-400">
-              Real-time dish registry, pricing, and live customer ordering sync
-            </p>
           </div>
         </div>
 
@@ -296,29 +293,23 @@ export default function MenuManagerPage() {
         </button>
       </header>
 
-      {/* Action & Date Control Ribbon */}
-      <div className="bg-white border-b border-parchment-200 px-4 sm:px-6 py-3 sticky top-[57px] z-20 shadow-xs">
-        <div className="max-w-6xl mx-auto flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
-          {/* Left: + Add Item Primary Option */}
-          <div className="flex items-center space-x-2.5">
-            <button
-              onClick={() => setIsAddModalOpen(true)}
-              className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-[#9E341D] hover:bg-[#852B17] text-white font-black text-xs sm:text-sm shadow-md flex items-center justify-center space-x-2 active:scale-98 transition cursor-pointer"
-            >
-              <Plus className="w-4 h-4 stroke-[3]" />
-              <span>+ Add Item</span>
-            </button>
-
-            <span className="text-xs text-black font-black hidden sm:inline-block bg-parchment-100 border border-parchment-300 px-3 py-1.5 rounded-xl">
-              {activeDishesCount} / {totalDishesCount} Dishes Configured
+      {/* Clean Status & Date Control Bar (Top Add Item & Excel/CSV Options Removed as Requested) */}
+      <div className="bg-white border-b border-parchment-200 px-4 sm:px-6 py-2.5 sticky top-[57px] z-20 shadow-xs">
+        <div className="max-w-6xl mx-auto flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5">
+          <div className="flex items-center space-x-2">
+            <span className="text-xs text-black font-black bg-parchment-100 border border-stone-800 px-3 py-1.5 rounded-xl">
+              {activeDishesCount} / {totalDishesCount} Dishes Active
+            </span>
+            <span className="text-[11px] font-black text-emerald-800 bg-emerald-50 border border-emerald-300 px-2.5 py-1.5 rounded-xl flex items-center space-x-1">
+              <span>📱</span>
+              <span>Telegram Group Excel Database Live Sync</span>
             </span>
           </div>
 
-          {/* Right: Date Changer & Excel Database Export */}
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="flex items-center space-x-2">
             <div className="flex items-center space-x-1.5 bg-parchment-100 border-2 border-stone-800 rounded-xl px-2.5 py-1">
               <Calendar className="w-3.5 h-3.5 text-black" />
-              <span className="text-xs font-black text-black">Date:</span>
+              <span className="text-xs font-black text-black">Menu Date:</span>
               <input
                 type="date"
                 value={selectedDate}
@@ -326,35 +317,15 @@ export default function MenuManagerPage() {
                 className="bg-transparent text-xs font-black text-black border-none outline-none cursor-pointer"
               />
             </div>
-
             <button
               onClick={() => setSelectedDate(new Date().toISOString().split('T')[0])}
-              className={`px-3 py-1.5 rounded-lg text-xs font-black transition border-2 ${
+              className={`px-3 py-1 rounded-lg text-xs font-black transition border-2 ${
                 selectedDate === new Date().toISOString().split('T')[0]
                   ? 'bg-black text-white border-black'
                   : 'bg-white text-black border-stone-800 hover:bg-parchment-100'
               }`}
             >
               Today
-            </button>
-
-            <button
-              onClick={() => handleDownloadDailyMenuExcel('xls')}
-              disabled={isExportingExcel}
-              className="px-3.5 py-1.5 rounded-xl bg-black hover:bg-stone-800 text-white font-black text-xs shadow-sm flex items-center space-x-1.5 active:scale-98 transition disabled:opacity-50"
-              title="Download Master Excel database for the selected date"
-            >
-              <FileSpreadsheet className="w-3.5 h-3.5 text-amber-300" />
-              <span>{isExportingExcel ? 'Exporting...' : 'Menu Excel (.xls)'}</span>
-            </button>
-
-            <button
-              onClick={() => handleDownloadDailyMenuExcel('csv')}
-              disabled={isExportingExcel}
-              className="px-3 py-1.5 rounded-xl bg-white border-2 border-stone-800 hover:bg-parchment-100 text-black font-black text-xs shadow-2xs active:scale-98 transition disabled:opacity-50"
-              title="Download CSV format for Google Sheets"
-            >
-              CSV
             </button>
           </div>
         </div>
@@ -497,6 +468,22 @@ export default function MenuManagerPage() {
             )
           ))
         )}
+
+        {/* Small button to add next menu item (appears below added items) */}
+        {totalDishesCount > 0 && (
+          <div className="pt-2 pb-6 flex flex-col items-center justify-center space-y-2">
+            <button
+              onClick={() => setIsAddModalOpen(true)}
+              className="px-5 py-2.5 rounded-2xl bg-[#9E341D] hover:bg-[#852B17] text-white font-black text-xs sm:text-sm shadow-md flex items-center justify-center space-x-2 active:scale-98 transition cursor-pointer border-2 border-stone-900"
+            >
+              <Plus className="w-4 h-4 stroke-[3]" />
+              <span>+ Add Next Menu Item</span>
+            </button>
+            <p className="text-[11px] font-bold text-stone-600">
+              Dishes automatically sync to Customer Ordering and Datewise Excel in Telegram
+            </p>
+          </div>
+        )}
       </main>
 
       {/* Modal: + Add Item (High-Contrast Black Font Typography, Image Removed) */}
@@ -509,8 +496,10 @@ export default function MenuManagerPage() {
                   <Plus className="w-5 h-5 stroke-[3]" />
                 </div>
                 <div>
-                  <h3 className="text-base sm:text-lg font-black text-black uppercase">Add New Dish</h3>
-                  <p className="text-xs font-bold text-stone-700">Syncs directly to customer ordering system</p>
+                  <h3 className="text-base sm:text-lg font-black text-black uppercase">
+                    {totalDishesCount === 0 ? 'Add Your First Dish' : 'Add Next Menu Item'}
+                  </h3>
+                  <p className="text-xs font-bold text-stone-700">Syncs directly to customer ordering &amp; Telegram Excel</p>
                 </div>
               </div>
               <button 
@@ -582,7 +571,7 @@ export default function MenuManagerPage() {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
                 <div>
                   <label className="block text-xs font-black text-black mb-1">
-                    Price (₹ INR) *
+                    Final Price (₹ INR) *
                   </label>
                   <div className="relative">
                     <span className="absolute left-3.5 top-2.5 text-sm font-black text-black">₹</span>
@@ -597,6 +586,9 @@ export default function MenuManagerPage() {
                       className="w-full text-sm pl-8 pr-3 py-2.5 rounded-xl border-2 border-stone-800 font-mono font-black text-black bg-white focus:border-[#9E341D] outline-none"
                     />
                   </div>
+                  <span className="text-[10px] font-bold text-stone-600 block mt-1">
+                    Final price (inclusive of GST). No extra tax will be added to the customer.
+                  </span>
                 </div>
 
                 <div>
@@ -688,13 +680,16 @@ export default function MenuManagerPage() {
             <h3 className="text-base font-black text-black">Update Price for {priceEditItem.name}</h3>
             <div className="mt-4 space-y-3">
               <div>
-                <label className="block text-xs font-black text-black mb-1">New Price (INR ₹):</label>
+                <label className="block text-xs font-black text-black mb-1">Final Price (INR ₹) - Inclusive of GST:</label>
                 <input
                   type="number"
                   value={newPriceRupees}
                   onChange={(e) => setNewPriceRupees(e.target.value)}
                   className="w-full text-sm p-2.5 rounded-xl border-2 border-stone-800 font-mono font-black text-black bg-white"
                 />
+                <span className="text-[10px] font-bold text-stone-600 block mt-1">
+                  Net final price. No additional GST is charged at billing.
+                </span>
               </div>
               <div>
                 <label className="block text-xs font-black text-black mb-1">Audit Reason:</label>

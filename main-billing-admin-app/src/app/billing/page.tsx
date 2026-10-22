@@ -601,26 +601,15 @@ export default function BillingTerminalPage() {
                   ))}
                 </div>
 
-                <div className="py-4 border-b border-parchment-200 space-y-1.5 text-xs text-slatepos-600">
-                  <div className="flex justify-between">
-                    <span>Subtotal:</span>
-                    <span className="font-semibold text-slatepos-900">
-                      {formatRupees(billPreview.calculation.subtotalPaise)}
+                <div className="py-4 border-b border-parchment-200 space-y-2 text-xs text-slatepos-600">
+                  <div className="flex justify-between items-center text-lg font-black text-slatepos-950">
+                    <span>Net Payable:</span>
+                    <span className="font-mono text-brand-700 text-xl">
+                      {formatRupees(billPreview.calculation.grandTotalPaise || billPreview.calculation.subtotalPaise)}
                     </span>
                   </div>
-                  <div className="flex justify-between text-slatepos-500 text-[11px]">
-                    <span>CGST (2.5%):</span>
-                    <span>{formatRupees(billPreview.calculation.cgstPaise)}</span>
-                  </div>
-                  <div className="flex justify-between text-slatepos-500 text-[11px]">
-                    <span>SGST (2.5%):</span>
-                    <span>{formatRupees(billPreview.calculation.sgstPaise)}</span>
-                  </div>
-                  <div className="flex justify-between text-lg font-black text-slatepos-950 pt-2 border-t border-parchment-200">
-                    <span>Grand Total:</span>
-                    <span className="font-mono text-brand-700">
-                      {formatRupees(billPreview.calculation.grandTotalPaise)}
-                    </span>
+                  <div className="text-[11px] font-semibold text-slatepos-500">
+                    Final price inclusive of all taxes. No additional GST charged.
                   </div>
                 </div>
 

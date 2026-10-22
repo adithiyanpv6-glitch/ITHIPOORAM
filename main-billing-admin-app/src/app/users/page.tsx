@@ -32,6 +32,7 @@ import {
 export default function UsersPage() {
   const router = useRouter();
   const [users, setUsers] = useState<StaffRecord[]>([]);
+  const [sessions, setSessions] = useState<any[]>([]);
   const [revealedPins, setRevealedPins] = useState<{ [id: string]: boolean }>({});
   
   // Modals
@@ -95,12 +96,32 @@ export default function UsersPage() {
       return;
     }
     loadStaffDatabase();
+
+    const fetchLiveSessions = async () => {
+      try {
+        const res = await fetch('/api/staff/sessions');
+        if (res.ok) {
+          const data = await res.json();
+          if (Array.isArray(data.sessions)) {
+            setSessions(data.sessions);
+          }
+          if (Array.isArray(data.staff) && data.staff.length > 0) {
+            setUsers(data.staff);
+          }
+        }
+      } catch (e) {}
+    };
+
+    fetchLiveSessions();
+    const interval = setInterval(fetchLiveSessions, 5000);
     
     // Check saved telegram config
     const savedToken = localStorage.getItem('ithipooram_tg_token');
     const savedChatId = localStorage.getItem('ithipooram_tg_chat_id');
     if (savedToken) setTelegramBotToken(savedToken);
     if (savedChatId) setTelegramChatId(savedChatId);
+
+    return () => clearInterval(interval);
   }, [router]);
 
   const saveDatabaseState = (updatedList: StaffRecord[]) => {
@@ -169,16 +190,9 @@ export default function UsersPage() {
     setIsAddModalOpen(false);
   };
 
-  // Download Master Excel (.xls / .xlsx XML)
+  // Download Master Staff & Sessions Excel (.xls XML)
   const handleDownloadExcel = () => {
-    const xmlContent = generateMasterStaffExcelXml(users);
-    const blob = new Blob([xmlContent], { type: 'application/vnd.ms-excel;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `IthiPooram_Master_Staff_Database_${new Date().toISOString().slice(0, 10)}.xls`;
-    a.click();
-    URL.revokeObjectURL(url);
+    window.location.href = '/api/staff/database/excel';
   };
 
   // Download CSV for Google Sheets
@@ -199,24 +213,19 @@ export default function UsersPage() {
     setTelegramStatus(null);
 
     try {
-      if (telegramBotToken) localStorage.setItem('ithipooram_tg_token', telegramBotToken);
-      if (telegramChatId) localStorage.setItem('ithipooram_tg_chat_id', telegramChatId);
-
-      const res = await fetch('/api/telegram/sync-database', {
+      const res = await fetch('/api/staff/database/telegram-sync', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          botToken: telegramBotToken,
-          chatId: telegramChatId,
-          staffList: users,
+          reason: 'Manual Admin Request from Staff & Sessions Console',
         }),
       });
 
       const data = await res.json();
       if (data.success) {
-        setTelegramStatus(data.message || 'Excel database successfully delivered to Telegram!');
+        setTelegramStatus(data.message || 'Staff & sessions Excel database successfully delivered to Telegram!');
       } else {
-        setTelegramStatus(`Error: ${data.error || 'Failed to dispatch to Telegram'}`);
+        setTelegramStatus(`Notice: ${data.message || data.error || 'Sync request submitted'}`);
       }
     } catch (e: any) {
       setTelegramStatus(`Network error: ${e.message}`);
@@ -289,13 +298,13 @@ export default function UsersPage() {
 
           <div className="bg-white p-4 rounded-3xl border border-parchment-200 shadow-2xs">
             <span className="text-[11px] font-bold text-slatepos-500 uppercase tracking-wider block mb-1">
-              Admin Master Override
+              Live Login Sessions
             </span>
-            <div className="text-2xl font-black text-[#9E341D] font-mono flex items-center space-x-1.5">
-              <ShieldCheck className="w-6 h-6 text-[#9E341D]" />
-              <span>PIN 1111</span>
+            <div className="text-2xl font-black text-emerald-600 font-mono flex items-center space-x-2">
+              <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-ping" />
+              <span>{sessions.filter((s) => s.status === 'ACTIVE').length} Online</span>
             </div>
-            <p className="text-[11px] text-slatepos-400 mt-1">Universal Emergency Staff Access</p>
+            <p className="text-[11px] text-slatepos-400 mt-1">Real-time Connected Staff Devices</p>
           </div>
 
           <div className="bg-white p-4 rounded-3xl border border-parchment-200 shadow-2xs">
@@ -483,6 +492,84 @@ export default function UsersPage() {
           </div>
         </div>
 
+        {/* Live Staff Login Sessions Registry Table */}
+        <div className="bg-white rounded-3xl border border-parchment-200 overflow-hidden shadow-2xs">
+          <div className="p-4 sm:px-6 py-4 border-b border-parchment-200 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+            <div className="flex items-center space-x-2.5">
+              <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
+              <div>
+                <h2 className="text-base font-extrabold text-slatepos-950">Live Staff Login Sessions Database</h2>
+                <p className="text-xs text-slatepos-500">Real-time session monitoring • Synchronized to Excel &amp; Telegram every 30 mins and on every sign-in</p>
+              </div>
+            </div>
+            <div className="flex items-center space-x-2">
+              <span className="text-xs font-mono font-bold px-3 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
+                {sessions.filter((s) => s.status === 'ACTIVE').length} Online Now
+              </span>
+              <button
+                onClick={handleSendToTelegram}
+                disabled={isSendingTelegram}
+                className="px-3 py-1 rounded-xl text-xs font-bold bg-[#9E341D] text-white hover:bg-[#852B17] transition flex items-center space-x-1"
+                title="Send updated session Excel to Telegram"
+              >
+                <Send className="w-3 h-3" />
+                <span>{isSendingTelegram ? 'Syncing...' : 'Sync to Telegram'}</span>
+              </button>
+            </div>
+          </div>
+
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-xs text-slatepos-700">
+              <thead className="bg-slatepos-900 text-[11px] font-bold uppercase tracking-wider text-white border-b border-slatepos-800">
+                <tr>
+                  <th className="px-4 py-3">Session ID</th>
+                  <th className="px-4 py-3">Staff Name</th>
+                  <th className="px-4 py-3">Sign-in ID</th>
+                  <th className="px-4 py-3">Role</th>
+                  <th className="px-4 py-3">Login Date &amp; Time</th>
+                  <th className="px-4 py-3">Terminal / Device</th>
+                  <th className="px-4 py-3 text-center">Status</th>
+                  <th className="px-4 py-3 text-right">Last Active</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-parchment-100">
+                {sessions.length === 0 ? (
+                  <tr>
+                    <td colSpan={8} className="px-4 py-8 text-center text-slatepos-400">
+                      No active sessions recorded yet today. When staff sign in, sessions appear live here and in Telegram.
+                    </td>
+                  </tr>
+                ) : (
+                  sessions.map((ses) => (
+                    <tr key={ses.sessionId} className="hover:bg-parchment-50 transition">
+                      <td className="px-4 py-3 font-mono font-bold text-slatepos-850">{ses.sessionId}</td>
+                      <td className="px-4 py-3 font-bold text-slatepos-950">{ses.fullName}</td>
+                      <td className="px-4 py-3 text-slatepos-600 font-mono">@{ses.username}</td>
+                      <td className="px-4 py-3">
+                        <span className="px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-700 font-bold text-[10px] border border-indigo-200">
+                          {ses.role}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-slatepos-600">{ses.loginDate} {ses.loginTime}</td>
+                      <td className="px-4 py-3 text-slatepos-600">{ses.clientIp || 'POS Tablet'}</td>
+                      <td className="px-4 py-3 text-center">
+                        <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold ${
+                          ses.status === 'ACTIVE'
+                            ? 'bg-emerald-100 text-emerald-800 border border-emerald-300'
+                            : 'bg-slate-100 text-slate-600'
+                        }`}>
+                          {ses.status === 'ACTIVE' ? '🟢 ACTIVE' : '⚪ LOGGED OUT'}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-right font-mono text-slatepos-500">{ses.lastActive || ses.loginTime}</td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
         {/* Security & Password Protection Policy Box */}
         <div className="bg-amber-50 rounded-3xl border border-amber-200 p-5 text-amber-950 text-xs space-y-2">
           <div className="flex items-center space-x-2 font-bold text-sm text-[#9E341D]">
@@ -491,8 +578,8 @@ export default function UsersPage() {
           </div>
           <p className="leading-relaxed">
             All user credentials generated here adhere to the 4-digit rapid tablet authentication standard. 
-            The Master Admin holds universal bypass privileges (<span className="font-mono font-bold">PIN: 1111</span>) allowing login to any station for emergency overrides. 
             The Excel file exported from this portal is formatted with full OpenXML schemas ready to open inside Microsoft Excel or Google Workspace Sheets without any conversion loss.
+            All active login sessions and new registrations automatically dispatch live to your Telegram group as an Excel database.
           </p>
         </div>
       </main>

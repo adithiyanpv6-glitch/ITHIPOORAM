@@ -97,13 +97,11 @@ export async function POST(request: Request) {
       existingOrder.items.push(...formattedItems);
       
       const newSubtotal = existingOrder.items.reduce((acc, it) => acc + it.lineTotalPaise, 0);
-      const newCgst = Math.round((newSubtotal * 2.5) / 100);
-      const newSgst = Math.round((newSubtotal * 2.5) / 100);
       
       existingOrder.subtotalPaise = newSubtotal;
-      existingOrder.cgstPaise = newCgst;
-      existingOrder.sgstPaise = newSgst;
-      existingOrder.grandTotalPaise = newSubtotal + newCgst + newSgst;
+      existingOrder.cgstPaise = 0;
+      existingOrder.sgstPaise = 0;
+      existingOrder.grandTotalPaise = newSubtotal; // Net final price (GST included by Admin)
       existingOrder.updatedAt = new Date().toISOString();
       if (existingOrder.fulfillmentStatus === 'READY' || existingOrder.fulfillmentStatus === 'SERVED') {
         existingOrder.fulfillmentStatus = 'PREPARING'; // New round cooking
@@ -169,9 +167,7 @@ export async function POST(request: Request) {
     const customerCode = `${tableCode.toUpperCase()}-${String(nextSeq).padStart(2, '0')}`;
 
     const subtotalPaise = formattedItems.reduce((acc, it) => acc + it.lineTotalPaise, 0);
-    const cgstPaise = Math.round((subtotalPaise * 2.5) / 100);
-    const sgstPaise = Math.round((subtotalPaise * 2.5) / 100);
-    const grandTotalPaise = subtotalPaise + cgstPaise + sgstPaise;
+    const grandTotalPaise = subtotalPaise; // Net final price (GST included by Admin)
 
     const newOrder: RestaurantOrder = {
       id: `ord-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
@@ -182,8 +178,8 @@ export async function POST(request: Request) {
       roundCount: 1,
       items: formattedItems,
       subtotalPaise,
-      cgstPaise,
-      sgstPaise,
+      cgstPaise: 0,
+      sgstPaise: 0,
       grandTotalPaise,
       fulfillmentStatus: 'NEW',
       paymentStatus: 'UNPAID',

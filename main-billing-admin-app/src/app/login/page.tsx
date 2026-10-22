@@ -6,7 +6,6 @@ import {
   User, 
   KeyRound, 
   ArrowRight, 
-  ShieldCheck, 
   UserPlus, 
   CheckCircle2, 
   AlertCircle,
@@ -242,7 +241,7 @@ export default function LoginPage() {
                   />
                 </div>
                 <p className="text-[11px] text-stone-400 mt-1">
-                  Enter your 4-digit PIN (Admin master password works for all accounts).
+                  Enter your 4-digit security PIN.
                 </p>
               </div>
 
@@ -254,16 +253,6 @@ export default function LoginPage() {
                 <span>{loading ? 'Authenticating...' : 'Sign In to Tablet'}</span>
                 <ArrowRight className="w-4 h-4" />
               </button>
-
-              <div className="pt-2 text-center">
-                <button
-                  type="button"
-                  onClick={() => setActiveTab('register')}
-                  className="text-xs text-amber-300/90 hover:text-amber-200 font-semibold transition"
-                >
-                  Need access? Register new staff account →
-                </button>
-              </div>
             </form>
           )}
 
@@ -358,12 +347,6 @@ export default function LoginPage() {
               </div>
             </form>
           )}
-        </div>
-
-        {/* Security Notice */}
-        <div className="text-center mt-6 text-stone-500 text-[11px] flex items-center justify-center space-x-1.5">
-          <ShieldCheck className="w-3.5 h-3.5 text-stone-400" />
-          <span>Ithi Pooram Central Gateway • Admin Master PIN [1111] Universal Override Active</span>
         </div>
       </div>
     </div>

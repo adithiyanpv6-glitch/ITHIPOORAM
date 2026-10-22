@@ -1,10 +1,14 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/serverDb';
+import { autoDispatchMenuExcelToTelegram } from '@/lib/autoTelegramMenuSync';
+
+export const dynamic = 'force-dynamic';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Methods': 'GET, POST, PATCH, OPTIONS',
   'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+  'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
 };
 
 export async function OPTIONS() {
@@ -12,7 +16,14 @@ export async function OPTIONS() {
 }
 
 export async function GET() {
-  return NextResponse.json(db.menuCategories || [], { headers: corsHeaders });
+  return NextResponse.json(db.menuCategories || [], { 
+    headers: {
+      ...corsHeaders,
+      'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0',
+      'CDN-Cache-Control': 'no-store',
+      'Vercel-CDN-Cache-Control': 'no-store',
+    } 
+  });
 }
 
 export async function POST(request: Request) {
@@ -73,6 +84,13 @@ export async function POST(request: Request) {
       success: true,
     });
 
+    // Automatically update Datewise Menu Database and dispatch Excel to Telegram
+    try {
+      await autoDispatchMenuExcelToTelegram(`New Dish Added: ${newItem.name} (₹${(newItem.pricePaise / 100).toFixed(2)})`);
+    } catch (tgErr) {
+      console.error('Menu telegram auto-dispatch error:', tgErr);
+    }
+
     return NextResponse.json({ success: true, item: newItem, categories: db.menuCategories }, { headers: corsHeaders });
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500, headers: corsHeaders });
@@ -114,6 +132,13 @@ export async function PATCH(request: Request) {
       reason: reason || `Updated item ${updatedItem.name}`,
       success: true,
     });
+
+    // Automatically update Datewise Menu Database and dispatch Excel to Telegram
+    try {
+      await autoDispatchMenuExcelToTelegram(`Menu Item Updated: ${updatedItem.name}`);
+    } catch (tgErr) {
+      console.error('Menu telegram auto-dispatch error:', tgErr);
+    }
 
     return NextResponse.json({ success: true, item: updatedItem }, { headers: corsHeaders });
   } catch (err: any) {

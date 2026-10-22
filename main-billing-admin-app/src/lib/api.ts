@@ -70,16 +70,14 @@ export async function apiRequest<T = any>(endpoint: string, options: RequestInit
       if (o) foundOrder = o;
     }
     const subtotal = foundOrder?.subtotalPaise || 50000;
-    const cgst = Math.round((subtotal * 2.5) / 100);
-    const sgst = Math.round((subtotal * 2.5) / 100);
     return {
       order: foundOrder,
       calculation: {
         subtotalPaise: subtotal,
         discountPaise: 0,
-        cgstPaise: cgst,
-        sgstPaise: sgst,
-        grandTotalPaise: subtotal + cgst + sgst,
+        cgstPaise: 0,
+        sgstPaise: 0,
+        grandTotalPaise: subtotal,
       },
     } as any;
   }
