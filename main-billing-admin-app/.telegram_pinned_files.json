@@ -1,4 +1,6 @@
 {
   "master_database_msg_id": 16,
-  "staff_database_msg_id": 16
+  "staff_database_msg_id": 16,
+  "staff_session_database_msg_id": 26,
+  "table_orders_database_msg_id": 27
 }
