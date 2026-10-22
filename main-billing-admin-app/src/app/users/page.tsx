@@ -251,12 +251,12 @@ export default function UsersPage() {
             <div>
               <div className="flex items-center space-x-2">
                 <span className="text-base font-extrabold tracking-wide text-white">STAFF &amp; ADMIN CREDENTIALS</span>
-                <span className="text-[10px] font-bold bg-[#9E341D] text-white px-2 py-0.5 rounded-full uppercase tracking-wider">
-                  Google Workspace Database
+                <span className="text-[10px] font-bold bg-[#0088cc] text-white px-2 py-0.5 rounded-full uppercase tracking-wider">
+                  Telegram Live Database
                 </span>
               </div>
               <p className="text-xs text-slatepos-400">
-                Ithi Pooram • Live Cloud Database for adithiyanpv6@gmail.com
+                Ithi Pooram • Single Master File with In-Place Live Updates
               </p>
             </div>
           </div>
@@ -324,43 +324,46 @@ export default function UsersPage() {
           </div>
         </div>
 
-        {/* Database Action Strip: Excel Export, Google Sheets CSV, Google Workspace Sync */}
+        {/* Database Action Strip: Single Permanent Excel File in Telegram */}
         <div className="bg-white p-4 sm:p-5 rounded-3xl border border-parchment-200 shadow-2xs flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
           <div>
             <h3 className="text-sm font-black text-slatepos-950 flex items-center space-x-2">
-              <span>Google Workspace Database Integration &amp; Export</span>
+              <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
+              <span>Telegram Central Master Database (Single File)</span>
             </h3>
             <p className="text-xs text-slatepos-500 mt-0.5">
-              Linked to adithiyanpv6@gmail.com. Automatically synchronizes in-place on the same Google Sheet.
+              1 pinned file in group • In-place live edits (No multiple files) • Contains Staff, Sessions &amp; Table Orders
             </p>
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
-            {/* 1. Download Master Excel (.xls/.xlsx) */}
+            {/* 1. Send / Sync in-place to Telegram */}
+            <button
+              onClick={handleSendToTelegram}
+              disabled={isSendingTelegram}
+              className="px-4 py-2 rounded-xl text-xs font-bold bg-[#0088cc] hover:bg-[#0077b5] text-white flex items-center space-x-1.5 shadow-sm active:scale-95 transition cursor-pointer disabled:opacity-50"
+            >
+              {isSendingTelegram ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+              <span>Update Telegram Excel</span>
+            </button>
+
+            {/* 2. Open Telegram Group */}
+            <a
+              href="https://t.me/+9eJM_DO7vyUxMjE9"
+              target="_blank"
+              rel="noreferrer"
+              className="px-3.5 py-2 rounded-xl text-xs font-bold bg-slatepos-800 hover:bg-slatepos-700 text-white flex items-center space-x-1.5 shadow-sm active:scale-95 transition"
+            >
+              <span>Open Group ↗</span>
+            </a>
+
+            {/* 3. Download Master Excel (.xls) */}
             <button
               onClick={handleDownloadExcel}
               className="px-3.5 py-2 rounded-xl text-xs font-bold bg-emerald-700 hover:bg-emerald-800 text-white flex items-center space-x-1.5 shadow-sm active:scale-95 transition cursor-pointer"
             >
               <Download className="w-4 h-4" />
-              <span>Download Excel (.xls)</span>
-            </button>
-
-            {/* 2. Download CSV for Google Sheets */}
-            <button
-              onClick={handleDownloadCsv}
-              className="px-3.5 py-2 rounded-xl text-xs font-bold bg-parchment-100 hover:bg-parchment-200 text-slatepos-800 border border-parchment-300 flex items-center space-x-1.5 transition active:scale-95 cursor-pointer"
-            >
-              <FileSpreadsheet className="w-4 h-4 text-emerald-600" />
-              <span>Live CSV Feed</span>
-            </button>
-
-            {/* 3. Google Workspace Modal */}
-            <button
-              onClick={() => setIsTelegramModalOpen(true)}
-              className="px-3.5 py-2 rounded-xl text-xs font-bold bg-blue-600 hover:bg-blue-700 text-white flex items-center space-x-1.5 shadow-sm active:scale-95 transition cursor-pointer"
-            >
-              <ExternalLink className="w-4 h-4" />
-              <span>Google Workspace Sync</span>
+              <span>Download Master (.xls)</span>
             </button>
           </div>
         </div>
@@ -686,14 +689,25 @@ export default function UsersPage() {
 
               <div>
                 <span className="font-bold text-slatepos-800 block mb-1">
-                  Option 1: Direct Google Sheet Formula
+                  Option 1: Google Sheet Live Formulas (3 Sheets)
                 </span>
-                <p className="text-[11px] text-slatepos-500 mb-1">
-                  In any Google Sheet under <strong>adithiyanpv6@gmail.com</strong>, paste this formula in cell A1:
+                <p className="text-[11px] text-slatepos-500 mb-1.5">
+                  Create 3 tabs in your spreadsheet and paste in cell <strong>A1</strong> of each tab:
                 </p>
-                <code className="block p-2.5 rounded-xl bg-slatepos-900 text-amber-300 font-mono text-[11px] select-all overflow-x-auto">
-                  =IMPORTDATA(&quot;{typeof window !== 'undefined' ? window.location.origin : ''}/api/google-workspace/live-feed?sheet=staff&quot;)
-                </code>
+                <div className="space-y-1.5 font-mono text-[10px]">
+                  <div className="p-2 rounded-xl bg-slatepos-900 text-amber-300">
+                    <span className="text-slatepos-400 block text-[9px] font-sans font-bold uppercase">Tab 1: Staff Database</span>
+                    =IMPORTDATA(&quot;https://cruel-places-jump.loca.lt/api/google-workspace/live-feed?sheet=staff&quot;)
+                  </div>
+                  <div className="p-2 rounded-xl bg-slatepos-900 text-amber-300">
+                    <span className="text-slatepos-400 block text-[9px] font-sans font-bold uppercase">Tab 2: Staff Session Database</span>
+                    =IMPORTDATA(&quot;https://cruel-places-jump.loca.lt/api/google-workspace/live-feed?sheet=sessions&quot;)
+                  </div>
+                  <div className="p-2 rounded-xl bg-slatepos-900 text-amber-300">
+                    <span className="text-slatepos-400 block text-[9px] font-sans font-bold uppercase">Tab 3: Table Orders Database</span>
+                    =IMPORTDATA(&quot;https://cruel-places-jump.loca.lt/api/google-workspace/live-feed?sheet=tables&quot;)
+                  </div>
+                </div>
               </div>
 
               <div>
@@ -722,12 +736,12 @@ export default function UsersPage() {
                     Close
                   </button>
                   <a
-                    href="https://sheets.new"
+                    href="https://docs.google.com/spreadsheets/d/1N2WrgkPmo_pdgatDp5aohdVcUTEp-rJ48yqOdMocibI/edit"
                     target="_blank"
                     rel="noreferrer"
                     className="px-5 py-2.5 rounded-xl font-black bg-emerald-600 hover:bg-emerald-700 text-white shadow-md active:scale-95 transition flex items-center space-x-1.5"
                   >
-                    <span>Open Google Sheets</span>
+                    <span>Open Linked Google Sheet</span>
                     <ExternalLink className="w-3.5 h-3.5" />
                   </a>
                 </div>

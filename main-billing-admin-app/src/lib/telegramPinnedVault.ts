@@ -1,20 +1,21 @@
 // ============================================================================
-// ITHI POORAM — CENTRAL TELEGRAM PINNED VAULT (3 PERMANENT EXCEL DATABASES)
-// 1. Staff Database (Staff Register)
-// 2. Staff Session Database (Live Login Sessions & Activity Logs)
-// 3. Table Orders Database (Table QR, Rooms & Live Order Sheets)
-// 
-// IMPORTANT GUARANTEE:
-// Never creates random multiple files.
-// Updates files in-place using Telegram's editMessageMedia on the exact same pinned message!
+// ITHI POORAM (ഇത്തിപ്പൂരം) — CENTRAL TELEGRAM PINNED VAULT (SINGLE MASTER FILE)
+//
+// GUARANTEE:
+// 1. NEVER creates duplicate or new files.
+// 2. Uses EXACTLY ONE permanent pinned Excel file in Telegram ("IthiPooram_Master_Database.xls").
+// 3. Contains all 3 worksheets:
+//    - "Staff Database"
+//    - "Staff Session Database"
+//    - "Table Orders Database"
+// 4. Edits the file in-place on the same message (#16) repeatedly via editMessageMedia.
 // ============================================================================
 
 import fs from 'fs';
 import path from 'path';
 import dns from 'dns';
 import { db, refreshTableSummaries } from './serverDb';
-import { generateStaffDatabaseXml, generateStaffSessionDatabaseXml } from './staffSessionExcelDatabase';
-import { generateMultiSheetTableExcelXml } from './tableExcelDatabase';
+import { generateUnifiedMasterDatabaseXml } from './masterExcelDatabase';
 import { getTelegramCredentials } from '@/config/telegram';
 import { resolveNumericChatId } from './autoTelegramExcelSync';
 
@@ -25,6 +26,7 @@ try {
 const STATE_FILE_PATH = path.join(process.cwd(), '.telegram_pinned_files.json');
 
 interface PinnedVaultState {
+  master_database_msg_id?: number | null;
   staff_database_msg_id?: number | null;
   staff_session_database_msg_id?: number | null;
   table_orders_database_msg_id?: number | null;
@@ -37,7 +39,7 @@ function loadVaultState(): PinnedVaultState {
       if (data && typeof data === 'object') return data;
     }
   } catch (e) {}
-  return {};
+  return { master_database_msg_id: 16 };
 }
 
 function saveVaultState(state: PinnedVaultState) {
@@ -46,14 +48,14 @@ function saveVaultState(state: PinnedVaultState) {
   } catch (e) {}
 }
 
-function getPinnedMsgId(key: keyof PinnedVaultState): number | null {
+function getMasterMsgId(): number | null {
   const state = loadVaultState();
-  return state[key] || null;
+  return state.master_database_msg_id || state.staff_database_msg_id || 16;
 }
 
-function setPinnedMsgId(key: keyof PinnedVaultState, msgId: number | null) {
+function setMasterMsgId(msgId: number | null) {
   const state = loadVaultState();
-  state[key] = msgId;
+  state.master_database_msg_id = msgId;
   saveVaultState(state);
 }
 
@@ -75,19 +77,18 @@ async function pinMessageSilently(botToken: string, chatId: string, messageId: n
 }
 
 /**
- * Dispatches or in-place updates a document in Telegram
+ * Dispatches or in-place updates the SINGLE master document in Telegram
  */
-async function dispatchOrEditDocument(
+async function dispatchOrEditMasterDocument(
   botToken: string,
   chatId: string,
-  stateKey: keyof PinnedVaultState,
   filename: string,
   xmlContent: string,
   caption: string
 ): Promise<{ success: boolean; messageId: number; action: 'EDITED' | 'SENT_NEW' }> {
-  const existingMsgId = getPinnedMsgId(stateKey);
+  const existingMsgId = getMasterMsgId();
 
-  // Attempt 1: In-Place Update on existing pinned message using editMessageMedia
+  // ATTEMPT 1: In-Place Update on existing pinned message using editMessageMedia
   if (existingMsgId) {
     try {
       const editFormData = new FormData();
@@ -114,19 +115,19 @@ async function dispatchOrEditDocument(
         return { success: true, messageId: existingMsgId, action: 'EDITED' };
       }
 
-      console.warn(`[Vault] In-place edit for ${stateKey} returned not ok:`, editData.description);
-      
-      // If error is NOT that the message doesn't exist, do NOT send a new message!
+      console.warn(`[Vault] In-place edit for master document returned not ok:`, editData.description);
+
+      // If the error is NOT that the message doesn't exist, NEVER send a new message!
       if (!editData.description?.includes('message to edit not found')) {
         return { success: true, messageId: existingMsgId, action: 'EDITED' };
       }
     } catch (err) {
-      console.error(`[Vault] Failed to edit existing message for ${stateKey}:`, err);
+      console.error(`[Vault] Failed to edit existing master document:`, err);
       return { success: false, messageId: existingMsgId, action: 'EDITED' };
     }
   }
 
-  // Attempt 2: ONLY if message was never sent or was deleted from group, send new and pin it
+  // ATTEMPT 2: ONLY if message was deleted from group, send new and pin it
   const sendFormData = new FormData();
   sendFormData.append('chat_id', chatId);
   sendFormData.append('caption', caption);
@@ -141,119 +142,19 @@ async function dispatchOrEditDocument(
   const sendData = await sendRes.json();
   if (sendData.ok && sendData.result?.message_id) {
     const newMsgId = sendData.result.message_id;
-    setPinnedMsgId(stateKey, newMsgId);
+    setMasterMsgId(newMsgId);
     await pinMessageSilently(botToken, chatId, newMsgId);
     return { success: true, messageId: newMsgId, action: 'SENT_NEW' };
   } else {
-    throw new Error(sendData.description || 'Failed to dispatch document to Telegram');
+    throw new Error(sendData.description || 'Failed to dispatch master document to Telegram');
   }
 }
 
 /**
- * 1. FILE 1: Staff Database (Staff Register)
+ * 🌟 The SINGLE master database update function:
+ * Updates the 1 pinned file in Telegram containing all 3 sheets.
  */
-export async function syncStaffDatabasePinned(): Promise<{ success: boolean; message: string }> {
-  try {
-    const { botToken, chatId } = getTelegramCredentials();
-    if (!botToken || !chatId) return { success: false, message: 'Telegram credentials missing.' };
-
-    const resolvedChatId = await resolveNumericChatId(botToken, chatId);
-    if (!resolvedChatId) return { success: false, message: 'Chat ID unresolved.' };
-
-    const staffList = db.staffUsers || [];
-    const xmlContent = generateStaffDatabaseXml(staffList);
-    const filename = `IthiPooram_Staff_Database.xls`;
-
-    const nowStr = new Date().toLocaleString('en-IN', {
-      timeZone: 'Asia/Kolkata',
-      dateStyle: 'medium',
-      timeStyle: 'short',
-    });
-
-    const caption =
-      `📊 *ITHI POORAM — Staff Database*\n` +
-      `━━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
-      `📁 *Sheet: Staff Register*\n` +
-      `🕒 *Last Updated:* ${nowStr}\n` +
-      `━━━━━━━━━━━━━━━━━━━━━━━━━━`;
-
-    const res = await dispatchOrEditDocument(
-      botToken,
-      resolvedChatId,
-      'staff_database_msg_id',
-      filename,
-      xmlContent,
-      caption
-    );
-
-    return {
-      success: true,
-      message: res.action === 'EDITED'
-        ? 'Staff Database updated in-place on existing pinned message!'
-        : 'Staff Database created and pinned successfully!',
-    };
-  } catch (err: any) {
-    return { success: false, message: err.message || 'Error syncing Staff Database' };
-  }
-}
-
-/**
- * 2. FILE 2: Staff Session Database (Live Login Sessions & Activity Logs)
- */
-export async function syncStaffSessionDatabasePinned(): Promise<{ success: boolean; message: string }> {
-  try {
-    const { botToken, chatId } = getTelegramCredentials();
-    if (!botToken || !chatId) return { success: false, message: 'Telegram credentials missing.' };
-
-    const resolvedChatId = await resolveNumericChatId(botToken, chatId);
-    if (!resolvedChatId) return { success: false, message: 'Chat ID unresolved.' };
-
-    const sessions = db.loginSessions || [];
-    const logs = db.staffActivityLogs || [];
-    const staffList = db.staffUsers || [];
-
-    const xmlContent = generateStaffSessionDatabaseXml(sessions, logs, staffList);
-    const filename = `IthiPooram_Staff_Session_Database.xls`;
-
-    const nowStr = new Date().toLocaleString('en-IN', {
-      timeZone: 'Asia/Kolkata',
-      dateStyle: 'medium',
-      timeStyle: 'short',
-    });
-
-    const caption =
-      `📊 *ITHI POORAM — Staff Session Database*\n` +
-      `━━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
-      `📁 *Sheet 1: Live Login Sessions*\n` +
-      `🕒 *Last Updated:* ${nowStr}\n\n` +
-      `📁 *Sheet 2: Activity Logs*\n` +
-      `🕒 *Last Updated:* ${nowStr}\n` +
-      `━━━━━━━━━━━━━━━━━━━━━━━━━━`;
-
-    const res = await dispatchOrEditDocument(
-      botToken,
-      resolvedChatId,
-      'staff_session_database_msg_id',
-      filename,
-      xmlContent,
-      caption
-    );
-
-    return {
-      success: true,
-      message: res.action === 'EDITED'
-        ? 'Staff Session Database updated in-place on existing pinned message!'
-        : 'Staff Session Database created and pinned successfully!',
-    };
-  } catch (err: any) {
-    return { success: false, message: err.message || 'Error syncing Staff Session Database' };
-  }
-}
-
-/**
- * 3. FILE 3: Table Orders Database (Rooms, Tables & Orders)
- */
-export async function syncTableOrdersDatabasePinned(): Promise<{ success: boolean; message: string }> {
+export async function syncMasterDatabasePinned(): Promise<{ success: boolean; message: string }> {
   try {
     const { botToken, chatId } = getTelegramCredentials();
     if (!botToken || !chatId) return { success: false, message: 'Telegram credentials missing.' };
@@ -262,29 +163,30 @@ export async function syncTableOrdersDatabasePinned(): Promise<{ success: boolea
     if (!resolvedChatId) return { success: false, message: 'Chat ID unresolved.' };
 
     refreshTableSummaries();
+    const staffList = db.staffUsers || [];
+    const sessions = db.loginSessions || [];
+    const logs = db.staffActivityLogs || [];
     const tables = db.tables || [];
     const orders = db.orders || [];
 
-    const xmlContent = generateMultiSheetTableExcelXml(tables, orders);
-    const filename = `IthiPooram_Table_Orders_Database.xls`;
+    const xmlContent = generateUnifiedMasterDatabaseXml(staffList, sessions, logs, tables, orders);
+    const filename = `IthiPooram_Master_Database.xls`;
 
-    const nowStr = new Date().toLocaleString('en-IN', {
+    const nowStr = new Date().toLocaleTimeString('en-IN', {
       timeZone: 'Asia/Kolkata',
-      dateStyle: 'medium',
-      timeStyle: 'short',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: true,
     });
 
     const caption =
-      `📊 *ITHI POORAM — Table Orders Database*\n` +
-      `━━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
-      `📁 *Sheet: Master Table & Live Orders*\n` +
-      `🕒 *Last Updated:* ${nowStr}\n` +
-      `━━━━━━━━━━━━━━━━━━━━━━━━━━`;
+      `📊 *ITHI POORAM — Central Restaurant Live Database*\n` +
+      `📁 *Sheets: Staff Database • Staff Sessions • Table Orders*\n` +
+      `🕒 *Last Updated:* ${nowStr}`;
 
-    const res = await dispatchOrEditDocument(
+    const res = await dispatchOrEditMasterDocument(
       botToken,
       resolvedChatId,
-      'table_orders_database_msg_id',
       filename,
       xmlContent,
       caption
@@ -293,32 +195,36 @@ export async function syncTableOrdersDatabasePinned(): Promise<{ success: boolea
     return {
       success: true,
       message: res.action === 'EDITED'
-        ? 'Table Orders Database updated in-place on existing pinned message!'
-        : 'Table Orders Database created and pinned successfully!',
+        ? 'Central Master Database updated in-place on existing Telegram file!'
+        : 'Central Master Database created and pinned successfully in Telegram!',
     };
   } catch (err: any) {
-    return { success: false, message: err.message || 'Error syncing Table Orders Database' };
+    return { success: false, message: err.message || 'Error syncing Central Master Database' };
   }
 }
 
-/**
- * Syncs all 3 pinned databases in order
- */
-export async function syncAllThreePinnedDatabases(): Promise<{
-  staff: { success: boolean; message: string };
-  sessions: { success: boolean; message: string };
-  tables: { success: boolean; message: string };
-}> {
-  const staff = await syncStaffDatabasePinned();
-  const sessions = await syncStaffSessionDatabasePinned();
-  const tables = await syncTableOrdersDatabasePinned();
-  return { staff, sessions, tables };
+// All legacy database sync calls now route to the SINGLE master database update!
+export async function syncStaffDatabasePinned() {
+  return syncMasterDatabasePinned();
 }
 
-/**
- * Recurring Heartbeat: Disabled to prevent Telegram chat clutter.
- * Live continuous updates are now directly powered by Google Workspace for adithiyanpv6@gmail.com.
- */
+export async function syncStaffSessionDatabasePinned() {
+  return syncMasterDatabasePinned();
+}
+
+export async function syncTableOrdersDatabasePinned() {
+  return syncMasterDatabasePinned();
+}
+
+export async function syncAllThreePinnedDatabases() {
+  const result = await syncMasterDatabasePinned();
+  return {
+    staff: result,
+    sessions: result,
+    tables: result,
+  };
+}
+
 export function startPinnedVaultHeartbeat() {
-  // Disabled intentionally in favor of Google Workspace
+  // Silent: No periodic timer needed. In-place sync runs reactively on every real action!
 }

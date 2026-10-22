@@ -26,7 +26,8 @@ import {
   Loader2,
   Copy,
   Eye,
-  MessageSquare
+  MessageSquare,
+  FileSpreadsheet
 } from 'lucide-react';
 import QRCode from 'qrcode';
 import { getCurrentUser } from '../../lib/api';
@@ -742,8 +743,18 @@ export default function TableQrStandsPage() {
                       className="flex-1 sm:flex-none px-3.5 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-white font-bold text-xs border border-white/20 flex items-center justify-center space-x-1.5 transition active:scale-95 disabled:opacity-50 cursor-pointer"
                     >
                       {isSyncingTelegram ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5 text-sky-300" />}
-                      <span>Send Excel Now</span>
+                      <span>Update Excel Now</span>
                     </button>
+
+                    <a
+                      href="https://docs.google.com/spreadsheets/d/1N2WrgkPmo_pdgatDp5aohdVcUTEp-rJ48yqOdMocibI/edit"
+                      target="_blank"
+                      rel="noreferrer"
+                      className="flex-1 sm:flex-none px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs flex items-center justify-center space-x-1.5 transition active:scale-95 shadow-sm"
+                    >
+                      <FileSpreadsheet className="w-3.5 h-3.5 text-white" />
+                      <span>Google Sheet ↗</span>
+                    </a>
 
                     <a
                       href="https://t.me/+9eJM_DO7vyUxMjE9"

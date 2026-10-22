@@ -22,8 +22,8 @@
  * ============================================================================
  */
 
-// CONFIGURATION: Set this to your live server URL (e.g. https://your-domain.vercel.app or local tunnel)
-var RESTAURANT_SERVER_URL = "http://localhost:3001";
+// CONFIGURATION: Live server URL (tunnel or deployed domain)
+var RESTAURANT_SERVER_URL = "https://cruel-places-jump.loca.lt";
 var ADMIN_EMAIL = "adithiyanpv6@gmail.com";
 
 function onOpen() {
@@ -58,7 +58,10 @@ function syncFromRestaurantSystem() {
 
   try {
     var response = UrlFetchApp.fetch(RESTAURANT_SERVER_URL + "/api/google-workspace/live-feed?format=json", {
-      muteHttpExceptions: true
+      muteHttpExceptions: true,
+      headers: {
+        "bypass-tunnel-reminder": "true"
+      }
     });
 
     if (response.getResponseCode() !== 200) {
@@ -71,28 +74,34 @@ function syncFromRestaurantSystem() {
     updateSessionsSheet(ss, payload.sessions || [], payload.activityLogs || []);
     updateTablesSheet(ss, payload.tables || [], payload.orders || []);
 
-    Logger.log("Successfully synchronized all sheets in-place for " + ADMIN_EMAIL);
+    // Remove empty default 'Sheet1' if present
+    var defaultSheet = ss.getSheetByName("Sheet1");
+    if (defaultSheet && ss.getSheets().length > 1) {
+      ss.deleteSheet(defaultSheet);
+    }
+
+    Logger.log("Successfully synchronized all 3 sheets in-place for " + ADMIN_EMAIL);
   } catch (err) {
     Logger.log("Error during sync: " + err.toString());
   }
 }
 
 /**
- * Updates Sheet 1: Staff Register
+ * Updates Sheet 1: Staff Database
  */
 function updateStaffSheet(ss, staffList) {
-  var sheetName = "Staff Register";
+  var sheetName = "Staff Database";
   var sheet = ss.getSheetByName(sheetName) || ss.insertSheet(sheetName);
 
   sheet.clear();
   sheet.setTabColor("#9E341D");
 
-  // Headers
+  // Headers: No status, no counter/terminal, no security privilege notes
   var headers = ["#", "Staff ID", "Employee Name", "Access PIN / Password", "Role", "Registration Date & Time"];
   var rows = [headers];
 
   if (staffList.length === 0) {
-    rows.push(["-", "No staff registered yet", "Clean database ready", "-", "-", "-"]);
+    rows.push(["-", "No staff registered yet", "Fresh database ready", "-", "-", "-"]);
   } else {
     for (var i = 0; i < staffList.length; i++) {
       var s = staffList[i];
@@ -121,10 +130,10 @@ function updateStaffSheet(ss, staffList) {
 }
 
 /**
- * Updates Sheet 2: Live Login Sessions & Activity Logs
+ * Updates Sheet 2: Staff Session Database
  */
 function updateSessionsSheet(ss, sessions, logs) {
-  var sheetName = "Live Login Sessions";
+  var sheetName = "Staff Session Database";
   var sheet = ss.getSheetByName(sheetName) || ss.insertSheet(sheetName);
 
   sheet.clear();
@@ -229,6 +238,18 @@ function updateTablesSheet(ss, tables, orders) {
       ]);
     }
   }
+
+  sheet.getRange(1, 1, rows.length, headers.length).setValues(rows);
+
+  var headerRange = sheet.getRange(1, 1, 1, headers.length);
+  headerRange.setBackground("#059669")
+    .setFontColor("#FFFFFF")
+    .setFontWeight("bold")
+    .setFontFamily("Segoe UI")
+    .setHorizontalAlignment("center");
+
+  sheet.autoResizeColumns(1, headers.length);
+}
 
   sheet.getRange(1, 1, rows.length, headers.length).setValues(rows);
 

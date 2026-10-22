@@ -1,11 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { db } from '@/lib/serverDb';
+import { db, refreshTableSummaries } from '@/lib/serverDb';
+import { generateUnifiedMasterDatabaseXml } from '@/lib/masterExcelDatabase';
 import { generateStaffDatabaseXml, generateStaffSessionDatabaseXml } from '@/lib/staffSessionExcelDatabase';
 import { generateMultiSheetTableExcelXml } from '@/lib/tableExcelDatabase';
 
 export async function GET(req: NextRequest) {
   try {
-    const type = req.nextUrl.searchParams.get('type') || 'staff';
+    refreshTableSummaries();
+    const type = req.nextUrl.searchParams.get('type') || 'master';
     let xml = '';
     let filename = '';
 
@@ -15,9 +17,19 @@ export async function GET(req: NextRequest) {
     } else if (type === 'tables') {
       xml = generateMultiSheetTableExcelXml(db.tables || [], db.orders || []);
       filename = `IthiPooram_Table_Orders_Database.xls`;
-    } else {
+    } else if (type === 'staff') {
       xml = generateStaffDatabaseXml(db.staffUsers || []);
       filename = `IthiPooram_Staff_Database.xls`;
+    } else {
+      // Default: Complete Master Database with all 3 sheets
+      xml = generateUnifiedMasterDatabaseXml(
+        db.staffUsers || [],
+        db.loginSessions || [],
+        db.staffActivityLogs || [],
+        db.tables || [],
+        db.orders || []
+      );
+      filename = `IthiPooram_Master_Database.xls`;
     }
 
     return new NextResponse(xml, {
