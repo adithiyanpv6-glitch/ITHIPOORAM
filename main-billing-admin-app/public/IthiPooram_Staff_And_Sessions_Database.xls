@@ -1,0 +1,478 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?mso-application progid="Excel.Sheet"?>
+<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet"
+ xmlns:o="urn:schemas-microsoft-com:office:office"
+ xmlns:x="urn:schemas-microsoft-com:office:excel"
+ xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet"
+ xmlns:html="http://www.w3.org/TR/REC-html40">
+ <DocumentProperties xmlns="urn:schemas-microsoft-com:office:office">
+  <Author>Ithi Pooram Engineering</Author>
+  <LastAuthor>Ithi Pooram Security System</LastAuthor>
+  <Created>2026-10-22T13:20:20.487Z</Created>
+  <Company>Ithi Pooram, Vanchiyoor, Trivandrum</Company>
+  <Title>Staff Sign-in ID, Password &amp; Live Login Sessions Database</Title>
+ </DocumentProperties>
+ <Styles>
+  <!-- Base Style -->
+  <Style ss:ID="Default" ss:Name="Normal">
+   <Alignment ss:Vertical="Center"/>
+   <Borders/>
+   <Font ss:FontName="Segoe UI" x:Family="Swiss" ss:Size="10" ss:Color="#1E293B"/>
+   <Interior/>
+   <NumberFormat/>
+   <Protection/>
+  </Style>
+
+  <!-- Super Header Style -->
+  <Style ss:ID="SuperHeader">
+   <Alignment ss:Horizontal="Center" ss:Vertical="Center"/>
+   <Borders>
+    <Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="2" ss:Color="#782312"/>
+   </Borders>
+   <Font ss:FontName="Segoe UI" ss:Size="15" ss:Color="#FFFFFF" ss:Bold="1"/>
+   <Interior ss:Color="#9E341D" ss:Pattern="Solid"/>
+  </Style>
+
+  <!-- Sub Header Style -->
+  <Style ss:ID="SubHeader">
+   <Alignment ss:Horizontal="Center" ss:Vertical="Center"/>
+   <Font ss:FontName="Segoe UI" ss:Size="9" ss:Color="#FDE68A" ss:Italic="1"/>
+   <Interior ss:Color="#1E293B" ss:Pattern="Solid"/>
+  </Style>
+
+  <!-- KPI Banner Style -->
+  <Style ss:ID="KpiLabel">
+   <Alignment ss:Horizontal="Left" ss:Vertical="Center"/>
+   <Font ss:FontName="Segoe UI" ss:Size="9" ss:Color="#64748B" ss:Bold="1"/>
+   <Interior ss:Color="#F8FAFC" ss:Pattern="Solid"/>
+  </Style>
+  <Style ss:ID="KpiValue">
+   <Alignment ss:Horizontal="Left" ss:Vertical="Center"/>
+   <Font ss:FontName="Segoe UI" ss:Size="10" ss:Color="#0F172A" ss:Bold="1"/>
+   <Interior ss:Color="#F8FAFC" ss:Pattern="Solid"/>
+  </Style>
+
+  <!-- Table Header Columns -->
+  <Style ss:ID="ColHeader">
+   <Alignment ss:Horizontal="Center" ss:Vertical="Center" ss:WrapText="1"/>
+   <Borders>
+    <Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="2" ss:Color="#0F172A"/>
+    <Border ss:Position="Top" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#CBD5E1"/>
+    <Border ss:Position="Left" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#CBD5E1"/>
+    <Border ss:Position="Right" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#CBD5E1"/>
+   </Borders>
+   <Font ss:FontName="Segoe UI" ss:Size="10" ss:Color="#FFFFFF" ss:Bold="1"/>
+   <Interior ss:Color="#1E293B" ss:Pattern="Solid"/>
+  </Style>
+
+  <!-- Regular Data Cells -->
+  <Style ss:ID="DataCellLeft">
+   <Alignment ss:Horizontal="Left" ss:Vertical="Center"/>
+   <Borders>
+    <Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#E2E8F0"/>
+    <Border ss:Position="Left" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#E2E8F0"/>
+    <Border ss:Position="Right" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#E2E8F0"/>
+   </Borders>
+   <Font ss:FontName="Segoe UI" ss:Size="9.5" ss:Color="#0F172A"/>
+  </Style>
+  <Style ss:ID="DataCellCenter">
+   <Alignment ss:Horizontal="Center" ss:Vertical="Center"/>
+   <Borders>
+    <Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#E2E8F0"/>
+    <Border ss:Position="Left" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#E2E8F0"/>
+    <Border ss:Position="Right" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#E2E8F0"/>
+   </Borders>
+   <Font ss:FontName="Segoe UI" ss:Size="9.5" ss:Color="#0F172A"/>
+  </Style>
+
+  <!-- Monospace Style for PIN / Password & IDs -->
+  <Style ss:ID="PinMonospace">
+   <Alignment ss:Horizontal="Center" ss:Vertical="Center"/>
+   <Borders>
+    <Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#E2E8F0"/>
+    <Border ss:Position="Left" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#E2E8F0"/>
+    <Border ss:Position="Right" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#E2E8F0"/>
+   </Borders>
+   <Font ss:FontName="Consolas" ss:Size="10" ss:Color="#9E341D" ss:Bold="1"/>
+   <Interior ss:Color="#FEF3C7" ss:Pattern="Solid"/>
+  </Style>
+  <Style ss:ID="IdMonospace">
+   <Alignment ss:Horizontal="Center" ss:Vertical="Center"/>
+   <Borders>
+    <Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#E2E8F0"/>
+    <Border ss:Position="Left" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#E2E8F0"/>
+    <Border ss:Position="Right" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#E2E8F0"/>
+   </Borders>
+   <Font ss:FontName="Consolas" ss:Size="9.5" ss:Color="#1E293B" ss:Bold="1"/>
+   <Interior ss:Color="#F1F5F9" ss:Pattern="Solid"/>
+  </Style>
+
+  <!-- Badges -->
+  <Style ss:ID="StatusActive">
+   <Alignment ss:Horizontal="Center" ss:Vertical="Center"/>
+   <Borders>
+    <Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#E2E8F0"/>
+   </Borders>
+   <Font ss:FontName="Segoe UI" ss:Size="9" ss:Color="#15803D" ss:Bold="1"/>
+   <Interior ss:Color="#DCFCE7" ss:Pattern="Solid"/>
+  </Style>
+  <Style ss:ID="StatusLoggedOut">
+   <Alignment ss:Horizontal="Center" ss:Vertical="Center"/>
+   <Borders>
+    <Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#E2E8F0"/>
+   </Borders>
+   <Font ss:FontName="Segoe UI" ss:Size="9" ss:Color="#64748B" ss:Bold="1"/>
+   <Interior ss:Color="#F1F5F9" ss:Pattern="Solid"/>
+  </Style>
+  <Style ss:ID="RoleBadge">
+   <Alignment ss:Horizontal="Center" ss:Vertical="Center"/>
+   <Borders>
+    <Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#E2E8F0"/>
+   </Borders>
+   <Font ss:FontName="Segoe UI" ss:Size="9" ss:Color="#4338CA" ss:Bold="1"/>
+   <Interior ss:Color="#EEF2FF" ss:Pattern="Solid"/>
+  </Style>
+ </Styles>
+
+ <!-- ======================================================================= -->
+ <!-- SHEET 1: STAFF CREDENTIALS & PASSWORDS DATABASE                         -->
+ <!-- ======================================================================= -->
+ <Worksheet ss:Name="Staff Credentials &amp; PINs">
+  <Table ss:DefaultRowHeight="20">
+   <Column ss:Width="35"/>
+   <Column ss:Width="95"/>
+   <Column ss:Width="160"/>
+   <Column ss:Width="130"/>
+   <Column ss:Width="110"/>
+   <Column ss:Width="110"/>
+   <Column ss:Width="160"/>
+   <Column ss:Width="85"/>
+   <Column ss:Width="140"/>
+   <Column ss:Width="70"/>
+   <Column ss:Width="240"/>
+
+   <!-- Title Row -->
+   <Row ss:Height="36">
+    <Cell ss:MergeAcross="10" ss:StyleID="SuperHeader">
+     <Data ss:Type="String">ITHI POORAM (ഇത്തിപ്പൂരം) — STAFF SIGN-IN ID &amp; PASSWORD DATABASE</Data>
+    </Cell>
+   </Row>
+
+   <!-- Subtitle Row -->
+   <Row ss:Height="20">
+    <Cell ss:MergeAcross="10" ss:StyleID="SubHeader">
+     <Data ss:Type="String">Restaurant POS Cashier, Manager &amp; Kitchen Staff Accounts • Synchronized Live with Telegram Group</Data>
+    </Cell>
+   </Row>
+
+   <!-- Meta Summary Row -->
+   <Row ss:Height="22">
+    <Cell ss:StyleID="KpiLabel"><Data ss:Type="String">Export Time:</Data></Cell>
+    <Cell ss:MergeAcross="2" ss:StyleID="KpiValue"><Data ss:Type="String">22 Oct 2026, 6:50:20 pm</Data></Cell>
+    <Cell ss:StyleID="KpiLabel"><Data ss:Type="String">Total Staff:</Data></Cell>
+    <Cell ss:StyleID="KpiValue"><Data ss:Type="Number">5</Data></Cell>
+    <Cell ss:StyleID="KpiLabel"><Data ss:Type="String">Active Sessions:</Data></Cell>
+    <Cell ss:MergeAcross="3" ss:StyleID="KpiValue"><Data ss:Type="String">3 Logged-in Staff</Data></Cell>
+   </Row>
+   <Row ss:Height="8"/>
+
+   <!-- Column Headers -->
+   <Row ss:Height="28">
+    <Cell ss:StyleID="ColHeader"><Data ss:Type="String">#</Data></Cell>
+    <Cell ss:StyleID="ColHeader"><Data ss:Type="String">Staff ID</Data></Cell>
+    <Cell ss:StyleID="ColHeader"><Data ss:Type="String">Staff Full Name</Data></Cell>
+    <Cell ss:StyleID="ColHeader"><Data ss:Type="String">Sign-In Username</Data></Cell>
+    <Cell ss:StyleID="ColHeader"><Data ss:Type="String">4-Digit Password / PIN</Data></Cell>
+    <Cell ss:StyleID="ColHeader"><Data ss:Type="String">Role</Data></Cell>
+    <Cell ss:StyleID="ColHeader"><Data ss:Type="String">Assigned Counter / Station</Data></Cell>
+    <Cell ss:StyleID="ColHeader"><Data ss:Type="String">Status</Data></Cell>
+    <Cell ss:StyleID="ColHeader"><Data ss:Type="String">Registered Date &amp; Time</Data></Cell>
+    <Cell ss:StyleID="ColHeader"><Data ss:Type="String">Logins</Data></Cell>
+    <Cell ss:StyleID="ColHeader"><Data ss:Type="String">Security Permissions &amp; Notes</Data></Cell>
+   </Row>
+
+   <!-- Data Rows -->
+   
+   <Row ss:Height="24">
+    <Cell ss:StyleID="DataCellCenter"><Data ss:Type="Number">1</Data></Cell>
+    <Cell ss:StyleID="IdMonospace"><Data ss:Type="String">IP-STF-001</Data></Cell>
+    <Cell ss:StyleID="DataCellLeft"><Data ss:Type="String">Owner / Executive Admin</Data></Cell>
+    <Cell ss:StyleID="DataCellLeft"><Data ss:Type="String">admin</Data></Cell>
+    <Cell ss:StyleID="PinMonospace"><Data ss:Type="String">1111</Data></Cell>
+    <Cell ss:StyleID="RoleBadge"><Data ss:Type="String">MAIN_ADMIN</Data></Cell>
+    <Cell ss:StyleID="DataCellLeft"><Data ss:Type="String">Executive Central Gateway</Data></Cell>
+    <Cell ss:StyleID="StatusActive"><Data ss:Type="String">ACTIVE</Data></Cell>
+    <Cell ss:StyleID="DataCellCenter"><Data ss:Type="String">2026-10-15 09:00:00 AM</Data></Cell>
+    <Cell ss:StyleID="DataCellCenter"><Data ss:Type="Number">15</Data></Cell>
+    <Cell ss:StyleID="DataCellLeft"><Data ss:Type="String">Primary Master Admin. Authorized for complete system governance &amp; override.</Data></Cell>
+   </Row>
+   <Row ss:Height="24">
+    <Cell ss:StyleID="DataCellCenter"><Data ss:Type="Number">2</Data></Cell>
+    <Cell ss:StyleID="IdMonospace"><Data ss:Type="String">IP-STF-002</Data></Cell>
+    <Cell ss:StyleID="DataCellLeft"><Data ss:Type="String">Gokul Krishnan</Data></Cell>
+    <Cell ss:StyleID="DataCellLeft"><Data ss:Type="String">gokul</Data></Cell>
+    <Cell ss:StyleID="PinMonospace"><Data ss:Type="String">1234</Data></Cell>
+    <Cell ss:StyleID="RoleBadge"><Data ss:Type="String">CASHIER</Data></Cell>
+    <Cell ss:StyleID="DataCellLeft"><Data ss:Type="String">Billing Counter POS 1</Data></Cell>
+    <Cell ss:StyleID="StatusActive"><Data ss:Type="String">ACTIVE</Data></Cell>
+    <Cell ss:StyleID="DataCellCenter"><Data ss:Type="String">2026-10-15 10:30:00 AM</Data></Cell>
+    <Cell ss:StyleID="DataCellCenter"><Data ss:Type="Number">28</Data></Cell>
+    <Cell ss:StyleID="DataCellLeft"><Data ss:Type="String">Lead cashier. Authorized for cash &amp; UPI settlement and thermal receipt printing.</Data></Cell>
+   </Row>
+   <Row ss:Height="24">
+    <Cell ss:StyleID="DataCellCenter"><Data ss:Type="Number">3</Data></Cell>
+    <Cell ss:StyleID="IdMonospace"><Data ss:Type="String">IP-STF-003</Data></Cell>
+    <Cell ss:StyleID="DataCellLeft"><Data ss:Type="String">Meera Rajesh</Data></Cell>
+    <Cell ss:StyleID="DataCellLeft"><Data ss:Type="String">meera</Data></Cell>
+    <Cell ss:StyleID="PinMonospace"><Data ss:Type="String">5678</Data></Cell>
+    <Cell ss:StyleID="RoleBadge"><Data ss:Type="String">CASHIER</Data></Cell>
+    <Cell ss:StyleID="DataCellLeft"><Data ss:Type="String">Billing Counter POS 2</Data></Cell>
+    <Cell ss:StyleID="StatusActive"><Data ss:Type="String">ACTIVE</Data></Cell>
+    <Cell ss:StyleID="DataCellCenter"><Data ss:Type="String">2026-10-15 11:00:00 AM</Data></Cell>
+    <Cell ss:StyleID="DataCellCenter"><Data ss:Type="Number">19</Data></Cell>
+    <Cell ss:StyleID="DataCellLeft"><Data ss:Type="String">Secondary cashier. Parcel counter and split bill operator.</Data></Cell>
+   </Row>
+   <Row ss:Height="24">
+    <Cell ss:StyleID="DataCellCenter"><Data ss:Type="Number">4</Data></Cell>
+    <Cell ss:StyleID="IdMonospace"><Data ss:Type="String">IP-STF-004</Data></Cell>
+    <Cell ss:StyleID="DataCellLeft"><Data ss:Type="String">Ananthu V</Data></Cell>
+    <Cell ss:StyleID="DataCellLeft"><Data ss:Type="String">ananthu</Data></Cell>
+    <Cell ss:StyleID="PinMonospace"><Data ss:Type="String">9999</Data></Cell>
+    <Cell ss:StyleID="RoleBadge"><Data ss:Type="String">MANAGER</Data></Cell>
+    <Cell ss:StyleID="DataCellLeft"><Data ss:Type="String">Floor Operations &amp; Shift Desk</Data></Cell>
+    <Cell ss:StyleID="StatusActive"><Data ss:Type="String">ACTIVE</Data></Cell>
+    <Cell ss:StyleID="DataCellCenter"><Data ss:Type="String">2026-10-15 11:45:00 AM</Data></Cell>
+    <Cell ss:StyleID="DataCellCenter"><Data ss:Type="Number">9</Data></Cell>
+    <Cell ss:StyleID="DataCellLeft"><Data ss:Type="String">Floor supervisor. Shift report sign-off and table reallocation rights.</Data></Cell>
+   </Row>
+   <Row ss:Height="24">
+    <Cell ss:StyleID="DataCellCenter"><Data ss:Type="Number">5</Data></Cell>
+    <Cell ss:StyleID="IdMonospace"><Data ss:Type="String">IP-STF-005</Data></Cell>
+    <Cell ss:StyleID="DataCellLeft"><Data ss:Type="String">Chef Suresh Kumar</Data></Cell>
+    <Cell ss:StyleID="DataCellLeft"><Data ss:Type="String">chef_suresh</Data></Cell>
+    <Cell ss:StyleID="PinMonospace"><Data ss:Type="String">2233</Data></Cell>
+    <Cell ss:StyleID="RoleBadge"><Data ss:Type="String">KITCHEN_STAFF</Data></Cell>
+    <Cell ss:StyleID="DataCellLeft"><Data ss:Type="String">Main Kitchen Display (KDS)</Data></Cell>
+    <Cell ss:StyleID="StatusActive"><Data ss:Type="String">ACTIVE</Data></Cell>
+    <Cell ss:StyleID="DataCellCenter"><Data ss:Type="String">2026-10-16 08:30:00 AM</Data></Cell>
+    <Cell ss:StyleID="DataCellCenter"><Data ss:Type="Number">32</Data></Cell>
+    <Cell ss:StyleID="DataCellLeft"><Data ss:Type="String">Head seafood chef. Kitchen order status fulfillment (Preparing, Ready, Served).</Data></Cell>
+   </Row>
+  </Table>
+  <WorksheetOptions xmlns="urn:schemas-microsoft-com:office:excel">
+   <Selected/>
+   <FreezePanes/>
+   <FrozenNoSplit/>
+   <SplitHorizontal>5</SplitHorizontal>
+   <TopRowBottomPane>5</TopRowBottomPane>
+   <ActivePane>2</ActivePane>
+  </WorksheetOptions>
+ </Worksheet>
+
+ <!-- ======================================================================= -->
+ <!-- SHEET 2: LIVE LOGIN SESSIONS DATABASE                                   -->
+ <!-- ======================================================================= -->
+ <Worksheet ss:Name="Live Login Sessions">
+  <Table ss:DefaultRowHeight="20">
+   <Column ss:Width="35"/>
+   <Column ss:Width="140"/>
+   <Column ss:Width="95"/>
+   <Column ss:Width="160"/>
+   <Column ss:Width="120"/>
+   <Column ss:Width="110"/>
+   <Column ss:Width="100"/>
+   <Column ss:Width="90"/>
+   <Column ss:Width="180"/>
+   <Column ss:Width="90"/>
+   <Column ss:Width="110"/>
+
+   <!-- Title Row -->
+   <Row ss:Height="36">
+    <Cell ss:MergeAcross="10" ss:StyleID="SuperHeader">
+     <Data ss:Type="String">ITHI POORAM (ഇത്തിപ്പൂരം) — REAL-TIME STAFF LOGIN SESSIONS DATABASE</Data>
+    </Cell>
+   </Row>
+
+   <!-- Subtitle Row -->
+   <Row ss:Height="20">
+    <Cell ss:MergeAcross="10" ss:StyleID="SubHeader">
+     <Data ss:Type="String">Monitored In Real-Time • Live Updates Broadcasted Automatically Every 30 Minutes &amp; On Every Sign-In</Data>
+    </Cell>
+   </Row>
+
+   <!-- Meta Summary Row -->
+   <Row ss:Height="22">
+    <Cell ss:StyleID="KpiLabel"><Data ss:Type="String">Current Date:</Data></Cell>
+    <Cell ss:MergeAcross="2" ss:StyleID="KpiValue"><Data ss:Type="String">22/10/2026</Data></Cell>
+    <Cell ss:StyleID="KpiLabel"><Data ss:Type="String">Active Sessions:</Data></Cell>
+    <Cell ss:StyleID="KpiValue"><Data ss:Type="Number">3</Data></Cell>
+    <Cell ss:StyleID="KpiLabel"><Data ss:Type="String">Total Recorded:</Data></Cell>
+    <Cell ss:MergeAcross="3" ss:StyleID="KpiValue"><Data ss:Type="Number">3</Data></Cell>
+   </Row>
+   <Row ss:Height="8"/>
+
+   <!-- Column Headers -->
+   <Row ss:Height="28">
+    <Cell ss:StyleID="ColHeader"><Data ss:Type="String">#</Data></Cell>
+    <Cell ss:StyleID="ColHeader"><Data ss:Type="String">Session ID</Data></Cell>
+    <Cell ss:StyleID="ColHeader"><Data ss:Type="String">Staff ID</Data></Cell>
+    <Cell ss:StyleID="ColHeader"><Data ss:Type="String">Staff Name</Data></Cell>
+    <Cell ss:StyleID="ColHeader"><Data ss:Type="String">Sign-In Username</Data></Cell>
+    <Cell ss:StyleID="ColHeader"><Data ss:Type="String">Role</Data></Cell>
+    <Cell ss:StyleID="ColHeader"><Data ss:Type="String">Login Date</Data></Cell>
+    <Cell ss:StyleID="ColHeader"><Data ss:Type="String">Login Time</Data></Cell>
+    <Cell ss:StyleID="ColHeader"><Data ss:Type="String">Terminal / Device</Data></Cell>
+    <Cell ss:StyleID="ColHeader"><Data ss:Type="String">Session Status</Data></Cell>
+    <Cell ss:StyleID="ColHeader"><Data ss:Type="String">Last Active Time</Data></Cell>
+   </Row>
+
+   <!-- Data Rows -->
+   
+   <Row ss:Height="24">
+    <Cell ss:StyleID="DataCellCenter"><Data ss:Type="Number">1</Data></Cell>
+    <Cell ss:StyleID="IdMonospace"><Data ss:Type="String">SES-20261022-0484</Data></Cell>
+    <Cell ss:StyleID="IdMonospace"><Data ss:Type="String">IP-STF-001</Data></Cell>
+    <Cell ss:StyleID="DataCellLeft"><Data ss:Type="String">Owner / Executive Admin</Data></Cell>
+    <Cell ss:StyleID="DataCellLeft"><Data ss:Type="String">admin</Data></Cell>
+    <Cell ss:StyleID="RoleBadge"><Data ss:Type="String">MAIN_ADMIN</Data></Cell>
+    <Cell ss:StyleID="DataCellCenter"><Data ss:Type="String">22/10/2026</Data></Cell>
+    <Cell ss:StyleID="DataCellCenter"><Data ss:Type="String">06:50:20 pm</Data></Cell>
+    <Cell ss:StyleID="DataCellLeft"><Data ss:Type="String">::1</Data></Cell>
+    <Cell ss:StyleID="StatusActive"><Data ss:Type="String">🟢 ACTIVE</Data></Cell>
+    <Cell ss:StyleID="DataCellCenter"><Data ss:Type="String">06:50 pm</Data></Cell>
+   </Row>
+   <Row ss:Height="24">
+    <Cell ss:StyleID="DataCellCenter"><Data ss:Type="Number">2</Data></Cell>
+    <Cell ss:StyleID="IdMonospace"><Data ss:Type="String">SES-20261022-001</Data></Cell>
+    <Cell ss:StyleID="IdMonospace"><Data ss:Type="String">IP-STF-001</Data></Cell>
+    <Cell ss:StyleID="DataCellLeft"><Data ss:Type="String">Owner / Executive Admin</Data></Cell>
+    <Cell ss:StyleID="DataCellLeft"><Data ss:Type="String">admin</Data></Cell>
+    <Cell ss:StyleID="RoleBadge"><Data ss:Type="String">MAIN_ADMIN</Data></Cell>
+    <Cell ss:StyleID="DataCellCenter"><Data ss:Type="String">22/10/2026</Data></Cell>
+    <Cell ss:StyleID="DataCellCenter"><Data ss:Type="String">09:00:00 AM</Data></Cell>
+    <Cell ss:StyleID="DataCellLeft"><Data ss:Type="String">Terminal Gateway (Internal Tablet)</Data></Cell>
+    <Cell ss:StyleID="StatusActive"><Data ss:Type="String">🟢 ACTIVE</Data></Cell>
+    <Cell ss:StyleID="DataCellCenter"><Data ss:Type="String">6:50:03 pm</Data></Cell>
+   </Row>
+   <Row ss:Height="24">
+    <Cell ss:StyleID="DataCellCenter"><Data ss:Type="Number">3</Data></Cell>
+    <Cell ss:StyleID="IdMonospace"><Data ss:Type="String">SES-20261022-002</Data></Cell>
+    <Cell ss:StyleID="IdMonospace"><Data ss:Type="String">IP-STF-002</Data></Cell>
+    <Cell ss:StyleID="DataCellLeft"><Data ss:Type="String">Gokul Krishnan</Data></Cell>
+    <Cell ss:StyleID="DataCellLeft"><Data ss:Type="String">gokul</Data></Cell>
+    <Cell ss:StyleID="RoleBadge"><Data ss:Type="String">CASHIER</Data></Cell>
+    <Cell ss:StyleID="DataCellCenter"><Data ss:Type="String">22/10/2026</Data></Cell>
+    <Cell ss:StyleID="DataCellCenter"><Data ss:Type="String">10:15:00 AM</Data></Cell>
+    <Cell ss:StyleID="DataCellLeft"><Data ss:Type="String">Cashier Terminal 1 (Android 14)</Data></Cell>
+    <Cell ss:StyleID="StatusActive"><Data ss:Type="String">🟢 ACTIVE</Data></Cell>
+    <Cell ss:StyleID="DataCellCenter"><Data ss:Type="String">6:50:03 pm</Data></Cell>
+   </Row>
+  </Table>
+  <WorksheetOptions xmlns="urn:schemas-microsoft-com:office:excel">
+   <FreezePanes/>
+   <FrozenNoSplit/>
+   <SplitHorizontal>5</SplitHorizontal>
+   <TopRowBottomPane>5</TopRowBottomPane>
+   <ActivePane>2</ActivePane>
+  </WorksheetOptions>
+ </Worksheet>
+
+ <!-- ======================================================================= -->
+ <!-- SHEET 3: REGISTRATION & ACCESS AUDIT LOG                                -->
+ <!-- ======================================================================= -->
+ <Worksheet ss:Name="Registration &amp; Audit Logs">
+  <Table ss:DefaultRowHeight="20">
+   <Column ss:Width="35"/>
+   <Column ss:Width="100"/>
+   <Column ss:Width="160"/>
+   <Column ss:Width="150"/>
+   <Column ss:Width="120"/>
+   <Column ss:Width="150"/>
+   <Column ss:Width="100"/>
+   <Column ss:Width="80"/>
+   <Column ss:Width="320"/>
+
+   <!-- Title Row -->
+   <Row ss:Height="36">
+    <Cell ss:MergeAcross="8" ss:StyleID="SuperHeader">
+     <Data ss:Type="String">ITHI POORAM (ഇത്തിപ്പൂരം) — STAFF REGISTRATION &amp; ACCESS AUDIT TRAIL</Data>
+    </Cell>
+   </Row>
+
+   <!-- Subtitle Row -->
+   <Row ss:Height="20">
+    <Cell ss:MergeAcross="8" ss:StyleID="SubHeader">
+     <Data ss:Type="String">Immutable Chronological Log of All Staff Registrations, Sign-Ins &amp; Security Events</Data>
+    </Cell>
+   </Row>
+   <Row ss:Height="8"/>
+
+   <!-- Column Headers -->
+   <Row ss:Height="28">
+    <Cell ss:StyleID="ColHeader"><Data ss:Type="String">#</Data></Cell>
+    <Cell ss:StyleID="ColHeader"><Data ss:Type="String">Log ID</Data></Cell>
+    <Cell ss:StyleID="ColHeader"><Data ss:Type="String">Timestamp</Data></Cell>
+    <Cell ss:StyleID="ColHeader"><Data ss:Type="String">Action / Event Type</Data></Cell>
+    <Cell ss:StyleID="ColHeader"><Data ss:Type="String">Username</Data></Cell>
+    <Cell ss:StyleID="ColHeader"><Data ss:Type="String">Staff Full Name</Data></Cell>
+    <Cell ss:StyleID="ColHeader"><Data ss:Type="String">Role</Data></Cell>
+    <Cell ss:StyleID="ColHeader"><Data ss:Type="String">Status</Data></Cell>
+    <Cell ss:StyleID="ColHeader"><Data ss:Type="String">Audit Event Details</Data></Cell>
+   </Row>
+
+   <!-- Data Rows -->
+   
+   <Row ss:Height="24">
+    <Cell ss:StyleID="DataCellCenter"><Data ss:Type="Number">1</Data></Cell>
+    <Cell ss:StyleID="IdMonospace"><Data ss:Type="String">LOG-220485</Data></Cell>
+    <Cell ss:StyleID="DataCellCenter"><Data ss:Type="String">22/10/2026, 6:50:20 pm</Data></Cell>
+    <Cell ss:StyleID="RoleBadge"><Data ss:Type="String">LOGIN_SUCCESS</Data></Cell>
+    <Cell ss:StyleID="DataCellLeft"><Data ss:Type="String">admin</Data></Cell>
+    <Cell ss:StyleID="DataCellLeft"><Data ss:Type="String">Owner / Executive Admin</Data></Cell>
+    <Cell ss:StyleID="DataCellCenter"><Data ss:Type="String">MAIN_ADMIN</Data></Cell>
+    <Cell ss:StyleID="StatusActive"><Data ss:Type="String">SUCCESS</Data></Cell>
+    <Cell ss:StyleID="DataCellLeft"><Data ss:Type="String">Sign-in authenticated for Owner / Executive Admin (MAIN_ADMIN). Session SES-20261022-0484 active.</Data></Cell>
+   </Row>
+   <Row ss:Height="24">
+    <Cell ss:StyleID="DataCellCenter"><Data ss:Type="Number">2</Data></Cell>
+    <Cell ss:StyleID="IdMonospace"><Data ss:Type="String">LOG-001</Data></Cell>
+    <Cell ss:StyleID="DataCellCenter"><Data ss:Type="String">2026-10-15 09:00:00 AM</Data></Cell>
+    <Cell ss:StyleID="RoleBadge"><Data ss:Type="String">STAFF_REGISTRATION</Data></Cell>
+    <Cell ss:StyleID="DataCellLeft"><Data ss:Type="String">admin</Data></Cell>
+    <Cell ss:StyleID="DataCellLeft"><Data ss:Type="String">Owner / Executive Admin</Data></Cell>
+    <Cell ss:StyleID="DataCellCenter"><Data ss:Type="String">MAIN_ADMIN</Data></Cell>
+    <Cell ss:StyleID="StatusActive"><Data ss:Type="String">SUCCESS</Data></Cell>
+    <Cell ss:StyleID="DataCellLeft"><Data ss:Type="String">Master Admin account initialized during restaurant setup.</Data></Cell>
+   </Row>
+   <Row ss:Height="24">
+    <Cell ss:StyleID="DataCellCenter"><Data ss:Type="Number">3</Data></Cell>
+    <Cell ss:StyleID="IdMonospace"><Data ss:Type="String">LOG-002</Data></Cell>
+    <Cell ss:StyleID="DataCellCenter"><Data ss:Type="String">2026-10-15 10:30:00 AM</Data></Cell>
+    <Cell ss:StyleID="RoleBadge"><Data ss:Type="String">STAFF_REGISTRATION</Data></Cell>
+    <Cell ss:StyleID="DataCellLeft"><Data ss:Type="String">gokul</Data></Cell>
+    <Cell ss:StyleID="DataCellLeft"><Data ss:Type="String">Gokul Krishnan</Data></Cell>
+    <Cell ss:StyleID="DataCellCenter"><Data ss:Type="String">CASHIER</Data></Cell>
+    <Cell ss:StyleID="StatusActive"><Data ss:Type="String">SUCCESS</Data></Cell>
+    <Cell ss:StyleID="DataCellLeft"><Data ss:Type="String">Cashier 1 registered with 4-digit PIN for Billing Counter.</Data></Cell>
+   </Row>
+   <Row ss:Height="24">
+    <Cell ss:StyleID="DataCellCenter"><Data ss:Type="Number">4</Data></Cell>
+    <Cell ss:StyleID="IdMonospace"><Data ss:Type="String">LOG-003</Data></Cell>
+    <Cell ss:StyleID="DataCellCenter"><Data ss:Type="String">22/10/2026, 6:50:03 pm</Data></Cell>
+    <Cell ss:StyleID="RoleBadge"><Data ss:Type="String">LOGIN_SUCCESS</Data></Cell>
+    <Cell ss:StyleID="DataCellLeft"><Data ss:Type="String">admin</Data></Cell>
+    <Cell ss:StyleID="DataCellLeft"><Data ss:Type="String">Owner / Executive Admin</Data></Cell>
+    <Cell ss:StyleID="DataCellCenter"><Data ss:Type="String">MAIN_ADMIN</Data></Cell>
+    <Cell ss:StyleID="StatusActive"><Data ss:Type="String">SUCCESS</Data></Cell>
+    <Cell ss:StyleID="DataCellLeft"><Data ss:Type="String">Successful sign-in to Operational Gateway.</Data></Cell>
+   </Row>
+  </Table>
+  <WorksheetOptions xmlns="urn:schemas-microsoft-com:office:excel">
+   <FreezePanes/>
+   <FrozenNoSplit/>
+   <SplitHorizontal>4</SplitHorizontal>
+   <TopRowBottomPane>4</TopRowBottomPane>
+   <ActivePane>2</ActivePane>
+  </WorksheetOptions>
+ </Worksheet>
+</Workbook>
