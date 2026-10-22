@@ -252,11 +252,11 @@ export default function UsersPage() {
               <div className="flex items-center space-x-2">
                 <span className="text-base font-extrabold tracking-wide text-white">STAFF &amp; ADMIN CREDENTIALS</span>
                 <span className="text-[10px] font-bold bg-[#9E341D] text-white px-2 py-0.5 rounded-full uppercase tracking-wider">
-                  Excel Database
+                  Google Workspace Database
                 </span>
               </div>
               <p className="text-xs text-slatepos-400">
-                Ithi Pooram • Google Sheets &amp; Private Telegram Database Registry
+                Ithi Pooram • Live Cloud Database for adithiyanpv6@gmail.com
               </p>
             </div>
           </div>
@@ -309,29 +309,29 @@ export default function UsersPage() {
               <FileSpreadsheet className="w-5 h-5 text-emerald-600" />
               <span>Excel &amp; Sheets</span>
             </div>
-            <p className="text-[11px] text-slatepos-400 mt-1">Multi-Tab Cell-Oriented Spreadsheet</p>
+            <p className="text-[11px] text-slatepos-400 mt-1">Direct Google Sheets Import</p>
           </div>
 
           <div className="bg-white p-4 rounded-3xl border border-parchment-200 shadow-2xs">
             <span className="text-[11px] font-bold text-slatepos-500 uppercase tracking-wider block mb-1">
-              Telegram Group Vault
+              Google Workspace
             </span>
-            <div className="text-lg font-black text-blue-600 flex items-center space-x-1.5">
-              <Send className="w-5 h-5 text-blue-500" />
-              <span className="truncate">Private Vault</span>
+            <div className="text-sm font-black text-blue-600 flex items-center space-x-1.5">
+              <ExternalLink className="w-4 h-4 text-blue-500" />
+              <span className="truncate">adithiyanpv6@gmail.com</span>
             </div>
-            <p className="text-[11px] text-slatepos-400 mt-1">Encrypted Cloud Backup Storage</p>
+            <p className="text-[11px] text-slatepos-400 mt-1">Continuous Live Cloud Sync</p>
           </div>
         </div>
 
-        {/* Database Action Strip: Excel Export, Google Sheets CSV, Telegram Sync */}
+        {/* Database Action Strip: Excel Export, Google Sheets CSV, Google Workspace Sync */}
         <div className="bg-white p-4 sm:p-5 rounded-3xl border border-parchment-200 shadow-2xs flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
           <div>
             <h3 className="text-sm font-black text-slatepos-950 flex items-center space-x-2">
-              <span>Master Credentials Database Export &amp; Cloud Sync</span>
+              <span>Google Workspace Database Integration &amp; Export</span>
             </h3>
             <p className="text-xs text-slatepos-500 mt-0.5">
-              Formatted with official brand headers, column styling, and security classifications.
+              Linked to adithiyanpv6@gmail.com. Automatically synchronizes in-place on the same Google Sheet.
             </p>
           </div>
 
@@ -342,7 +342,7 @@ export default function UsersPage() {
               className="px-3.5 py-2 rounded-xl text-xs font-bold bg-emerald-700 hover:bg-emerald-800 text-white flex items-center space-x-1.5 shadow-sm active:scale-95 transition cursor-pointer"
             >
               <Download className="w-4 h-4" />
-              <span>Download Master Excel (.xls)</span>
+              <span>Download Excel (.xls)</span>
             </button>
 
             {/* 2. Download CSV for Google Sheets */}
@@ -351,16 +351,16 @@ export default function UsersPage() {
               className="px-3.5 py-2 rounded-xl text-xs font-bold bg-parchment-100 hover:bg-parchment-200 text-slatepos-800 border border-parchment-300 flex items-center space-x-1.5 transition active:scale-95 cursor-pointer"
             >
               <FileSpreadsheet className="w-4 h-4 text-emerald-600" />
-              <span>Google Sheets CSV</span>
+              <span>Live CSV Feed</span>
             </button>
 
-            {/* 3. Send to Telegram Group */}
+            {/* 3. Google Workspace Modal */}
             <button
               onClick={() => setIsTelegramModalOpen(true)}
               className="px-3.5 py-2 rounded-xl text-xs font-bold bg-blue-600 hover:bg-blue-700 text-white flex items-center space-x-1.5 shadow-sm active:scale-95 transition cursor-pointer"
             >
-              <Send className="w-4 h-4" />
-              <span>Push to Telegram Group</span>
+              <ExternalLink className="w-4 h-4" />
+              <span>Google Workspace Sync</span>
             </button>
           </div>
         </div>
@@ -651,16 +651,19 @@ export default function UsersPage() {
         </div>
       )}
 
-      {/* MODAL 2: DISPATCH TO TELEGRAM GROUP */}
+      {/* MODAL 2: GOOGLE WORKSPACE LIVE INTEGRATION */}
       {isTelegramModalOpen && (
         <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
           <div className="bg-white rounded-3xl max-w-lg w-full p-6 shadow-2xl border border-parchment-200 animate-in zoom-in-95 duration-150">
             <div className="flex items-center justify-between pb-3 border-b border-parchment-200">
               <div className="flex items-center space-x-2">
                 <div className="w-8 h-8 rounded-xl bg-blue-600 text-white flex items-center justify-center font-bold">
-                  <Send className="w-4 h-4" />
+                  <FileSpreadsheet className="w-4 h-4" />
                 </div>
-                <h3 className="text-base font-extrabold text-slatepos-950">Push Database to Telegram Vault</h3>
+                <div>
+                  <h3 className="text-base font-extrabold text-slatepos-950">Google Workspace Live Sync</h3>
+                  <p className="text-[11px] text-slatepos-500 font-mono">adithiyanpv6@gmail.com</p>
+                </div>
               </div>
               <button
                 onClick={() => setIsTelegramModalOpen(false)}
@@ -670,66 +673,44 @@ export default function UsersPage() {
               </button>
             </div>
 
-            <div className="my-4 space-y-4 text-xs">
-              <div className="p-3.5 rounded-2xl bg-blue-50 border border-blue-200 text-blue-950 space-y-1">
-                <span className="font-bold block">Private Telegram Group Destination:</span>
-                <a 
-                  href="https://t.me/+9eJM_DO7vyUxMjE9" 
-                  target="_blank" 
-                  rel="noreferrer"
-                  className="text-blue-700 underline font-semibold flex items-center space-x-1"
-                >
-                  <span>https://t.me/+9eJM_DO7vyUxMjE9</span>
-                  <ExternalLink className="w-3 h-3" />
-                </a>
-              </div>
-
-              <div>
-                <label className="block font-bold text-slatepos-700 uppercase tracking-wider mb-1">
-                  Telegram Bot API Token:
-                </label>
-                <input
-                  type="text"
-                  value={telegramBotToken}
-                  onChange={(e) => setTelegramBotToken(e.target.value)}
-                  placeholder="e.g. 7891234567:AAHxyz... (from @BotFather)"
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-parchment-300 font-mono text-xs text-black bg-white focus:outline-none focus:border-blue-600"
-                />
-                <p className="text-[11px] text-slatepos-400 mt-1">
-                  Create via @BotFather in 30 seconds and add the bot as Admin to your private group.
+            <div className="my-4 space-y-3.5 text-xs">
+              <div className="p-3.5 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-950 space-y-1.5">
+                <div className="font-bold flex items-center space-x-1.5">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                  <span>Single Sheet Live Editing (No Duplicate Files)</span>
+                </div>
+                <p className="text-[11px] text-emerald-800">
+                  All updates to Staff Register, Live Sessions, and Table Orders modify the exact same Google Sheet in real-time.
                 </p>
               </div>
 
               <div>
-                <label className="block font-bold text-slatepos-700 uppercase tracking-wider mb-1">
-                  Group Chat ID / Username:
-                </label>
-                <input
-                  type="text"
-                  value={telegramChatId}
-                  onChange={(e) => setTelegramChatId(e.target.value)}
-                  placeholder="e.g. -100xxxxxxxxxx or @yourgroup"
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-parchment-300 font-mono text-xs text-black bg-white focus:outline-none focus:border-blue-600"
-                />
+                <span className="font-bold text-slatepos-800 block mb-1">
+                  Option 1: Direct Google Sheet Formula
+                </span>
+                <p className="text-[11px] text-slatepos-500 mb-1">
+                  In any Google Sheet under <strong>adithiyanpv6@gmail.com</strong>, paste this formula in cell A1:
+                </p>
+                <code className="block p-2.5 rounded-xl bg-slatepos-900 text-amber-300 font-mono text-[11px] select-all overflow-x-auto">
+                  =IMPORTDATA(&quot;{typeof window !== 'undefined' ? window.location.origin : ''}/api/google-workspace/live-feed?sheet=staff&quot;)
+                </code>
               </div>
 
-              {telegramStatus && (
-                <div className={`p-3 rounded-2xl text-xs font-bold ${
-                  telegramStatus.startsWith('Error') 
-                    ? 'bg-red-50 text-red-800 border border-red-200' 
-                    : 'bg-emerald-50 text-emerald-800 border border-emerald-200'
-                }`}>
-                  {telegramStatus}
-                </div>
-              )}
+              <div>
+                <span className="font-bold text-slatepos-800 block mb-1">
+                  Option 2: Turnkey Google Apps Script (Auto-Sync Every 1 Min)
+                </span>
+                <p className="text-[11px] text-slatepos-500 mb-1">
+                  The script file <strong className="text-[#9E341D]">GoogleWorkspace_IthiPooram_LiveSync.gs</strong> is created in your project. Open your Google Sheet &gt; <em>Extensions &gt; Apps Script</em> and paste it.
+                </p>
+              </div>
 
               <div className="pt-2 flex justify-between items-center">
                 <a
-                  href="/IthiPooram_Master_Staff_Database.xls"
-                  download
+                  href="/api/staff/database/excel"
                   className="text-slatepos-600 hover:text-slatepos-900 font-bold underline text-xs"
                 >
-                  Direct Download (.xls)
+                  Download Current Excel (.xls)
                 </a>
 
                 <div className="flex space-x-2">
@@ -740,14 +721,15 @@ export default function UsersPage() {
                   >
                     Close
                   </button>
-                  <button
-                    type="button"
-                    disabled={isSendingTelegram}
-                    onClick={handleSendToTelegram}
-                    className="px-5 py-2.5 rounded-xl font-black bg-blue-600 hover:bg-blue-700 text-white shadow-md active:scale-95 transition disabled:opacity-50"
+                  <a
+                    href="https://sheets.new"
+                    target="_blank"
+                    rel="noreferrer"
+                    className="px-5 py-2.5 rounded-xl font-black bg-emerald-600 hover:bg-emerald-700 text-white shadow-md active:scale-95 transition flex items-center space-x-1.5"
                   >
-                    {isSendingTelegram ? 'Delivering...' : 'Send File to Group'}
-                  </button>
+                    <span>Open Google Sheets</span>
+                    <ExternalLink className="w-3.5 h-3.5" />
+                  </a>
                 </div>
               </div>
             </div>

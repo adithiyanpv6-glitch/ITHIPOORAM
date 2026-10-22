@@ -316,26 +316,9 @@ export async function syncAllThreePinnedDatabases(): Promise<{
 }
 
 /**
- * Recurring Heartbeat: Updates all 3 pinned files in-place every 30 minutes
+ * Recurring Heartbeat: Disabled to prevent Telegram chat clutter.
+ * Live continuous updates are now directly powered by Google Workspace for adithiyanpv6@gmail.com.
  */
-let isHeartbeatStarted = false;
 export function startPinnedVaultHeartbeat() {
-  if (isHeartbeatStarted) return;
-  isHeartbeatStarted = true;
-
-  const THIRTY_MINUTES_MS = 30 * 60 * 1000;
-  console.log('[Pinned Vault] Heartbeat initialized: will update all 3 pinned files in-place every 30 mins...');
-
-  setInterval(() => {
-    try {
-      console.log('[Pinned Vault] Updating all 3 pinned files in-place...');
-      syncAllThreePinnedDatabases();
-    } catch (e) {
-      console.error('[Pinned Vault] Error in recurring heartbeat:', e);
-    }
-  }, THIRTY_MINUTES_MS);
-}
-
-if (typeof window === 'undefined') {
-  startPinnedVaultHeartbeat();
+  // Disabled intentionally in favor of Google Workspace
 }
