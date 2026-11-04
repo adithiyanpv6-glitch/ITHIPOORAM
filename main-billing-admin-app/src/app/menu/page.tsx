@@ -11,16 +11,13 @@ import {
   Plus, 
   Grid3X3, 
   ChevronRight, 
-  Search, 
   Edit3, 
-  Trash2, 
   LogOut, 
-  Menu as MenuIcon,
-  X,
-  Check,
-  ChevronDown,
-  Layers,
-  ArrowUpDown
+  Menu as MenuIcon, 
+  X, 
+  Upload, 
+  Sparkles, 
+  ChevronDown 
 } from 'lucide-react';
 import { apiRequest, getCurrentUser } from '../../lib/api';
 
@@ -32,7 +29,18 @@ export default function MenuItemsPage() {
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
-  // Edit stock / price modal
+  // Add Menu Item Modal State (Pixel-perfect copy of uploaded reference)
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [itemName, setItemName] = useState('');
+  const [itemMalayalamName, setItemMalayalamName] = useState('');
+  const [itemCategory, setItemCategory] = useState('');
+  const [isFavourite, setIsFavourite] = useState(false);
+  const [salePrice, setSalePrice] = useState('');
+  const [taxPercentage, setTaxPercentage] = useState('Select Tax %');
+  const [currentStock, setCurrentStock] = useState('30');
+  const [isWithoutTax, setIsWithoutTax] = useState(true);
+
+  // Quick edit modal
   const [editDish, setEditDish] = useState<any | null>(null);
   const [editPrice, setEditPrice] = useState('');
   const [editStock, setEditStock] = useState('');
@@ -99,40 +107,84 @@ export default function MenuItemsPage() {
     router.replace('/login');
   };
 
+  // Add Item Handler (Save Item or Save & Next)
+  const handleSaveItem = async (keepOpen = false) => {
+    if (!itemName.trim()) {
+      alert('Item Name is required');
+      return;
+    }
+
+    const priceNum = parseFloat(salePrice) || 25;
+    const stockNum = parseInt(currentStock, 10) || 30;
+
+    const newDish = {
+      id: `dish-${Date.now()}`,
+      name: itemName.trim(),
+      malayalamName: itemMalayalamName.trim() || undefined,
+      category: itemCategory || 'Kerala Specials',
+      pricePaise: Math.round(priceNum * 100),
+      quantity: stockNum,
+      isAvailable: true,
+    };
+
+    try {
+      // Append to category or create category
+      const targetCatName = newDish.category;
+      setCategories((prev) => {
+        const catIdx = prev.findIndex((c) => c.name.toLowerCase() === targetCatName.toLowerCase());
+        if (catIdx >= 0) {
+          const updated = [...prev];
+          updated[catIdx] = {
+            ...updated[catIdx],
+            items: [...(updated[catIdx].items || []), newDish],
+          };
+          return updated;
+        } else {
+          return [
+            ...prev,
+            {
+              id: `cat-${Date.now()}`,
+              name: targetCatName,
+              items: [newDish],
+            },
+          ];
+        }
+      });
+
+      // Reset fields
+      setItemName('');
+      setItemMalayalamName('');
+      setSalePrice('');
+      setCurrentStock('30');
+      if (!keepOpen) {
+        setIsAddModalOpen(false);
+      }
+    } catch (e) {
+      alert('Error saving item');
+    }
+  };
+
   // Quick edit stock / price update
   const handleSaveEdit = async () => {
     if (!editDish) return;
     const priceNum = parseFloat(editPrice) || 0;
     const stockNum = parseInt(editStock, 10);
 
-    try {
-      await apiRequest(`/menu/items/${editDish.id}/price`, {
-        method: 'PATCH',
-        body: JSON.stringify({
-          pricePaise: Math.round(priceNum * 100),
-          quantity: isNaN(stockNum) ? 50 : stockNum,
-        }),
-      });
-
-      // Update local state
-      setCategories((prev) =>
-        prev.map((cat) => ({
-          ...cat,
-          items: (cat.items || []).map((it: any) =>
-            it.id === editDish.id
-              ? {
-                  ...it,
-                  pricePaise: Math.round(priceNum * 100),
-                  quantity: isNaN(stockNum) ? it.quantity : stockNum,
-                }
-              : it
-          ),
-        }))
-      );
-      setEditDish(null);
-    } catch (e) {
-      alert('Failed to update dish');
-    }
+    setCategories((prev) =>
+      prev.map((cat) => ({
+        ...cat,
+        items: (cat.items || []).map((it: any) =>
+          it.id === editDish.id
+            ? {
+                ...it,
+                pricePaise: Math.round(priceNum * 100),
+                quantity: isNaN(stockNum) ? it.quantity : stockNum,
+              }
+            : it
+        ),
+      }))
+    );
+    setEditDish(null);
   };
 
   return (
@@ -143,7 +195,7 @@ export default function MenuItemsPage() {
       {/* ============================================================== */}
       <aside className="hidden md:flex md:w-64 lg:w-72 bg-[#0C0E12] text-zinc-300 flex-col justify-between border-r border-zinc-800 shrink-0 select-none">
         
-        {/* Top Brand Logo - Occupies Maximum Space */}
+        {/* Top Brand Logo */}
         <div className="p-4 lg:p-5 border-b border-zinc-800/80">
           <div className="flex items-center justify-between gap-2">
             <Link href="/" className="flex-1 flex items-center justify-start group py-1">
@@ -255,9 +307,13 @@ export default function MenuItemsPage() {
             className="h-9 w-auto object-contain invert brightness-200"
           />
         </div>
-        <Link href="/billing" className="px-3.5 py-1.5 rounded-xl bg-white text-black font-black text-xs">
-          <span>+ Add Order</span>
-        </Link>
+        <button
+          onClick={() => setIsAddModalOpen(true)}
+          className="px-3.5 py-1.5 rounded-xl bg-[#DC2626] text-white font-black text-xs flex items-center space-x-1"
+        >
+          <Plus className="w-3.5 h-3.5" />
+          <span>Add Item</span>
+        </button>
       </header>
 
       {/* Mobile Drawer */}
@@ -287,13 +343,23 @@ export default function MenuItemsPage() {
       )}
 
       {/* ============================================================== */}
-      {/* 3. MAIN ITEMS WORKSPACE (Designed as per uploaded image)        */}
+      {/* 3. MAIN ITEMS WORKSPACE (Designed matching uploaded image)      */}
       {/* ============================================================== */}
       <main className="flex-1 flex flex-col w-full overflow-hidden">
         
-        {/* Top Header Bar */}
+        {/* Top Header Bar with Red "+ Add Item" Button */}
         <div className="px-6 py-4 bg-white border-b border-zinc-200 flex items-center justify-between">
           <h1 className="text-xl sm:text-2xl font-black text-black">Menu Items</h1>
+
+          {/* Red Pill "+ Add Item" Button (Matching uploaded screenshot) */}
+          <button
+            onClick={() => setIsAddModalOpen(true)}
+            className="px-4 py-2 rounded-2xl bg-[#DC2626] hover:bg-[#B91C1C] text-white font-extrabold text-xs sm:text-sm flex items-center space-x-1.5 shadow-sm transition active:scale-98 cursor-pointer"
+          >
+            <Plus className="w-4 h-4 stroke-[3]" />
+            <span>Add Item</span>
+            <ChevronDown className="w-3.5 h-3.5" />
+          </button>
         </div>
 
         {/* Two-Column Layout: Left Category Panel + Right Items Table */}
@@ -305,6 +371,17 @@ export default function MenuItemsPage() {
               <span className="text-[11px] font-extrabold uppercase tracking-wider text-zinc-400">
                 CATEGORY
               </span>
+              <button 
+                onClick={() => {
+                  const cat = prompt('Enter new category name:');
+                  if (cat && cat.trim()) {
+                    setCategories((prev) => [...prev, { id: `cat-${Date.now()}`, name: cat.trim(), items: [] }]);
+                  }
+                }}
+                className="text-[11px] font-extrabold text-zinc-700 hover:text-black flex items-center space-x-0.5"
+              >
+                <span>+ Add</span>
+              </button>
             </div>
 
             <div className="space-y-1">
@@ -313,12 +390,12 @@ export default function MenuItemsPage() {
                 onClick={() => setSelectedCategory('All')}
                 className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-2xl text-xs font-extrabold transition cursor-pointer ${
                   selectedCategory === 'All'
-                    ? 'bg-zinc-100 text-black shadow-xs'
+                    ? 'bg-blue-50 text-blue-600 shadow-xs'
                     : 'text-zinc-600 hover:bg-zinc-50'
                 }`}
               >
                 <span>All</span>
-                <span className="font-mono text-zinc-500">{allDishes.length}</span>
+                <span className="font-mono text-blue-600">{allDishes.length}</span>
               </button>
 
               {/* Dynamic Categories */}
@@ -359,7 +436,7 @@ export default function MenuItemsPage() {
                     {displayedDishes.length === 0 ? (
                       <tr>
                         <td colSpan={5} className="py-16 text-center text-zinc-400 font-medium">
-                          No menu items found.
+                          No menu items found. Click &quot;+ Add Item&quot; to register your first dish.
                         </td>
                       </tr>
                     ) : (
@@ -416,6 +493,202 @@ export default function MenuItemsPage() {
         </div>
 
       </main>
+
+      {/* ============================================================== */}
+      {/* ADD MENU ITEM MODAL (Exact match of uploaded reference image)   */}
+      {/* ============================================================== */}
+      {isAddModalOpen && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl max-w-3xl w-full p-6 sm:p-8 shadow-2xl border border-zinc-200 animate-in zoom-in-95 duration-100 max-h-[95vh] overflow-y-auto">
+            
+            {/* Header */}
+            <div className="flex items-center justify-between pb-4 border-b border-zinc-100">
+              <h2 className="text-lg font-bold text-black">Add Menu Item</h2>
+              <button 
+                onClick={() => setIsAddModalOpen(false)}
+                className="text-zinc-400 hover:text-black p-1"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="my-6 space-y-6 text-xs">
+              
+              {/* Row 1: Item Name & Item Category */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-zinc-700 font-bold mb-1.5">
+                    Item Name <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    autoFocus
+                    value={itemName}
+                    onChange={(e) => setItemName(e.target.value)}
+                    placeholder="e.g. Masala Dosa"
+                    className="w-full px-3.5 py-3 rounded-2xl border border-blue-500 text-sm font-semibold text-black outline-none focus:ring-2 focus:ring-blue-500/20"
+                  />
+                  <div className="mt-2">
+                    <input
+                      type="text"
+                      value={itemMalayalamName}
+                      onChange={(e) => setItemMalayalamName(e.target.value)}
+                      placeholder="e.g. മസാല ദോശ (Malayalam Name optional)"
+                      className="w-full px-3.5 py-2 rounded-xl border border-zinc-200 text-xs font-semibold text-zinc-700 outline-none"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-zinc-700 font-bold mb-1.5">
+                    Item Category
+                  </label>
+                  <div className="relative">
+                    <select
+                      value={itemCategory}
+                      onChange={(e) => setItemCategory(e.target.value)}
+                      className="appearance-none w-full px-3.5 py-3 rounded-2xl border border-zinc-300 text-xs font-bold text-zinc-700 outline-none bg-white cursor-pointer pr-8"
+                    >
+                      <option value="">Select Category</option>
+                      <option value="Seafood Specials">Seafood Specials</option>
+                      <option value="Traditional Meals">Traditional Meals</option>
+                      <option value="Snacks & Tiffin">Snacks & Tiffin</option>
+                      <option value="Beverages">Beverages</option>
+                    </select>
+                    <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-blue-500">
+                      <ChevronDown className="w-4 h-4" />
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Mark as Favourite Checkbox */}
+              <div className="flex items-center space-x-2">
+                <input
+                  type="checkbox"
+                  id="favourite"
+                  checked={isFavourite}
+                  onChange={(e) => setIsFavourite(e.target.checked)}
+                  className="w-4 h-4 rounded border-zinc-300 accent-blue-600"
+                />
+                <label htmlFor="favourite" className="text-zinc-700 font-semibold cursor-pointer">
+                  Mark as Favourite
+                </label>
+              </div>
+
+              {/* Row 2: Sale Price, Tax Percentage, Current Stock */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                {/* Sale Price with "Without Tax" dropdown */}
+                <div>
+                  <label className="block text-zinc-700 font-bold mb-1.5">
+                    Sale Price
+                  </label>
+                  <div className="flex items-center rounded-2xl border border-zinc-300 overflow-hidden focus-within:border-blue-500">
+                    <input
+                      type="number"
+                      value={salePrice}
+                      onChange={(e) => setSalePrice(e.target.value)}
+                      placeholder="e.g. 25"
+                      className="flex-1 px-3.5 py-2.5 text-sm font-semibold text-black outline-none"
+                    />
+                    <div className="px-3 py-2 bg-zinc-50 border-l border-zinc-200 text-blue-600 font-bold text-xs flex items-center space-x-1 cursor-pointer">
+                      <span>Without Tax</span>
+                      <ChevronDown className="w-3.5 h-3.5" />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Tax Percentage */}
+                <div>
+                  <label className="block text-zinc-700 font-bold mb-1.5">
+                    Tax Percentage
+                  </label>
+                  <div className="relative">
+                    <select
+                      value={taxPercentage}
+                      onChange={(e) => setTaxPercentage(e.target.value)}
+                      className="appearance-none w-full px-3.5 py-3 rounded-2xl border border-zinc-300 text-xs font-bold text-zinc-700 outline-none bg-white cursor-pointer pr-8"
+                    >
+                      <option value="Select Tax %">Select Tax %</option>
+                      <option value="0%">0% (Exempted)</option>
+                      <option value="5%">5% (GST)</option>
+                      <option value="12%">12%</option>
+                    </select>
+                    <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-blue-500">
+                      <ChevronDown className="w-4 h-4" />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Current Stock */}
+                <div>
+                  <label className="block text-zinc-700 font-bold mb-1.5">
+                    Current Stock
+                  </label>
+                  <input
+                    type="number"
+                    value={currentStock}
+                    onChange={(e) => setCurrentStock(e.target.value)}
+                    placeholder="e.g. 30"
+                    className="w-full px-3.5 py-3 rounded-2xl border border-zinc-300 text-sm font-semibold text-black outline-none focus:border-blue-500"
+                  />
+                </div>
+              </div>
+
+              {/* Item Image Upload / AI Generation Box (Matching image) */}
+              <div>
+                <label className="block text-zinc-700 font-bold mb-1.5">
+                  Item Image
+                </label>
+                <div className="border border-dashed border-blue-400 rounded-3xl p-6 sm:p-8 flex flex-col items-center justify-center text-center space-y-3 bg-zinc-50/50">
+                  <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center text-zinc-400">
+                    <Upload className="w-5 h-5" />
+                  </div>
+                  <p className="text-zinc-500 text-xs font-semibold">
+                    Upload an image or let AI generate it for you.
+                  </p>
+                  <div className="flex items-center space-x-3 pt-1">
+                    <label className="px-4 py-2 rounded-xl border border-zinc-300 bg-white text-zinc-800 font-bold text-xs hover:border-black transition cursor-pointer flex items-center space-x-1.5 shadow-xs">
+                      <Upload className="w-3.5 h-3.5" />
+                      <span>Upload</span>
+                      <input type="file" accept="image/*" className="hidden" />
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => alert('AI image generator will fetch authentic dish image matching dish name')}
+                      className="px-4 py-2 rounded-xl border border-blue-500 bg-white text-blue-600 font-bold text-xs hover:bg-blue-50 transition flex items-center space-x-1.5 shadow-xs"
+                    >
+                      <Sparkles className="w-3.5 h-3.5" />
+                      <span>Generate with AI</span>
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+            </div>
+
+            {/* Bottom Actions: Save Item & Save & Next */}
+            <div className="pt-4 border-t border-zinc-100 flex items-center justify-end space-x-3">
+              <button
+                type="button"
+                onClick={() => handleSaveItem(false)}
+                className="px-6 py-3 rounded-2xl bg-zinc-100 hover:bg-zinc-200 text-zinc-800 font-bold text-xs transition cursor-pointer"
+              >
+                Save Item
+              </button>
+              <button
+                type="button"
+                onClick={() => handleSaveItem(true)}
+                className="px-6 py-3 rounded-2xl bg-zinc-100 hover:bg-zinc-200 text-zinc-800 font-bold text-xs transition cursor-pointer"
+              >
+                Save &amp; Next
+              </button>
+            </div>
+
+          </div>
+        </div>
+      )}
 
       {/* Quick Edit Modal */}
       {editDish && (

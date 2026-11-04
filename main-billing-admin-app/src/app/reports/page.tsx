@@ -8,7 +8,6 @@ import {
   UtensilsCrossed, 
   BarChart3, 
   MoreHorizontal, 
-  Plus, 
   Grid3X3, 
   ChevronRight, 
   FileText, 
@@ -16,10 +15,10 @@ import {
   LogOut, 
   Menu as MenuIcon, 
   X, 
-  Calendar, 
+  Calendar as CalendarIcon, 
   Printer, 
-  CheckCircle2,
-  ChevronDown
+  ChevronDown,
+  ChevronLeft
 } from 'lucide-react';
 import { apiRequest, getCurrentUser } from '../../lib/api';
 
@@ -30,9 +29,15 @@ export default function ReportsPage() {
   const [salesData, setSalesData] = useState<any[]>([]);
   const [overviewData, setOverviewData] = useState<any | null>(null);
   const [loading, setLoading] = useState(true);
-  const [timeFilter, setTimeFilter] = useState<'60mins' | 'today' | '7days' | 'month'>('today');
   const [paymentFilter, setPaymentFilter] = useState<string>('All');
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+
+  // Date Picker Modal Dropdown State (Matching uploaded image)
+  const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
+  const [dateFilterLabel, setDateFilterLabel] = useState<string>('Last 60 mins');
+  const [selectedDate, setSelectedDate] = useState<string>('04/11/2026');
+  const [currentMonth, setCurrentMonth] = useState<string>('November 2026');
+  const [selectedDay, setSelectedDay] = useState<number>(4);
 
   // Selected bill for receipt preview modal
   const [selectedReceipt, setSelectedReceipt] = useState<any | null>(null);
@@ -47,7 +52,6 @@ export default function ReportsPage() {
       const salesRes = await fetch('/api/admin/overview?range=today');
       if (salesRes.ok) {
         const json = await salesRes.json();
-        // Fallback demo orders matching uploaded screenshot if empty
         if (json && Array.isArray(json.sales) && json.sales.length > 0) {
           setSalesData(json.sales);
         } else {
@@ -112,7 +116,7 @@ export default function ReportsPage() {
       {/* ============================================================== */}
       <aside className="hidden md:flex md:w-64 lg:w-72 bg-[#0C0E12] text-zinc-300 flex-col justify-between border-r border-zinc-800 shrink-0 select-none">
         
-        {/* Top Brand Logo - Occupies Maximum Space */}
+        {/* Top Brand Logo */}
         <div className="p-4 lg:p-5 border-b border-zinc-800/80">
           <div className="flex items-center justify-between gap-2">
             <Link href="/" className="flex-1 flex items-center justify-start group py-1">
@@ -256,204 +260,285 @@ export default function ReportsPage() {
       )}
 
       {/* ============================================================== */}
-      {/* 3. MAIN REPORTS WORKSPACE (Customer option completely skipped)  */}
+      {/* 3. MAIN REPORTS WORKSPACE (Redesigned with uploaded Date Modal) */}
       {/* ============================================================== */}
       <main className="flex-1 flex flex-col w-full overflow-hidden">
         
-        {/* Top Header */}
+        {/* Top Header with Exact Red PDF and Green XLS download buttons matching uploaded image */}
         <div className="px-6 py-4 bg-white border-b border-zinc-200 flex items-center justify-between">
-          <h1 className="text-xl sm:text-2xl font-black text-black">Reports</h1>
+          <h1 className="text-xl sm:text-2xl font-black text-black">Orders Report</h1>
           
-          {/* Quick Export format buttons (PDF & XLS icons) */}
+          {/* PDF (Red) & XLS (Green) Download Buttons */}
           <div className="flex items-center space-x-2">
-            <a
-              href="/api/admin/overview?range=today&format=csv"
-              className="p-2 rounded-xl bg-zinc-100 hover:bg-zinc-200 text-black font-mono font-bold text-xs flex items-center space-x-1"
-              title="Download CSV"
+            <button
+              onClick={() => window.print()}
+              className="px-2.5 py-1.5 rounded-lg bg-[#DC2626] hover:bg-[#B91C1C] text-white font-black text-[11px] uppercase tracking-wider shadow-xs transition"
+              title="Download PDF Report"
             >
-              <span>CSV</span>
-            </a>
+              Pdf
+            </button>
             <a
               href="/api/admin/overview?range=today&format=xls"
-              className="p-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-mono font-bold text-xs flex items-center space-x-1"
-              title="Download Excel"
+              className="px-2.5 py-1.5 rounded-lg bg-[#16A34A] hover:bg-[#15803D] text-white font-black text-[11px] uppercase tracking-wider shadow-xs transition"
+              title="Download Excel Report"
             >
-              <span>XLS</span>
+              xls
             </a>
           </div>
         </div>
 
-        {/* Two-Column Layout: Left Sub-Nav (Orders, Items, Stock Summary) + Right Report Panel */}
-        <div className="flex-1 flex flex-col md:flex-row overflow-hidden">
+        {/* Content View */}
+        <div className="flex-1 p-4 sm:p-6 overflow-y-auto space-y-5">
           
-          {/* Left Sub-Nav Panel (Orders, Items, Stock Summary) */}
-          <div className="w-full md:w-56 lg:w-60 bg-white border-b md:border-b-0 md:border-r border-zinc-200 p-4 space-y-1.5 shrink-0">
-            <button
-              onClick={() => setActiveTab('orders')}
-              className={`w-full text-left px-3.5 py-2.5 rounded-2xl text-xs font-extrabold transition cursor-pointer ${
-                activeTab === 'orders'
-                  ? 'bg-zinc-100 text-black shadow-xs'
-                  : 'text-zinc-600 hover:bg-zinc-50'
-              }`}
-            >
-              Orders
-            </button>
-            <button
-              onClick={() => setActiveTab('items')}
-              className={`w-full text-left px-3.5 py-2.5 rounded-2xl text-xs font-extrabold transition cursor-pointer ${
-                activeTab === 'items'
-                  ? 'bg-zinc-100 text-black shadow-xs'
-                  : 'text-zinc-600 hover:bg-zinc-50'
-              }`}
-            >
-              Items
-            </button>
-            <button
-              onClick={() => setActiveTab('stock')}
-              className={`w-full text-left px-3.5 py-2.5 rounded-2xl text-xs font-extrabold transition cursor-pointer ${
-                activeTab === 'stock'
-                  ? 'bg-zinc-100 text-black shadow-xs'
-                  : 'text-zinc-600 hover:bg-zinc-50'
-              }`}
-            >
-              Stock Summary
-            </button>
+          {/* Filter Pills Bar: Date Dropdown, Payment Type, Orders */}
+          <div className="flex flex-wrap items-center gap-2.5 relative">
+            
+            {/* 1. Date Option Button (Triggers Calendar Modal matching image) */}
+            <div className="relative">
+              <button
+                onClick={() => setIsDatePickerOpen(!isDatePickerOpen)}
+                className="px-4 py-2 rounded-xl bg-white border border-blue-500 text-blue-600 text-xs font-bold shadow-xs flex items-center space-x-2 transition cursor-pointer"
+              >
+                <CalendarIcon className="w-3.5 h-3.5" />
+                <span>{dateFilterLabel}</span>
+                <ChevronDown className="w-3.5 h-3.5" />
+              </button>
+
+              {/* DATE PICKER CALENDAR MODAL (Pixel-perfect copy of uploaded reference) */}
+              {isDatePickerOpen && (
+                <div className="absolute top-12 left-0 z-50 bg-white rounded-3xl shadow-2xl border border-zinc-200 p-5 w-80 sm:w-96 text-xs text-black animate-in zoom-in-95 duration-100">
+                  <div className="flex items-center justify-between pb-3 border-b border-zinc-100">
+                    <span className="font-extrabold uppercase tracking-wider text-zinc-400 text-[10px]">
+                      DATE
+                    </span>
+                    <button 
+                      onClick={() => {
+                        setDateFilterLabel('Last 60 mins');
+                        setIsDatePickerOpen(false);
+                      }}
+                      className="text-blue-600 font-bold hover:underline"
+                    >
+                      Clear
+                    </button>
+                  </div>
+
+                  <div className="grid grid-cols-12 gap-4 py-4">
+                    {/* Left Quick Select Column */}
+                    <div className="col-span-4 border-r border-zinc-100 pr-2 space-y-1">
+                      <span className="text-[10px] font-extrabold text-zinc-400 uppercase tracking-wider block mb-1">
+                        QUICK SELECT
+                      </span>
+                      {[
+                        'Last 60 mins',
+                        'All Time',
+                        'Today',
+                        'Yesterday',
+                        'Last 7 days',
+                        'Last 30 days',
+                        'This Month',
+                        'Custom',
+                      ].map((preset) => (
+                        <button
+                          key={preset}
+                          onClick={() => {
+                            setDateFilterLabel(preset);
+                            if (preset !== 'Custom') setIsDatePickerOpen(false);
+                          }}
+                          className={`w-full text-left px-2 py-1.5 rounded-xl text-[11px] font-bold transition cursor-pointer ${
+                            dateFilterLabel === preset
+                              ? 'bg-blue-50 text-blue-600'
+                              : 'text-zinc-700 hover:bg-zinc-50'
+                          }`}
+                        >
+                          {preset}
+                        </button>
+                      ))}
+                    </div>
+
+                    {/* Right Calendar Column */}
+                    <div className="col-span-8 space-y-3">
+                      {/* Date Input Box */}
+                      <div className="p-2.5 rounded-xl border-2 border-blue-500 bg-white">
+                        <span className="text-[9px] font-bold text-blue-600 uppercase block">Date</span>
+                        <input
+                          type="text"
+                          value={selectedDate}
+                          onChange={(e) => setSelectedDate(e.target.value)}
+                          className="font-bold text-black text-xs outline-none w-full bg-transparent"
+                        />
+                      </div>
+
+                      {/* Month Switcher */}
+                      <div className="flex items-center justify-between font-bold text-xs">
+                        <button className="p-1 text-zinc-400 hover:text-black">
+                          <ChevronLeft className="w-4 h-4" />
+                        </button>
+                        <span>{currentMonth}</span>
+                        <button className="p-1 text-zinc-400 hover:text-black">
+                          <ChevronRight className="w-4 h-4" />
+                        </button>
+                      </div>
+
+                      {/* Calendar Day Grid */}
+                      <div className="grid grid-cols-7 gap-1 text-center text-[10px]">
+                        <span className="font-bold text-zinc-400">SU</span>
+                        <span className="font-bold text-zinc-400">MO</span>
+                        <span className="font-bold text-zinc-400">TU</span>
+                        <span className="font-bold text-zinc-400">WE</span>
+                        <span className="font-bold text-zinc-400">TH</span>
+                        <span className="font-bold text-zinc-400">FR</span>
+                        <span className="font-bold text-zinc-400">SA</span>
+
+                        {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30].map((d) => (
+                          <button
+                            key={d}
+                            onClick={() => {
+                              setSelectedDay(d);
+                              setSelectedDate(`${String(d).padStart(2, '0')}/11/2026`);
+                            }}
+                            className={`h-6 rounded-lg font-bold transition flex items-center justify-center ${
+                              selectedDay === d
+                                ? 'bg-blue-600 text-white font-extrabold'
+                                : 'text-zinc-700 hover:bg-zinc-100'
+                            }`}
+                          >
+                            {d}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Actions */}
+                  <div className="flex items-center justify-end space-x-2 pt-2 border-t border-zinc-100">
+                    <button
+                      onClick={() => setIsDatePickerOpen(false)}
+                      className="px-4 py-2 rounded-xl text-xs font-bold text-zinc-600 hover:bg-zinc-100"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={() => setIsDatePickerOpen(false)}
+                      className="px-4 py-2 rounded-xl text-xs font-bold bg-zinc-200 text-zinc-500 hover:bg-black hover:text-white transition"
+                    >
+                      Apply Changes
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* 2. Payment Type Dropdown */}
+            <div className="relative">
+              <select
+                value={paymentFilter}
+                onChange={(e) => setPaymentFilter(e.target.value)}
+                className="appearance-none bg-white border border-zinc-200 text-xs font-bold text-black py-2 pl-3.5 pr-8 rounded-xl focus:outline-none cursor-pointer shadow-xs"
+              >
+                <option value="All">All Payment Type</option>
+                <option value="Cash">Cash</option>
+                <option value="UPI">UPI</option>
+              </select>
+              <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-zinc-500">
+                <ChevronDown className="w-3.5 h-3.5" />
+              </div>
+            </div>
+
+            {/* 3. All Orders Dropdown */}
+            <div className="relative">
+              <select
+                className="appearance-none bg-white border border-zinc-200 text-xs font-bold text-black py-2 pl-3.5 pr-8 rounded-xl focus:outline-none cursor-pointer shadow-xs"
+              >
+                <option value="All">All Orders</option>
+                <option value="Dine-In">Dine-In</option>
+                <option value="Takeaway">Takeaway</option>
+              </select>
+              <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-zinc-500">
+                <ChevronDown className="w-3.5 h-3.5" />
+              </div>
+            </div>
           </div>
 
-          {/* Right Main Report View (No Customer Option) */}
-          <div className="flex-1 p-4 sm:p-6 overflow-y-auto space-y-6">
-            
-            {/* Filter Pills Bar (Customer filter skipped as requested) */}
-            <div className="flex flex-wrap items-center gap-2.5 pb-2">
-              <div className="relative">
-                <select
-                  value={timeFilter}
-                  onChange={(e: any) => setTimeFilter(e.target.value)}
-                  className="appearance-none bg-white border border-zinc-200 text-xs font-bold text-black py-2 pl-3.5 pr-8 rounded-xl focus:outline-none cursor-pointer shadow-xs"
-                >
-                  <option value="60mins">Last 60 mins</option>
-                  <option value="today">Today</option>
-                  <option value="7days">Last 7 Days</option>
-                  <option value="month">This Month</option>
-                </select>
-                <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-zinc-500">
-                  <ChevronDown className="w-3.5 h-3.5" />
-                </div>
-              </div>
-
-              <div className="relative">
-                <select
-                  value={paymentFilter}
-                  onChange={(e) => setPaymentFilter(e.target.value)}
-                  className="appearance-none bg-white border border-zinc-200 text-xs font-bold text-black py-2 pl-3.5 pr-8 rounded-xl focus:outline-none cursor-pointer shadow-xs"
-                >
-                  <option value="All">All Payment Type</option>
-                  <option value="Cash">Cash</option>
-                  <option value="UPI">UPI</option>
-                </select>
-                <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-zinc-500">
-                  <ChevronDown className="w-3.5 h-3.5" />
-                </div>
-              </div>
-
-              <div className="relative">
-                <select
-                  className="appearance-none bg-white border border-zinc-200 text-xs font-bold text-black py-2 pl-3.5 pr-8 rounded-xl focus:outline-none cursor-pointer shadow-xs"
-                >
-                  <option value="All">All Orders</option>
-                  <option value="Dine-In">Dine-In</option>
-                  <option value="Takeaway">Takeaway</option>
-                </select>
-                <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-zinc-500">
-                  <ChevronDown className="w-3.5 h-3.5" />
-                </div>
+          {/* Metric Cards (Total Sales & Total Orders) */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 max-w-md gap-4">
+            <div className="bg-white p-5 rounded-3xl border border-zinc-200 shadow-xs">
+              <span className="text-[10px] font-extrabold uppercase tracking-wider text-zinc-400 block mb-1">
+                TOTAL SALES
+              </span>
+              <div className="text-2xl sm:text-3xl font-black text-black font-mono">
+                {formatRupees(totalSalesPaise)}
               </div>
             </div>
 
-            {/* Total Sales & Total Orders Metric Cards */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 max-w-md gap-4">
-              <div className="bg-white p-5 rounded-3xl border border-zinc-200 shadow-xs">
-                <span className="text-[10px] font-extrabold uppercase tracking-wider text-zinc-400 block mb-1">
-                  TOTAL SALES
-                </span>
-                <div className="text-2xl sm:text-3xl font-black text-black font-mono">
-                  {formatRupees(totalSalesPaise)}
-                </div>
-              </div>
-
-              <div className="bg-white p-5 rounded-3xl border border-zinc-200 shadow-xs">
-                <span className="text-[10px] font-extrabold uppercase tracking-wider text-zinc-400 block mb-1">
-                  TOTAL ORDERS
-                </span>
-                <div className="text-2xl sm:text-3xl font-black text-black font-mono">
-                  {totalOrdersCount}
-                </div>
+            <div className="bg-white p-5 rounded-3xl border border-zinc-200 shadow-xs">
+              <span className="text-[10px] font-extrabold uppercase tracking-wider text-zinc-400 block mb-1">
+                TOTAL ORDERS
+              </span>
+              <div className="text-2xl sm:text-3xl font-black text-black font-mono">
+                {totalOrdersCount}
               </div>
             </div>
+          </div>
 
-            {/* Orders Report Table (Customer column replaced with Table / Counter) */}
-            <div className="bg-white rounded-3xl border border-zinc-200 overflow-hidden shadow-xs">
-              <div className="overflow-x-auto">
-                <table className="w-full text-left text-xs text-zinc-800">
-                  <thead className="bg-zinc-50 text-[10px] font-extrabold uppercase tracking-wider text-zinc-500 border-b border-zinc-200">
-                    <tr>
-                      <th className="py-3 px-4">ORDER NO.</th>
-                      <th className="py-3 px-4">TYPE</th>
-                      <th className="py-3 px-4">DATE</th>
-                      <th className="py-3 px-4">ITEMS</th>
-                      <th className="py-3 px-4">AMOUNT</th>
-                      <th className="py-3 px-4">PAYMENT TYPE</th>
-                      <th className="py-3 px-4 text-right">ACTIONS</th>
+          {/* Orders Report Table */}
+          <div className="bg-white rounded-3xl border border-zinc-200 overflow-hidden shadow-xs">
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs text-zinc-800">
+                <thead className="bg-zinc-50 text-[10px] font-extrabold uppercase tracking-wider text-zinc-500 border-b border-zinc-200">
+                  <tr>
+                    <th className="py-3 px-4">ORDER NO.</th>
+                    <th className="py-3 px-4">TYPE</th>
+                    <th className="py-3 px-4">DATE</th>
+                    <th className="py-3 px-4">ITEMS</th>
+                    <th className="py-3 px-4">AMOUNT</th>
+                    <th className="py-3 px-4">PAYMENT TYPE</th>
+                    <th className="py-3 px-4 text-right">ACTIONS</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-zinc-100">
+                  {salesData.map((s: any, idx: number) => (
+                    <tr key={s.id || idx} className="hover:bg-zinc-50/70 transition">
+                      <td className="py-3.5 px-4 font-mono font-black text-black">
+                        {s.orderNumber || `#${idx + 1}`}
+                      </td>
+                      <td className="py-3.5 px-4 font-semibold text-zinc-600">
+                        {s.type || 'Dine-In'}
+                      </td>
+                      <td className="py-3.5 px-4 font-semibold text-zinc-600">
+                        {s.date || '04 NOV 2026'}
+                      </td>
+                      <td className="py-3.5 px-4 font-extrabold text-black">
+                        {s.items || 'Kerala Seafood Specials'}
+                      </td>
+                      <td className="py-3.5 px-4 font-mono font-extrabold text-black text-sm">
+                        {formatRupees(s.amountPaise || s.grandTotalPaise || 120000)}
+                      </td>
+                      <td className="py-3.5 px-4">
+                        <span className="px-2.5 py-1 rounded-full bg-zinc-100 border border-zinc-200 font-bold text-[10px] text-zinc-800">
+                          {s.paymentType || s.paymentMode || 'Cash'}
+                        </span>
+                      </td>
+                      <td className="py-3.5 px-4 text-right">
+                        <button
+                          onClick={() => setSelectedReceipt(s)}
+                          className="p-1.5 rounded-lg text-zinc-500 hover:text-black hover:bg-zinc-100 transition"
+                          title="Print / View Minimal Bill"
+                        >
+                          <Printer className="w-4 h-4" />
+                        </button>
+                      </td>
                     </tr>
-                  </thead>
-                  <tbody className="divide-y divide-zinc-100">
-                    {salesData.map((s: any, idx: number) => (
-                      <tr key={s.id || idx} className="hover:bg-zinc-50/70 transition">
-                        <td className="py-3.5 px-4 font-mono font-black text-black">
-                          {s.orderNumber || `#${idx + 1}`}
-                        </td>
-                        <td className="py-3.5 px-4 font-semibold text-zinc-600">
-                          {s.type || 'Dine-In'}
-                        </td>
-                        <td className="py-3.5 px-4 font-semibold text-zinc-600">
-                          {s.date || '04 NOV 2026'}
-                        </td>
-                        <td className="py-3.5 px-4 font-extrabold text-black">
-                          {s.items || 'Kerala Seafood Specials'}
-                        </td>
-                        <td className="py-3.5 px-4 font-mono font-extrabold text-black text-sm">
-                          {formatRupees(s.amountPaise || s.grandTotalPaise || 120000)}
-                        </td>
-                        <td className="py-3.5 px-4">
-                          <span className="px-2.5 py-1 rounded-full bg-zinc-100 border border-zinc-200 font-bold text-[10px] text-zinc-800">
-                            {s.paymentType || s.paymentMode || 'Cash'}
-                          </span>
-                        </td>
-                        <td className="py-3.5 px-4 text-right">
-                          <button
-                            onClick={() => setSelectedReceipt(s)}
-                            className="p-1.5 rounded-lg text-zinc-500 hover:text-black hover:bg-zinc-100 transition"
-                            title="Print / View Minimal Bill"
-                          >
-                            <Printer className="w-4 h-4" />
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+                  ))}
+                </tbody>
+              </table>
             </div>
-
           </div>
 
         </div>
 
       </main>
 
-      {/* ============================================================== */}
-      {/* CUSTOM MINIMAL BUT AWESOME BILL PREVIEW MODAL                   */}
-      {/* ============================================================== */}
+      {/* Bill Preview Modal */}
       {selectedReceipt && (
         <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-xs flex items-center justify-center p-4">
           <div className="bg-white rounded-3xl max-w-sm w-full p-6 shadow-2xl border border-zinc-200">
@@ -464,9 +549,7 @@ export default function ReportsPage() {
               </button>
             </div>
 
-            {/* The Custom Minimal Receipt Card */}
             <div className="my-5 p-5 bg-[#FAFAFA] rounded-2xl border border-dashed border-zinc-300 font-mono text-xs text-black space-y-4">
-              {/* Header with Calligraphy Logo */}
               <div className="text-center space-y-1">
                 <div className="flex justify-center mb-1">
                   <img 
@@ -476,11 +559,9 @@ export default function ReportsPage() {
                   />
                 </div>
                 <p className="text-[10px] text-zinc-500 font-sans font-semibold">Vanchiyoor, Trivandrum</p>
-                <p className="text-[10px] text-zinc-400 font-sans">Phone: +91 94470 00000</p>
                 <div className="border-b border-dashed border-zinc-300 pt-2" />
               </div>
 
-              {/* Bill Details */}
               <div className="space-y-1 text-[11px]">
                 <div className="flex justify-between">
                   <span className="text-zinc-500">Order:</span>
@@ -490,46 +571,21 @@ export default function ReportsPage() {
                   <span className="text-zinc-500">Table:</span>
                   <span className="font-bold">{selectedReceipt.tableCode || 'T1'}</span>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-zinc-500">Date:</span>
-                  <span>{selectedReceipt.date || '04 Nov 2026'}</span>
-                </div>
                 <div className="border-b border-dashed border-zinc-300 pt-1" />
               </div>
 
-              {/* Items List */}
-              <div className="space-y-1.5 text-[11px]">
-                <div className="flex justify-between font-bold text-zinc-400 text-[10px] uppercase">
-                  <span>Item</span>
-                  <span>Amount</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>{selectedReceipt.items || 'Kerala Meal Specials'}</span>
-                  <span className="font-bold">{formatRupees(selectedReceipt.amountPaise || 110000)}</span>
-                </div>
-                <div className="border-b border-dashed border-zinc-300 pt-1" />
-              </div>
-
-              {/* Total & Payment Mode */}
               <div className="space-y-1 text-sm font-black">
                 <div className="flex justify-between items-center">
                   <span>TOTAL:</span>
                   <span className="text-base">{formatRupees(selectedReceipt.amountPaise || 110000)}</span>
                 </div>
-                <div className="flex justify-between text-xs font-normal text-zinc-500 pt-1">
-                  <span>Payment Mode:</span>
-                  <span className="font-bold text-black">{selectedReceipt.paymentType || 'Cash'}</span>
-                </div>
               </div>
 
-              {/* Footer */}
               <div className="text-center pt-3 border-t border-dashed border-zinc-300 text-[10px] text-zinc-400 font-sans">
                 <p className="font-bold text-black font-malayalam">നന്ദി, വീണ്ടും വരിക</p>
-                <p>Thank you! Visit again.</p>
               </div>
             </div>
 
-            {/* Print Action */}
             <div className="flex space-x-2">
               <button
                 onClick={() => setSelectedReceipt(null)}
