@@ -16,7 +16,6 @@ import {
   UserPlus, 
   ArrowUpRight, 
   LogOut, 
-  Receipt, 
   Menu as MenuIcon,
   X,
   ChefHat
@@ -111,7 +110,7 @@ export default function RootHomePage() {
   const toCollectPaise = runningOrders.reduce((sum, o) => sum + (o.grandTotalPaise || o.subtotalPaise || 0), 0);
   const aovPaise = todayOrdersCount > 0 ? Math.round(todaySalesPaise / todayOrdersCount) : (todaySalesPaise || 0);
 
-  // Available free tables
+  // Available free tables (only show table numbers/codes when admin adds tables)
   const freeTables = useMemo(() => {
     const occupiedCodes = new Set(runningOrders.map((o) => (o.tableCode || '').toUpperCase()));
     return tables.filter((t) => !occupiedCodes.has((t.tableCode || '').toUpperCase()));
@@ -125,30 +124,27 @@ export default function RootHomePage() {
       {/* ============================================================== */}
       <aside className="hidden md:flex md:w-64 lg:w-72 bg-[#0C0E12] text-zinc-300 flex-col justify-between border-r border-zinc-800 shrink-0 select-none">
         
-        {/* Top Brand Logo & Calligraphy Header */}
-        <div className="p-5 border-b border-zinc-800/80">
-          <div className="flex items-center justify-between">
-            <Link href="/" className="flex items-center space-x-3 group">
+        {/* Top Brand Logo - Occupies Maximum Space ("Executive Admin Console" text removed) */}
+        <div className="p-4 lg:p-5 border-b border-zinc-800/80">
+          <div className="flex items-center justify-between gap-2">
+            <Link href="/" className="flex-1 flex items-center justify-start group py-1">
               <img 
                 src="/brand-calligraphy-uploaded.png" 
                 alt="ഇത്തിപ്പൂരം - Ithi Pooram" 
-                className="h-10 w-auto object-contain invert brightness-200 transition group-hover:scale-105"
+                className="w-full max-h-16 lg:max-h-20 object-contain invert brightness-200 transition group-hover:scale-102"
               />
             </Link>
             <button 
               onClick={handleSignOut}
               title="Sign out of terminal"
-              className="p-1.5 rounded-lg bg-zinc-800/60 hover:bg-zinc-700 text-zinc-400 hover:text-white transition"
+              className="p-1.5 rounded-lg bg-zinc-800/60 hover:bg-zinc-700 text-zinc-400 hover:text-white transition shrink-0"
             >
               <LogOut className="w-4 h-4" />
             </button>
           </div>
-          <div className="mt-2 text-[10px] font-bold text-zinc-500 uppercase tracking-widest">
-            Executive Admin Console
-          </div>
         </div>
 
-        {/* Navigation Items (4 original + Table option second after Home) */}
+        {/* Navigation Items (Home, Table, Items, Reports, More) */}
         <nav className="p-4 space-y-1.5 flex-1">
           {/* 1. Home (Active) */}
           <Link
@@ -159,7 +155,7 @@ export default function RootHomePage() {
             <span>Home</span>
           </Link>
 
-          {/* 2. Table Option (Second after Home, as requested) */}
+          {/* 2. Table Option (Second after Home - "10" removed, only shows count when tables exist) */}
           <Link
             href="/qr"
             className="flex items-center justify-between px-3.5 py-3 rounded-2xl text-zinc-400 hover:bg-zinc-900 hover:text-white font-bold text-sm transition"
@@ -168,12 +164,14 @@ export default function RootHomePage() {
               <Grid3X3 className="w-4 h-4" />
               <span>Table</span>
             </div>
-            <span className="text-[10px] font-mono font-bold bg-zinc-800 text-zinc-300 px-2 py-0.5 rounded-full">
-              {tables.length || 10}
-            </span>
+            {tables.length > 0 && (
+              <span className="text-[10px] font-mono font-bold bg-zinc-800 text-zinc-300 px-2 py-0.5 rounded-full">
+                {tables.length}
+              </span>
+            )}
           </Link>
 
-          {/* 3. Items (Live Menu Update) */}
+          {/* 3. Items (Live Menu) */}
           <Link
             href="/menu"
             className="flex items-center space-x-3 px-3.5 py-3 rounded-2xl text-zinc-400 hover:bg-zinc-900 hover:text-white font-bold text-sm transition"
@@ -182,9 +180,9 @@ export default function RootHomePage() {
             <span>Items</span>
           </Link>
 
-          {/* 4. Reports (Billing POS & Settled Sales) */}
+          {/* 4. Reports */}
           <Link
-            href="/billing"
+            href="/reports"
             className="flex items-center justify-between px-3.5 py-3 rounded-2xl text-zinc-400 hover:bg-zinc-900 hover:text-white font-bold text-sm transition"
           >
             <div className="flex items-center space-x-3">
@@ -194,7 +192,7 @@ export default function RootHomePage() {
             <ChevronRight className="w-3.5 h-3.5 text-zinc-600" />
           </Link>
 
-          {/* 5. More (Staff & Credentials, Kitchen Display) */}
+          {/* 5. More */}
           <Link
             href="/users"
             className="flex items-center justify-between px-3.5 py-3 rounded-2xl text-zinc-400 hover:bg-zinc-900 hover:text-white font-bold text-sm transition"
@@ -207,15 +205,13 @@ export default function RootHomePage() {
           </Link>
         </nav>
 
-        {/* Bottom Actions: + Add Order Button & Restaurant Profile Pill */}
+        {/* Bottom Actions: + Add Order Button (Symbol & [POS] removed as requested) & Restaurant Profile */}
         <div className="p-4 border-t border-zinc-800/80 space-y-3">
           <Link
             href="/billing"
-            className="w-full flex items-center justify-center space-x-2 py-3 px-4 rounded-2xl border border-zinc-700 bg-zinc-900 hover:bg-zinc-800 text-white font-extrabold text-xs shadow-sm transition active:scale-98"
+            className="w-full flex items-center justify-center py-3 px-4 rounded-2xl border border-zinc-700 bg-zinc-900 hover:bg-zinc-800 text-white font-extrabold text-xs shadow-sm transition active:scale-98"
           >
-            <Plus className="w-4 h-4" />
             <span>+ Add Order</span>
-            <span className="text-[10px] text-zinc-400 font-mono ml-1">[POS]</span>
           </Link>
 
           <div className="flex items-center justify-between p-2.5 rounded-2xl bg-zinc-900/60 border border-zinc-800">
@@ -243,7 +239,7 @@ export default function RootHomePage() {
       {/* 2. MOBILE TOP BAR HEADER (Lap & Mobile Friendly)                */}
       {/* ============================================================== */}
       <header className="md:hidden bg-[#0C0E12] text-white p-4 border-b border-zinc-800 flex items-center justify-between sticky top-0 z-40">
-        <div className="flex items-center space-x-3">
+        <div className="flex items-center space-x-3 flex-1">
           <button
             onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
             className="p-2 rounded-xl bg-zinc-900 border border-zinc-700 text-zinc-300"
@@ -253,17 +249,16 @@ export default function RootHomePage() {
           <img 
             src="/brand-calligraphy-uploaded.png" 
             alt="ഇത്തിപ്പൂരം" 
-            className="h-8 w-auto object-contain invert brightness-200"
+            className="h-10 w-auto object-contain invert brightness-200"
           />
         </div>
 
         <div className="flex items-center space-x-2">
           <Link
             href="/billing"
-            className="px-3 py-1.5 rounded-xl bg-white text-black font-black text-xs flex items-center space-x-1"
+            className="px-3.5 py-1.5 rounded-xl bg-white text-black font-black text-xs"
           >
-            <Plus className="w-3.5 h-3.5" />
-            <span>Order</span>
+            <span>+ Add Order</span>
           </Link>
         </div>
       </header>
@@ -296,12 +291,12 @@ export default function RootHomePage() {
             <span>Items</span>
           </Link>
           <Link
-            href="/billing"
+            href="/reports"
             onClick={() => setIsMobileMenuOpen(false)}
             className="flex items-center space-x-3 px-3 py-2.5 rounded-xl text-zinc-300 hover:bg-zinc-900 font-bold text-sm"
           >
             <BarChart3 className="w-4 h-4" />
-            <span>Reports (POS)</span>
+            <span>Reports</span>
           </Link>
           <Link
             href="/users"
@@ -319,8 +314,8 @@ export default function RootHomePage() {
       {/* ============================================================== */}
       <main className="flex-1 p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto w-full space-y-6 overflow-y-auto">
         
-        {/* Top Header Label */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        {/* Top Header Label (Billing POS terminal button removed from top right as requested) */}
+        <div className="flex items-center justify-between">
           <div>
             <h1 className="text-2xl sm:text-3xl font-black text-black tracking-tight">Home</h1>
             <p className="text-xs font-semibold text-zinc-500 mt-0.5">
@@ -331,23 +326,16 @@ export default function RootHomePage() {
           <div className="flex items-center space-x-2">
             <button
               onClick={() => loadDashboardData()}
-              className="p-2 rounded-xl bg-white border border-zinc-200 text-zinc-700 hover:bg-zinc-50 shadow-xs transition"
+              className="p-2.5 rounded-xl bg-white border border-zinc-200 text-zinc-700 hover:bg-zinc-50 shadow-xs transition"
               title="Refresh live metrics"
             >
               <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
             </button>
-            <Link
-              href="/billing"
-              className="px-4 py-2 rounded-xl bg-black text-white hover:bg-zinc-800 text-xs font-black shadow-xs transition flex items-center space-x-1.5"
-            >
-              <Receipt className="w-3.5 h-3.5" />
-              <span>Billing POS Terminal</span>
-            </Link>
           </div>
         </div>
 
         {/* ============================================================== */}
-        {/* 3 RECTANGLES WITH SALES REPORT (Free trial banner removed)      */}
+        {/* 3 RECTANGLES WITH SALES REPORT                                  */}
         {/* ============================================================== */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           
@@ -549,7 +537,7 @@ export default function RootHomePage() {
 
           </div>
 
-          {/* RIGHT COLUMN: Add Staff Securely (Print KOT removed as requested) + Top Selling Items */}
+          {/* RIGHT COLUMN: Add Staff Securely + Top Selling Items */}
           <div className="space-y-6">
             
             {/* Widget 1: Add Staff Securely Card (White, Black & Grey Theme) */}
@@ -612,8 +600,7 @@ export default function RootHomePage() {
         </div>
 
         {/* ============================================================== */}
-        {/* RUNNING ORDERS SECTION (After one scroll down, as requested)     */}
-        {/* Ads and reviews completely removed                             */}
+        {/* RUNNING ORDERS SECTION (After one scroll down)                   */}
         {/* ============================================================== */}
         <section className="bg-white rounded-3xl border border-zinc-200 p-5 sm:p-6 shadow-xs space-y-4">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-zinc-100">
@@ -626,10 +613,9 @@ export default function RootHomePage() {
 
             <Link
               href="/billing"
-              className="inline-flex items-center justify-center space-x-1.5 px-4 py-2 rounded-xl border border-zinc-300 hover:border-black text-black font-extrabold text-xs transition"
+              className="inline-flex items-center justify-center py-2 px-4 rounded-xl border border-zinc-300 hover:border-black text-black font-extrabold text-xs transition"
             >
-              <Plus className="w-3.5 h-3.5" />
-              <span>Add Orders</span>
+              <span>+ Add Order</span>
             </Link>
           </div>
 
@@ -649,7 +635,7 @@ export default function RootHomePage() {
                 href="/billing"
                 className="px-5 py-2.5 rounded-2xl border-2 border-black hover:bg-black hover:text-white text-black font-black text-xs transition cursor-pointer"
               >
-                Add Orders
+                + Add Order
               </Link>
             </div>
           ) : (
@@ -705,22 +691,24 @@ export default function RootHomePage() {
             </div>
           )}
 
-          {/* Free tables bottom status pill */}
-          <div className="pt-3 border-t border-zinc-100 flex flex-wrap items-center gap-2">
-            <span className="text-xs font-bold text-zinc-500">Free tables:</span>
-            {freeTables.length === 0 ? (
-              <span className="text-xs font-semibold text-zinc-400">All tables occupied</span>
-            ) : (
-              freeTables.slice(0, 10).map((t) => (
-                <span
-                  key={t.id || t.tableCode}
-                  className="px-2.5 py-1 rounded-xl bg-zinc-100 border border-zinc-200 font-mono text-[11px] font-extrabold text-zinc-700"
-                >
-                  {t.tableCode?.toLowerCase() || t.displayName?.toLowerCase()}
-                </span>
-              ))
-            )}
-          </div>
+          {/* Free tables bottom status pill (Only visible when admin adds tables) */}
+          {tables.length > 0 && (
+            <div className="pt-3 border-t border-zinc-100 flex flex-wrap items-center gap-2">
+              <span className="text-xs font-bold text-zinc-500">Free tables:</span>
+              {freeTables.length === 0 ? (
+                <span className="text-xs font-semibold text-zinc-400">All tables occupied</span>
+              ) : (
+                freeTables.map((t) => (
+                  <span
+                    key={t.id || t.tableCode}
+                    className="px-2.5 py-1 rounded-xl bg-zinc-100 border border-zinc-200 font-mono text-[11px] font-extrabold text-zinc-700"
+                  >
+                    {t.tableCode?.toLowerCase() || t.displayName?.toLowerCase()}
+                  </span>
+                ))
+              )}
+            </div>
+          )}
         </section>
 
       </main>

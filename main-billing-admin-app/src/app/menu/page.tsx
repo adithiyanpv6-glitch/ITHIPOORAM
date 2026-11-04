@@ -4,718 +4,477 @@ import React, { useEffect, useState, useMemo } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { 
+  Home, 
   UtensilsCrossed, 
-  ArrowLeft, 
-  CheckCircle2, 
-  XCircle, 
+  BarChart3, 
+  MoreHorizontal, 
+  Plus, 
+  Grid3X3, 
+  ChevronRight, 
+  Search, 
   Edit3, 
-  RefreshCw,
-  Plus,
-  Minus,
-  Calendar,
-  FileSpreadsheet,
-  Check,
+  Trash2, 
+  LogOut, 
+  Menu as MenuIcon,
   X,
-  Trash2
+  Check,
+  ChevronDown,
+  Layers,
+  ArrowUpDown
 } from 'lucide-react';
 import { apiRequest, getCurrentUser } from '../../lib/api';
 
-export default function MenuManagerPage() {
+export default function MenuItemsPage() {
   const router = useRouter();
-
-  const handleBack = () => {
-    if (typeof window !== 'undefined' && window.history.length > 1) {
-      router.back();
-    } else {
-      router.push('/');
-    }
-  };
 
   const [categories, setCategories] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  
-  // Date Changer & Excel Archive State
-  const [selectedDate, setSelectedDate] = useState<string>(() => {
-    return new Date().toISOString().split('T')[0];
-  });
-  const [isExportingExcel, setIsExportingExcel] = useState(false);
+  const [selectedCategory, setSelectedCategory] = useState<string>('All');
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
-  // Price Edit Modal State
-  const [priceEditItem, setPriceEditItem] = useState<any | null>(null);
-  const [newPriceRupees, setNewPriceRupees] = useState('');
-  const [priceChangeReason, setPriceChangeReason] = useState('');
+  // Edit stock / price modal
+  const [editDish, setEditDish] = useState<any | null>(null);
+  const [editPrice, setEditPrice] = useState('');
+  const [editStock, setEditStock] = useState('');
 
-  // Add Item Modal State (High-Contrast Black Typography, Zero Image Clutter)
-  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
-  const [addName, setAddName] = useState('');
-  const [addMalayalamName, setAddMalayalamName] = useState('');
-  const [addCategory, setAddCategory] = useState('Seafood Specials');
-  const [customCategory, setCustomCategory] = useState('');
-  const [addPriceRupees, setAddPriceRupees] = useState('');
-  const [addQuantity, setAddQuantity] = useState('25');
-  const [isUnlimitedStock, setIsUnlimitedStock] = useState(false);
-  const [addDietary, setAddDietary] = useState<'SEAFOOD' | 'NON_VEG' | 'VEG'>('SEAFOOD');
-  const [isSubmittingItem, setIsSubmittingItem] = useState(false);
-
+  // Initial load
   const loadMenu = async () => {
     try {
       setLoading(true);
-
-      // 1. Sync custom dishes from localStorage to central server if needed
-      if (typeof window !== 'undefined') {
-        const savedDishes = localStorage.getItem('ithipooram_custom_menu_dishes');
-        if (savedDishes) {
-          try {
-            const parsed = JSON.parse(savedDishes);
-            if (Array.isArray(parsed) && parsed.length > 0) {
-              // Ensure server has these items
-              for (const dish of parsed) {
-                await fetch('/api/menu', {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify(dish),
-                }).catch(() => {});
-              }
-            }
-          } catch (e) {}
-        }
+      const res = await apiRequest('/menu');
+      if (res && Array.isArray(res.categories)) {
+        setCategories(res.categories);
       }
-
-      // 2. Fetch live menu from central API with no-store to always bypass any browser/Vercel caching
-      const res = await fetch('/api/menu', { cache: 'no-store' });
-      if (res.ok) {
-        const data = await res.json();
-        setCategories(Array.isArray(data) ? data : []);
-      } else {
-        setCategories([]);
-      }
-    } catch (err) {
-      console.error('Failed to load menu:', err);
-      setCategories([]);
+    } catch (e) {
+      console.error('Failed to load menu items:', e);
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    if (!getCurrentUser()) {
+    const user = getCurrentUser();
+    if (!user) {
       router.replace('/login');
       return;
     }
     loadMenu();
   }, [router]);
 
-  const handleToggleAvailability = async (item: any) => {
-    try {
-      await fetch('/api/menu', {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ itemId: item.id, isAvailable: !item.isAvailable }),
+  // Flatten dishes
+  const allDishes = useMemo(() => {
+    const list: any[] = [];
+    categories.forEach((cat) => {
+      (cat.items || []).forEach((dish: any) => {
+        list.push({
+          ...dish,
+          categoryName: cat.name,
+        });
       });
-      loadMenu();
-    } catch (err: any) {
-      alert(err.message || 'Failed to update');
+    });
+    return list;
+  }, [categories]);
+
+  // Distinct category counts
+  const categoryCounts = useMemo(() => {
+    const map: Record<string, number> = {};
+    allDishes.forEach((d) => {
+      const cat = d.categoryName || 'Non-categorized';
+      map[cat] = (map[cat] || 0) + 1;
+    });
+    return map;
+  }, [allDishes]);
+
+  // Filtered dishes
+  const displayedDishes = useMemo(() => {
+    if (selectedCategory === 'All') return allDishes;
+    return allDishes.filter((d) => d.categoryName === selectedCategory);
+  }, [allDishes, selectedCategory]);
+
+  const handleSignOut = () => {
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('ithipooram_user');
+      localStorage.removeItem('ithipooram_token');
     }
+    router.replace('/login');
   };
 
-  const handleStockAdjustment = async (item: any, delta: number) => {
-    try {
-      const nextStock = Math.max(0, (item.currentStock || 0) + delta);
-      await fetch('/api/menu', {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ itemId: item.id, currentStock: nextStock, isAvailable: nextStock > 0 }),
-      });
-      loadMenu();
-    } catch (err: any) {
-      alert(err.message || 'Failed to adjust stock');
-    }
-  };
-
-  const handleSubmitPriceUpdate = async () => {
-    if (!priceEditItem || !newPriceRupees || !priceChangeReason.trim()) return;
+  // Quick edit stock / price update
+  const handleSaveEdit = async () => {
+    if (!editDish) return;
+    const priceNum = parseFloat(editPrice) || 0;
+    const stockNum = parseInt(editStock, 10);
 
     try {
-      const newPricePaise = Math.round(parseFloat(newPriceRupees) * 100);
-      await fetch('/api/menu', {
+      await apiRequest(`/menu/items/${editDish.id}/price`, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          itemId: priceEditItem.id, 
-          pricePaise: newPricePaise, 
-          reason: priceChangeReason.trim() 
+        body: JSON.stringify({
+          pricePaise: Math.round(priceNum * 100),
+          quantity: isNaN(stockNum) ? 50 : stockNum,
         }),
       });
-      setPriceEditItem(null);
-      setNewPriceRupees('');
-      setPriceChangeReason('');
-      loadMenu();
-      alert('Price updated & synchronized with customer app.');
-    } catch (err: any) {
-      alert(err.message || 'Failed to update price');
-    }
-  };
 
-  const handleAddNewItem = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!addName.trim()) {
-      alert('Please enter dish name in English');
-      return;
-    }
-    if (!addPriceRupees || parseFloat(addPriceRupees) <= 0) {
-      alert('Please enter a valid price in rupees');
-      return;
-    }
-
-    try {
-      setIsSubmittingItem(true);
-      const finalCategory = addCategory === 'CUSTOM' ? (customCategory.trim() || 'Chef Specials') : addCategory;
-      const finalStock = isUnlimitedStock ? null : Math.max(0, parseInt(addQuantity, 10) || 0);
-
-      const dishPayload = {
-        name: addName.trim(),
-        malayalamName: addMalayalamName.trim(),
-        category: finalCategory,
-        priceInr: parseFloat(addPriceRupees),
-        currentStock: finalStock,
-        dietary: addDietary,
-        station: finalCategory.toLowerCase().includes('fry') || finalCategory.toLowerCase().includes('seafood')
-          ? 'Seafood Fry' 
-          : finalCategory.toLowerCase().includes('drink') 
-          ? 'Beverage Counter' 
-          : 'Main Kitchen',
-      };
-
-      // Save to server
-      const res = await fetch('/api/menu', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(dishPayload),
-      });
-
-      if (!res.ok) {
-        const err = await res.json();
-        throw new Error(err.error || 'Failed to add dish');
-      }
-
-      // Persist in localStorage so it is never lost on serverless resets
-      if (typeof window !== 'undefined') {
-        const saved = localStorage.getItem('ithipooram_custom_menu_dishes');
-        const list = saved ? JSON.parse(saved) : [];
-        list.push(dishPayload);
-        localStorage.setItem('ithipooram_custom_menu_dishes', JSON.stringify(list));
-      }
-
-      // Reset form
-      setAddName('');
-      setAddMalayalamName('');
-      setAddPriceRupees('');
-      setAddQuantity('25');
-      setIsUnlimitedStock(false);
-      setIsAddModalOpen(false);
-
-      await loadMenu();
-      alert(`"${addName}" added successfully and sent to customer ordering system!`);
-    } catch (err: any) {
-      alert(err.message || 'Error adding item');
-    } finally {
-      setIsSubmittingItem(false);
-    }
-  };
-
-  const handleDownloadDailyMenuExcel = async (format: 'xls' | 'csv' = 'xls') => {
-    try {
-      setIsExportingExcel(true);
-      const res = await fetch(`/api/menu/excel?date=${selectedDate}&format=${format}`);
-      if (res.ok) {
-        const blob = await res.blob();
-        const url = window.URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        const ext = format === 'xls' ? 'xls' : 'csv';
-        a.download = `IthiPooram_Daily_Menu_${selectedDate}.${ext}`;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        window.URL.revokeObjectURL(url);
-      }
+      // Update local state
+      setCategories((prev) =>
+        prev.map((cat) => ({
+          ...cat,
+          items: (cat.items || []).map((it: any) =>
+            it.id === editDish.id
+              ? {
+                  ...it,
+                  pricePaise: Math.round(priceNum * 100),
+                  quantity: isNaN(stockNum) ? it.quantity : stockNum,
+                }
+              : it
+          ),
+        }))
+      );
+      setEditDish(null);
     } catch (e) {
-      console.error('Download error:', e);
-    } finally {
-      setIsExportingExcel(false);
+      alert('Failed to update dish');
     }
   };
-
-  const formatRupees = (paise: number = 0) => `₹${(paise / 100).toFixed(2)}`;
-
-  // Summary Metrics
-  const totalDishesCount = useMemo(() => {
-    return categories.reduce((sum, c) => sum + (c.items?.length || 0), 0);
-  }, [categories]);
-
-  const activeDishesCount = useMemo(() => {
-    return categories.reduce((sum, c) => sum + (c.items?.filter((it: any) => it.isAvailable)?.length || 0), 0);
-  }, [categories]);
 
   return (
-    <div className="min-h-screen bg-parchment-50 font-sans pb-32">
-      {/* Top Header */}
-      <header className="bg-slatepos-900 border-b border-slatepos-800 text-white px-4 sm:px-6 py-3.5 flex items-center justify-between sticky top-0 z-30 shadow-md">
-        <div className="flex items-center space-x-3.5">
-          <button 
-            onClick={handleBack} 
-            className="p-2 rounded-xl bg-slatepos-800 hover:bg-slatepos-700 text-slatepos-300 transition-colors"
-            title="Back to Previous Page"
-          >
-            <ArrowLeft className="w-4 h-4" />
-          </button>
-          <div className="w-9 h-9 rounded-xl bg-[#9E341D] flex items-center justify-center text-white font-bold shadow-md shrink-0">
-            <UtensilsCrossed className="w-5 h-5" />
-          </div>
-          <div>
-            <div className="flex items-center space-x-2">
-              <h1 className="text-base sm:text-lg font-black tracking-wide text-white uppercase">
-                LIVE MENU UPDATE
-              </h1>
-              <span className="text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 px-2 py-0.5 rounded-full uppercase tracking-wider hidden sm:inline-block">
-                Customer Synced
-              </span>
-            </div>
+    <div className="min-h-screen bg-[#F8F9FA] text-[#0A0C10] flex flex-col md:flex-row font-sans selection:bg-zinc-800 selection:text-white">
+      
+      {/* ============================================================== */}
+      {/* 1. LEFT SIDEBAR                                                 */}
+      {/* ============================================================== */}
+      <aside className="hidden md:flex md:w-64 lg:w-72 bg-[#0C0E12] text-zinc-300 flex-col justify-between border-r border-zinc-800 shrink-0 select-none">
+        
+        {/* Top Brand Logo - Occupies Maximum Space */}
+        <div className="p-4 lg:p-5 border-b border-zinc-800/80">
+          <div className="flex items-center justify-between gap-2">
+            <Link href="/" className="flex-1 flex items-center justify-start group py-1">
+              <img 
+                src="/brand-calligraphy-uploaded.png" 
+                alt="ഇത്തിപ്പൂരം - Ithi Pooram" 
+                className="w-full max-h-16 lg:max-h-20 object-contain invert brightness-200 transition group-hover:scale-102"
+              />
+            </Link>
+            <button 
+              onClick={handleSignOut}
+              title="Sign Out"
+              className="p-1.5 rounded-lg bg-zinc-800/60 hover:bg-zinc-700 text-zinc-400 hover:text-white transition shrink-0"
+            >
+              <LogOut className="w-4 h-4" />
+            </button>
           </div>
         </div>
 
-        <button 
-          onClick={loadMenu} 
-          className="p-2 rounded-xl bg-slatepos-800 hover:bg-slatepos-700 text-slatepos-300 hover:text-white transition-colors"
-          title="Refresh Live Menu"
-        >
-          <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-        </button>
+        {/* Navigation Items */}
+        <nav className="p-4 space-y-1.5 flex-1">
+          <Link
+            href="/"
+            className="flex items-center space-x-3 px-3.5 py-3 rounded-2xl text-zinc-400 hover:bg-zinc-900 hover:text-white font-bold text-sm transition"
+          >
+            <Home className="w-4 h-4" />
+            <span>Home</span>
+          </Link>
+
+          <Link
+            href="/qr"
+            className="flex items-center space-x-3 px-3.5 py-3 rounded-2xl text-zinc-400 hover:bg-zinc-900 hover:text-white font-bold text-sm transition"
+          >
+            <Grid3X3 className="w-4 h-4" />
+            <span>Table</span>
+          </Link>
+
+          <Link
+            href="/menu"
+            className="flex items-center space-x-3 px-3.5 py-3 rounded-2xl bg-white text-black font-extrabold text-sm shadow-md transition"
+          >
+            <UtensilsCrossed className="w-4 h-4" />
+            <span>Items</span>
+          </Link>
+
+          <Link
+            href="/reports"
+            className="flex items-center justify-between px-3.5 py-3 rounded-2xl text-zinc-400 hover:bg-zinc-900 hover:text-white font-bold text-sm transition"
+          >
+            <div className="flex items-center space-x-3">
+              <BarChart3 className="w-4 h-4" />
+              <span>Reports</span>
+            </div>
+            <ChevronRight className="w-3.5 h-3.5 text-zinc-600" />
+          </Link>
+
+          <Link
+            href="/users"
+            className="flex items-center justify-between px-3.5 py-3 rounded-2xl text-zinc-400 hover:bg-zinc-900 hover:text-white font-bold text-sm transition"
+          >
+            <div className="flex items-center space-x-3">
+              <MoreHorizontal className="w-4 h-4" />
+              <span>More</span>
+            </div>
+            <ChevronRight className="w-3.5 h-3.5 text-zinc-600" />
+          </Link>
+        </nav>
+
+        {/* Bottom Actions */}
+        <div className="p-4 border-t border-zinc-800/80 space-y-3">
+          <Link
+            href="/billing"
+            className="w-full flex items-center justify-center py-3 px-4 rounded-2xl border border-zinc-700 bg-zinc-900 hover:bg-zinc-800 text-white font-extrabold text-xs shadow-sm transition active:scale-98"
+          >
+            <span>+ Add Order</span>
+          </Link>
+
+          <div className="flex items-center justify-between p-2.5 rounded-2xl bg-zinc-900/60 border border-zinc-800">
+            <div className="flex items-center space-x-2.5">
+              <div className="w-8 h-8 rounded-xl bg-white text-black font-black text-xs flex items-center justify-center">
+                IP
+              </div>
+              <div className="overflow-hidden">
+                <p className="text-xs font-bold text-white truncate">Ithi Pooram</p>
+                <p className="text-[10px] text-zinc-400 truncate">Vanchiyoor, TVM</p>
+              </div>
+            </div>
+            <button onClick={handleSignOut} className="text-zinc-500 hover:text-white p-1">
+              <ChevronRight className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+      </aside>
+
+      {/* ============================================================== */}
+      {/* 2. MOBILE TOP BAR                                               */}
+      {/* ============================================================== */}
+      <header className="md:hidden bg-[#0C0E12] text-white p-4 border-b border-zinc-800 flex items-center justify-between sticky top-0 z-40">
+        <div className="flex items-center space-x-3 flex-1">
+          <button
+            onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+            className="p-2 rounded-xl bg-zinc-900 border border-zinc-700 text-zinc-300"
+          >
+            {isMobileMenuOpen ? <X className="w-5 h-5" /> : <MenuIcon className="w-5 h-5" />}
+          </button>
+          <img 
+            src="/brand-calligraphy-uploaded.png" 
+            alt="ഇത്തിപ്പൂരം" 
+            className="h-9 w-auto object-contain invert brightness-200"
+          />
+        </div>
+        <Link href="/billing" className="px-3.5 py-1.5 rounded-xl bg-white text-black font-black text-xs">
+          <span>+ Add Order</span>
+        </Link>
       </header>
 
-      {/* Clean Status & Date Control Bar (Top Add Item & Excel/CSV Options Removed as Requested) */}
-      <div className="bg-white border-b border-parchment-200 px-4 sm:px-6 py-2.5 sticky top-[57px] z-20 shadow-xs">
-        <div className="max-w-6xl mx-auto flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5">
-          <div className="flex items-center space-x-2">
-            <span className="text-xs text-black font-black bg-parchment-100 border border-stone-800 px-3 py-1.5 rounded-xl">
-              {activeDishesCount} / {totalDishesCount} Dishes Active
-            </span>
-          </div>
-
-          <div className="flex items-center space-x-2">
-            <div className="flex items-center space-x-1.5 bg-parchment-100 border-2 border-stone-800 rounded-xl px-2.5 py-1">
-              <Calendar className="w-3.5 h-3.5 text-black" />
-              <span className="text-xs font-black text-black">Menu Date:</span>
-              <input
-                type="date"
-                value={selectedDate}
-                onChange={(e) => setSelectedDate(e.target.value)}
-                className="bg-transparent text-xs font-black text-black border-none outline-none cursor-pointer"
-              />
-            </div>
-            <button
-              onClick={() => setSelectedDate(new Date().toISOString().split('T')[0])}
-              className={`px-3 py-1 rounded-lg text-xs font-black transition border-2 ${
-                selectedDate === new Date().toISOString().split('T')[0]
-                  ? 'bg-black text-white border-black'
-                  : 'bg-white text-black border-stone-800 hover:bg-parchment-100'
-              }`}
-            >
-              Today
-            </button>
-          </div>
+      {/* Mobile Drawer */}
+      {isMobileMenuOpen && (
+        <div className="md:hidden bg-[#0C0E12] border-b border-zinc-800 px-4 py-3 space-y-2 z-30">
+          <Link href="/" onClick={() => setIsMobileMenuOpen(false)} className="flex items-center space-x-3 px-3 py-2.5 rounded-xl text-zinc-300 font-bold text-sm">
+            <Home className="w-4 h-4" />
+            <span>Home</span>
+          </Link>
+          <Link href="/qr" onClick={() => setIsMobileMenuOpen(false)} className="flex items-center space-x-3 px-3 py-2.5 rounded-xl text-zinc-300 font-bold text-sm">
+            <Grid3X3 className="w-4 h-4" />
+            <span>Table</span>
+          </Link>
+          <Link href="/menu" onClick={() => setIsMobileMenuOpen(false)} className="flex items-center space-x-3 px-3 py-2.5 rounded-xl bg-white text-black font-black text-sm">
+            <UtensilsCrossed className="w-4 h-4" />
+            <span>Items</span>
+          </Link>
+          <Link href="/reports" onClick={() => setIsMobileMenuOpen(false)} className="flex items-center space-x-3 px-3 py-2.5 rounded-xl text-zinc-300 font-bold text-sm">
+            <BarChart3 className="w-4 h-4" />
+            <span>Reports</span>
+          </Link>
+          <Link href="/users" onClick={() => setIsMobileMenuOpen(false)} className="flex items-center space-x-3 px-3 py-2.5 rounded-xl text-zinc-300 font-bold text-sm">
+            <MoreHorizontal className="w-4 h-4" />
+            <span>More</span>
+          </Link>
         </div>
-      </div>
+      )}
 
-      {/* Main Dishes Catalog Content */}
-      <main className="max-w-6xl mx-auto p-4 sm:p-6 space-y-6">
-        {loading ? (
-          <div className="py-24 text-center">
-            <div className="w-8 h-8 border-3 border-[#9E341D] border-t-transparent rounded-full animate-spin mx-auto mb-2"></div>
-            <p className="text-xs font-black text-black">Loading menu...</p>
-          </div>
-        ) : totalDishesCount === 0 ? (
-          /* Empty State: Only visible after admin adds menu */
-          <div className="py-20 text-center bg-white rounded-3xl border-2 border-dashed border-stone-300 p-8 shadow-xs my-6">
-            <div className="w-16 h-16 rounded-2xl bg-amber-50 text-[#9E341D] flex items-center justify-center mx-auto mb-4 border border-amber-200">
-              <UtensilsCrossed className="w-8 h-8" />
+      {/* ============================================================== */}
+      {/* 3. MAIN ITEMS WORKSPACE (Designed as per uploaded image)        */}
+      {/* ============================================================== */}
+      <main className="flex-1 flex flex-col w-full overflow-hidden">
+        
+        {/* Top Header Bar */}
+        <div className="px-6 py-4 bg-white border-b border-zinc-200 flex items-center justify-between">
+          <h1 className="text-xl sm:text-2xl font-black text-black">Menu Items</h1>
+        </div>
+
+        {/* Two-Column Layout: Left Category Panel + Right Items Table */}
+        <div className="flex-1 flex flex-col md:flex-row overflow-hidden">
+          
+          {/* Left Sub-Panel: Categories */}
+          <div className="w-full md:w-60 lg:w-64 bg-white border-b md:border-b-0 md:border-r border-zinc-200 p-4 space-y-3 shrink-0">
+            <div className="flex items-center justify-between pb-2 border-b border-zinc-100">
+              <span className="text-[11px] font-extrabold uppercase tracking-wider text-zinc-400">
+                CATEGORY
+              </span>
             </div>
-            <h3 className="text-lg font-black text-black">No Menu Items Added Yet</h3>
-            <p className="text-xs sm:text-sm font-bold text-stone-600 mt-1 mb-6 max-w-md mx-auto">
-              Your menu is completely clean. Items will only appear here and on the customer mobile ordering app after you add them.
-            </p>
-            <button
-              onClick={() => setIsAddModalOpen(true)}
-              className="px-6 py-3 rounded-2xl bg-[#9E341D] hover:bg-[#852B17] text-white font-black text-sm shadow-lg flex items-center justify-center space-x-2 mx-auto active:scale-98 transition"
-            >
-              <Plus className="w-4 h-4 stroke-[3]" />
-              <span>+ Add Your First Dish</span>
-            </button>
+
+            <div className="space-y-1">
+              {/* "All" Category Pill */}
+              <button
+                onClick={() => setSelectedCategory('All')}
+                className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-2xl text-xs font-extrabold transition cursor-pointer ${
+                  selectedCategory === 'All'
+                    ? 'bg-zinc-100 text-black shadow-xs'
+                    : 'text-zinc-600 hover:bg-zinc-50'
+                }`}
+              >
+                <span>All</span>
+                <span className="font-mono text-zinc-500">{allDishes.length}</span>
+              </button>
+
+              {/* Dynamic Categories */}
+              {Object.entries(categoryCounts).map(([catName, count]) => (
+                <button
+                  key={catName}
+                  onClick={() => setSelectedCategory(catName)}
+                  className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-2xl text-xs font-bold transition cursor-pointer ${
+                    selectedCategory === catName
+                      ? 'bg-zinc-100 text-black font-extrabold shadow-xs'
+                      : 'text-zinc-600 hover:bg-zinc-50'
+                  }`}
+                >
+                  <span className="truncate pr-2">{catName}</span>
+                  <span className="font-mono text-zinc-400 text-[11px]">{count}</span>
+                </button>
+              ))}
+            </div>
           </div>
-        ) : (
-          categories.map((cat) => (
-            cat.items && cat.items.length > 0 && (
-              <div key={cat.id} className="bg-white rounded-3xl border-2 border-stone-800 overflow-hidden shadow-xs">
-                <div className="p-4 bg-stone-100 border-b-2 border-stone-800 flex items-center justify-between">
-                  <div>
-                    <h2 className="text-sm sm:text-base font-black text-black uppercase tracking-wide">{cat.name}</h2>
-                    {cat.malayalamName && cat.malayalamName !== cat.name && (
-                      <span className="text-xs font-bold text-[#9E341D] font-malayalam">{cat.malayalamName}</span>
+
+          {/* Right Main Table: Menu Items List */}
+          <div className="flex-1 p-4 sm:p-6 overflow-y-auto">
+            <div className="bg-white rounded-3xl border border-zinc-200 overflow-hidden shadow-xs">
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs text-zinc-800">
+                  <thead className="bg-zinc-50 text-[10px] font-extrabold uppercase tracking-wider text-zinc-500 border-b border-zinc-200">
+                    <tr>
+                      <th className="py-3 px-4 w-10 text-center">
+                        <span className="w-3.5 h-3.5 rounded border border-zinc-300 inline-block bg-white" />
+                      </th>
+                      <th className="py-3 px-4">ITEM NAME</th>
+                      <th className="py-3 px-4">PRICE</th>
+                      <th className="py-3 px-4">STOCK</th>
+                      <th className="py-3 px-4 text-right">ACTIONS</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-zinc-100">
+                    {displayedDishes.length === 0 ? (
+                      <tr>
+                        <td colSpan={5} className="py-16 text-center text-zinc-400 font-medium">
+                          No menu items found.
+                        </td>
+                      </tr>
+                    ) : (
+                      displayedDishes.map((dish: any) => (
+                        <tr key={dish.id} className="hover:bg-zinc-50/70 transition">
+                          <td className="py-3.5 px-4 text-center">
+                            <span className="w-3.5 h-3.5 rounded border border-zinc-300 inline-block bg-white" />
+                          </td>
+                          <td className="py-3.5 px-4">
+                            <div className="flex items-center space-x-3">
+                              <div className="w-10 h-10 rounded-xl bg-zinc-100 border border-zinc-200 flex items-center justify-center font-bold text-xs text-zinc-600 shrink-0">
+                                {dish.name.slice(0, 2).toUpperCase()}
+                              </div>
+                              <div>
+                                <div className="font-extrabold text-black text-sm">{dish.name}</div>
+                                {dish.malayalamName && (
+                                  <div className="text-[11px] font-semibold text-zinc-500 font-malayalam">
+                                    {dish.malayalamName}
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          </td>
+                          <td className="py-3.5 px-4 font-mono font-extrabold text-black text-sm">
+                            ₹{((dish.pricePaise || 0) / 100).toFixed(0)}
+                          </td>
+                          <td className="py-3.5 px-4 font-mono font-bold text-zinc-600">
+                            {dish.quantity || 39}
+                          </td>
+                          <td className="py-3.5 px-4 text-right">
+                            <div className="inline-flex items-center space-x-2">
+                              <button
+                                onClick={() => {
+                                  setEditDish(dish);
+                                  setEditPrice(((dish.pricePaise || 0) / 100).toString());
+                                  setEditStock((dish.quantity || 39).toString());
+                                }}
+                                className="p-1.5 rounded-lg text-zinc-400 hover:text-black hover:bg-zinc-100 transition"
+                                title="Edit Price & Stock"
+                              >
+                                <Edit3 className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))
                     )}
-                  </div>
-                  <span className="text-xs text-black font-black bg-white px-3 py-1 rounded-full border border-stone-400">
-                    {cat.items.length} items
-                  </span>
-                </div>
-
-                <div className="divide-y divide-stone-200">
-                  {cat.items.map((item: any) => (
-                    <div key={item.id} className="p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3.5 hover:bg-stone-50 transition">
-                      {/* Dish Details (English + Malayalam + Dietary Badge) */}
-                      <div className="flex items-center space-x-3.5 flex-1">
-                        <span 
-                          className={`w-3.5 h-3.5 rounded-full shrink-0 border-2 border-white shadow-xs ${
-                            item.dietary === 'VEG' 
-                              ? 'bg-emerald-600' 
-                              : item.dietary === 'NON_VEG' 
-                              ? 'bg-amber-600' 
-                              : 'bg-blue-600'
-                          }`}
-                          title={item.dietary || 'SEAFOOD'}
-                        />
-
-                        <div>
-                          <div className="flex items-center space-x-2">
-                            <span className="text-sm sm:text-base font-black text-black">{item.name}</span>
-                            {item.malayalamName && (
-                              <span className="text-xs font-extrabold text-[#9E341D] font-malayalam">{item.malayalamName}</span>
-                            )}
-                          </div>
-                          <div className="text-[11px] font-bold text-stone-500 mt-0.5 flex items-center space-x-2">
-                            <span className="uppercase text-black font-black">{item.dietary || 'SEAFOOD'}</span>
-                            <span>•</span>
-                            <span>Station: <strong className="text-black">{item.station || 'Main Kitchen'}</strong></span>
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Stock Stepper */}
-                      <div className="flex items-center space-x-2 bg-stone-100 border border-stone-300 rounded-xl p-1">
-                        <button 
-                          onClick={() => handleStockAdjustment(item, -5)} 
-                          className="w-7 h-7 rounded-lg bg-white text-black flex items-center justify-center font-black hover:bg-stone-200 shadow-2xs active:scale-95"
-                          title="Reduce stock by 5"
-                        >
-                          <Minus className="w-3.5 h-3.5" />
-                        </button>
-                        <span className="text-xs font-black text-black font-mono px-2 min-w-[75px] text-center">
-                          {item.currentStock !== null && item.currentStock !== undefined ? `${item.currentStock} left` : 'Unlimited'}
-                        </span>
-                        <button 
-                          onClick={() => handleStockAdjustment(item, 5)} 
-                          className="w-7 h-7 rounded-lg bg-white text-black flex items-center justify-center font-black hover:bg-stone-200 shadow-2xs active:scale-95"
-                          title="Increase stock by 5"
-                        >
-                          <Plus className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
-
-                      {/* Price with Edit Button */}
-                      <div className="flex items-center space-x-2 min-w-[100px] justify-end">
-                        <span className="text-base font-black text-black font-mono">{formatRupees(item.pricePaise)}</span>
-                        <button 
-                          onClick={() => {
-                            setPriceEditItem(item);
-                            setNewPriceRupees((item.pricePaise / 100).toString());
-                            setPriceChangeReason('');
-                          }} 
-                          className="p-1.5 rounded-lg bg-stone-100 hover:bg-stone-200 text-black transition"
-                          title="Update Price"
-                        >
-                          <Edit3 className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
-
-                      {/* In-Stock / Sold-Out Toggle */}
-                      <button
-                        onClick={() => handleToggleAvailability(item)}
-                        className={`px-3.5 py-1.5 rounded-full text-xs font-black transition flex items-center space-x-1.5 cursor-pointer ${
-                          item.isAvailable
-                            ? 'bg-emerald-100 text-emerald-950 border border-emerald-300 hover:bg-emerald-200'
-                            : 'bg-red-100 text-red-950 border border-red-300 hover:bg-red-200'
-                        }`}
-                      >
-                        {item.isAvailable ? (
-                          <>
-                            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-700" />
-                            <span>In Stock (Live)</span>
-                          </>
-                        ) : (
-                          <>
-                            <XCircle className="w-3.5 h-3.5 text-red-700" />
-                            <span>Sold Out</span>
-                          </>
-                        )}
-                      </button>
-                    </div>
-                  ))}
-                </div>
+                  </tbody>
+                </table>
               </div>
-            )
-          ))
-        )}
-
-        {/* Small button to add next menu item (appears below added items) */}
-        {totalDishesCount > 0 && (
-          <div className="pt-2 pb-6 flex flex-col items-center justify-center space-y-2">
-            <button
-              onClick={() => setIsAddModalOpen(true)}
-              className="px-5 py-2.5 rounded-2xl bg-[#9E341D] hover:bg-[#852B17] text-white font-black text-xs sm:text-sm shadow-md flex items-center justify-center space-x-2 active:scale-98 transition cursor-pointer border-2 border-stone-900"
-            >
-              <Plus className="w-4 h-4 stroke-[3]" />
-              <span>+ Add Next Menu Item</span>
-            </button>
-            <p className="text-[11px] font-bold text-stone-600">
-              Dishes automatically sync to Customer Ordering System
-            </p>
+            </div>
           </div>
-        )}
+
+        </div>
+
       </main>
 
-      {/* Modal: + Add Item (High-Contrast Black Font Typography, Image Removed) */}
-      {isAddModalOpen && (
-        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl max-w-lg w-full p-6 sm:p-7 shadow-2xl border-2 border-stone-900 max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between pb-3 border-b-2 border-stone-800">
-              <div className="flex items-center space-x-3">
-                <div className="w-10 h-10 rounded-xl bg-[#9E341D] flex items-center justify-center text-white">
-                  <Plus className="w-5 h-5 stroke-[3]" />
-                </div>
-                <div>
-                  <h3 className="text-base sm:text-lg font-black text-black uppercase">
-                    {totalDishesCount === 0 ? 'Add Your First Dish' : 'Add Next Menu Item'}
-                  </h3>
-                  <p className="text-xs font-bold text-stone-700">Syncs directly to customer ordering</p>
-                </div>
-              </div>
-              <button 
-                onClick={() => setIsAddModalOpen(false)}
-                className="p-1.5 rounded-lg text-black hover:bg-stone-100 transition"
-              >
-                <X className="w-5 h-5 stroke-[2.5]" />
+      {/* Quick Edit Modal */}
+      {editDish && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl max-w-sm w-full p-6 shadow-2xl border border-zinc-200">
+            <div className="flex items-center justify-between pb-3 border-b border-zinc-100">
+              <h3 className="font-black text-black text-base">Edit Dish</h3>
+              <button onClick={() => setEditDish(null)} className="text-zinc-400 hover:text-black">
+                <X className="w-5 h-5" />
               </button>
             </div>
 
-            <form onSubmit={handleAddNewItem} className="mt-5 space-y-4">
-              {/* Dish Name (English) */}
+            <div className="my-4 space-y-3.5 text-xs">
+              <div className="font-extrabold text-black text-sm">{editDish.name}</div>
               <div>
-                <label className="block text-xs font-black text-black mb-1">
-                  Dish Name (English) *
+                <label className="block font-bold text-zinc-700 uppercase tracking-wider mb-1">
+                  Price (₹):
                 </label>
                 <input
-                  type="text"
-                  required
-                  value={addName}
-                  onChange={(e) => setAddName(e.target.value)}
-                  placeholder="e.g. Karimeen Pollichathu, Neymeen Fry, Beef Roast, Meals..."
-                  className="w-full text-sm p-3 rounded-xl border-2 border-stone-800 font-black text-black placeholder:text-stone-400 bg-white focus:border-[#9E341D] outline-none"
+                  type="number"
+                  value={editPrice}
+                  onChange={(e) => setEditPrice(e.target.value)}
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-zinc-300 font-mono font-bold text-black"
                 />
               </div>
 
-              {/* Malayalam Script */}
               <div>
-                <label className="block text-xs font-black text-black mb-1">
-                  Malayalam Name (Optional)
+                <label className="block font-bold text-zinc-700 uppercase tracking-wider mb-1">
+                  Available Stock:
                 </label>
                 <input
-                  type="text"
-                  value={addMalayalamName}
-                  onChange={(e) => setAddMalayalamName(e.target.value)}
-                  placeholder="e.g. കരിമീൻ പൊള്ളിച്ചത്..."
-                  className="w-full text-sm p-3 rounded-xl border-2 border-stone-800 font-black text-black placeholder:text-stone-400 bg-white font-malayalam focus:border-[#9E341D] outline-none"
+                  type="number"
+                  value={editStock}
+                  onChange={(e) => setEditStock(e.target.value)}
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-zinc-300 font-mono font-bold text-black"
                 />
               </div>
 
-              {/* Dietary Type Selection */}
-              <div>
-                <label className="block text-xs font-black text-black mb-1.5">
-                  Dietary Type *
-                </label>
-                <div className="grid grid-cols-3 gap-2">
-                  {[
-                    { id: 'SEAFOOD', label: '🐟 Seafood' },
-                    { id: 'NON_VEG', label: '🍗 Non-Veg' },
-                    { id: 'VEG', label: '🥬 Vegetarian' },
-                  ].map((d) => (
-                    <button
-                      type="button"
-                      key={d.id}
-                      onClick={() => setAddDietary(d.id as any)}
-                      className={`py-2.5 px-2 text-xs font-black rounded-xl border-2 transition ${
-                        addDietary === d.id
-                          ? 'bg-black text-white border-black shadow-sm'
-                          : 'bg-white text-black border-stone-800 hover:bg-stone-100'
-                      }`}
-                    >
-                      {d.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Price & Quantity Available */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-                <div>
-                  <label className="block text-xs font-black text-black mb-1">
-                    Final Price (₹ INR) *
-                  </label>
-                  <div className="relative">
-                    <span className="absolute left-3.5 top-2.5 text-sm font-black text-black">₹</span>
-                    <input
-                      type="number"
-                      step="any"
-                      required
-                      min="1"
-                      value={addPriceRupees}
-                      onChange={(e) => setAddPriceRupees(e.target.value)}
-                      placeholder="280.00"
-                      className="w-full text-sm pl-8 pr-3 py-2.5 rounded-xl border-2 border-stone-800 font-mono font-black text-black bg-white focus:border-[#9E341D] outline-none"
-                    />
-                  </div>
-                  <span className="text-[10px] font-bold text-stone-600 block mt-1">
-                    Final price (inclusive of GST). No extra tax will be added to the customer.
-                  </span>
-                </div>
-
-                <div>
-                  <div className="flex items-center justify-between mb-1">
-                    <label className="text-xs font-black text-black">Quantity Available</label>
-                    <label className="flex items-center space-x-1 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={isUnlimitedStock}
-                        onChange={(e) => setIsUnlimitedStock(e.target.checked)}
-                        className="rounded text-black focus:ring-0 cursor-pointer"
-                      />
-                      <span className="text-[11px] font-black text-black">Unlimited</span>
-                    </label>
-                  </div>
-                  <input
-                    type="number"
-                    disabled={isUnlimitedStock}
-                    value={isUnlimitedStock ? '' : addQuantity}
-                    onChange={(e) => setAddQuantity(e.target.value)}
-                    placeholder={isUnlimitedStock ? 'Unlimited' : 'e.g. 25'}
-                    className="w-full text-sm p-2.5 rounded-xl border-2 border-stone-800 font-mono font-black text-black bg-white disabled:bg-stone-200 disabled:text-stone-500 outline-none"
-                  />
-                </div>
-              </div>
-
-              {/* Category */}
-              <div>
-                <label className="block text-xs font-black text-black mb-1">
-                  Category
-                </label>
-                <select
-                  value={addCategory}
-                  onChange={(e) => setAddCategory(e.target.value)}
-                  className="w-full text-xs font-black text-black p-3 rounded-xl border-2 border-stone-800 bg-white outline-none cursor-pointer"
-                >
-                  <option value="Seafood Specials">Seafood Specials</option>
-                  <option value="Kerala Meals & Rice">Kerala Meals & Rice</option>
-                  <option value="Kerala Meats & Gravies">Kerala Meats & Gravies</option>
-                  <option value="Breads & Starters">Breads & Starters</option>
-                  <option value="Drinks & Desserts">Drinks & Desserts</option>
-                  <option value="CUSTOM">+ Custom Category</option>
-                </select>
-              </div>
-
-              {addCategory === 'CUSTOM' && (
-                <div>
-                  <label className="block text-xs font-black text-black mb-1">
-                    Custom Category Name
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    value={customCategory}
-                    onChange={(e) => setCustomCategory(e.target.value)}
-                    placeholder="e.g. Claypot Curries, Chef Specials..."
-                    className="w-full text-sm p-2.5 rounded-xl border-2 border-stone-800 font-black text-black bg-white outline-none"
-                  />
-                </div>
-              )}
-
-              {/* Buttons */}
-              <div className="pt-3 flex space-x-3">
+              <div className="pt-2 flex justify-end space-x-2">
                 <button
                   type="button"
-                  onClick={() => setIsAddModalOpen(false)}
-                  className="flex-1 py-3 rounded-2xl text-xs sm:text-sm font-black bg-stone-200 hover:bg-stone-300 text-black transition"
+                  onClick={() => setEditDish(null)}
+                  className="px-4 py-2 rounded-xl text-zinc-600 font-bold"
                 >
                   Cancel
                 </button>
                 <button
-                  type="submit"
-                  disabled={isSubmittingItem}
-                  className="flex-1 py-3 rounded-2xl text-xs sm:text-sm font-black bg-[#9E341D] hover:bg-[#852B17] text-white shadow-md flex items-center justify-center space-x-1.5 transition active:scale-98 disabled:opacity-50"
+                  type="button"
+                  onClick={handleSaveEdit}
+                  className="px-5 py-2 rounded-xl bg-black text-white font-black hover:bg-zinc-800 transition"
                 >
-                  <Check className="w-4 h-4 stroke-[3]" />
-                  <span>{isSubmittingItem ? 'Adding Dish...' : 'Add to Menu & Sync'}</span>
+                  Save Changes
                 </button>
               </div>
-            </form>
+            </div>
           </div>
         </div>
       )}
 
-      {/* Modal: Update Price */}
-      {priceEditItem && (
-        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl max-w-sm w-full p-6 shadow-2xl border-2 border-stone-900">
-            <h3 className="text-base font-black text-black">Update Price for {priceEditItem.name}</h3>
-            <div className="mt-4 space-y-3">
-              <div>
-                <label className="block text-xs font-black text-black mb-1">Final Price (INR ₹) - Inclusive of GST:</label>
-                <input
-                  type="number"
-                  value={newPriceRupees}
-                  onChange={(e) => setNewPriceRupees(e.target.value)}
-                  className="w-full text-sm p-2.5 rounded-xl border-2 border-stone-800 font-mono font-black text-black bg-white"
-                />
-                <span className="text-[10px] font-bold text-stone-600 block mt-1">
-                  Net final price. No additional GST is charged at billing.
-                </span>
-              </div>
-              <div>
-                <label className="block text-xs font-black text-black mb-1">Audit Reason:</label>
-                <textarea
-                  value={priceChangeReason}
-                  onChange={(e) => setPriceChangeReason(e.target.value)}
-                  placeholder="e.g. Market auction rate change..."
-                  rows={2}
-                  className="w-full text-xs p-2.5 rounded-xl border-2 border-stone-800 font-bold text-black bg-white"
-                ></textarea>
-              </div>
-            </div>
-            <div className="mt-5 flex space-x-2">
-              <button 
-                onClick={() => setPriceEditItem(null)} 
-                className="flex-1 py-2 rounded-xl text-xs font-black bg-stone-200 text-black"
-              >
-                Cancel
-              </button>
-              <button
-                disabled={!newPriceRupees || !priceChangeReason.trim()}
-                onClick={handleSubmitPriceUpdate}
-                className="flex-1 py-2 rounded-xl text-xs font-black bg-[#9E341D] hover:bg-[#852B17] text-white disabled:opacity-50"
-              >
-                Save
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

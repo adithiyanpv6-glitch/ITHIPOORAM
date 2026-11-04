@@ -1,540 +1,451 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { 
+  Home, 
+  UtensilsCrossed, 
+  BarChart3, 
+  MoreHorizontal, 
+  Grid3X3, 
+  ChevronRight, 
+  Printer, 
   Users, 
-  ArrowLeft, 
-  UserPlus, 
-  Eye, 
-  EyeOff, 
-  Trash2, 
+  HelpCircle, 
+  LogOut, 
+  Menu as MenuIcon, 
   X, 
-  Lock,
-  ShieldCheck,
-  CheckCircle2
+  Plus, 
+  Check, 
+  FileText
 } from 'lucide-react';
 import { getCurrentUser } from '../../lib/api';
-import { StaffRecord } from '../../lib/userExcelDatabase';
 
-export default function UsersPage() {
+export default function MorePage() {
   const router = useRouter();
-  const [users, setUsers] = useState<StaffRecord[]>([]);
-  const [revealedPins, setRevealedPins] = useState<{ [id: string]: boolean }>({});
 
-  // Admin Password Protection State
-  const [isUnlocked, setIsUnlocked] = useState(false);
-  const [adminPasswordInput, setAdminPasswordInput] = useState('');
-  const [passwordError, setPasswordError] = useState('');
+  // Active sub-tab in More (Customers option completely skipped as requested)
+  const [activeTab, setActiveTab] = useState<'staff' | 'printer' | 'support'>('printer');
+  const [defaultPrinter, setDefaultPrinter] = useState<string>('Microsoft Print to PDF');
+  const [pageSize, setPageSize] = useState<'2-inch' | '3-inch'>('3-inch');
+  const [extraLines, setExtraLines] = useState<number>(2);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
-  // Add Member Modal State
-  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
-  const [newName, setNewName] = useState('');
-  const [newPin, setNewPin] = useState('');
-  const [confirmPin, setConfirmPin] = useState('');
-  const [newRole, setNewRole] = useState<'CASHIER' | 'MANAGER' | 'KITCHEN_STAFF' | 'MENU_EDITOR' | 'MAIN_ADMIN'>('CASHIER');
-  const [registerError, setRegisterError] = useState('');
-  const [isSubmitting, setIsSubmitting] = useState(false);
-
-  const handleBack = () => {
-    if (typeof window !== 'undefined' && window.history.length > 1) {
-      router.back();
-    } else {
-      router.push('/');
-    }
-  };
-
-  // Check session unlock status on mount
   useEffect(() => {
-    if (!getCurrentUser()) {
+    const user = getCurrentUser();
+    if (!user) {
       router.replace('/login');
-      return;
-    }
-    if (typeof window !== 'undefined') {
-      const unlocked = sessionStorage.getItem('ithi_staff_admin_unlocked');
-      if (unlocked === 'true') {
-        setIsUnlocked(true);
-      }
     }
   }, [router]);
 
-  // Load registered staff accounts from server API and localStorage
-  const loadStaffDatabase = async () => {
-    try {
-      const res = await fetch('/api/staff/sessions');
-      if (res.ok) {
-        const data = await res.json();
-        if (Array.isArray(data.staff)) {
-          setUsers(data.staff);
-          if (typeof window !== 'undefined') {
-            localStorage.setItem('ithipooram_registered_users', JSON.stringify(data.staff));
-          }
-          return;
-        }
-      }
-    } catch (e) {}
-
-    // Fallback to localStorage
+  const handleSignOut = () => {
     if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('ithipooram_registered_users');
-      if (saved) {
-        try {
-          const parsed = JSON.parse(saved);
-          if (Array.isArray(parsed)) {
-            setUsers(parsed);
-            return;
-          }
-        } catch (e) {}
-      }
+      localStorage.removeItem('ithipooram_user');
+      localStorage.removeItem('ithipooram_token');
     }
-    setUsers([]);
+    router.replace('/login');
   };
-
-  useEffect(() => {
-    if (isUnlocked) {
-      loadStaffDatabase();
-      const interval = setInterval(loadStaffDatabase, 4000);
-      return () => clearInterval(interval);
-    }
-  }, [isUnlocked]);
-
-  // Handle Admin Password Verification to Enter Section
-  const handleVerifyAdminPassword = (e: React.FormEvent) => {
-    e.preventDefault();
-    const entered = adminPasswordInput.trim();
-
-    // Universal Admin master PIN (1111), standard admin passwords, or registered MAIN_ADMIN PINs
-    let isValid = entered === '1111' || entered.toLowerCase() === 'admin' || entered === 'admin123';
-
-    if (!isValid && typeof window !== 'undefined') {
-      const savedUsers = localStorage.getItem('ithipooram_registered_users');
-      if (savedUsers) {
-        try {
-          const list = JSON.parse(savedUsers);
-          if (Array.isArray(list)) {
-            const admin = list.find((u: any) => u.role === 'MAIN_ADMIN' && (u.pin === entered || u.password === entered));
-            if (admin) isValid = true;
-          }
-        } catch (e) {}
-      }
-
-      const currentUser = getCurrentUser();
-      if (currentUser && (currentUser.pin === entered || currentUser.role === 'MAIN_ADMIN' && entered === currentUser.pin)) {
-        isValid = true;
-      }
-    }
-
-    if (isValid) {
-      setIsUnlocked(true);
-      setPasswordError('');
-      if (typeof window !== 'undefined') {
-        sessionStorage.setItem('ithi_staff_admin_unlocked', 'true');
-      }
-    } else {
-      setPasswordError('Incorrect Admin Password. Access restricted to Admin only.');
-    }
-  };
-
-  const saveDatabaseState = (updatedList: StaffRecord[]) => {
-    setUsers(updatedList);
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('ithipooram_registered_users', JSON.stringify(updatedList));
-    }
-  };
-
-  const togglePinReveal = (id: string) => {
-    setRevealedPins((prev) => ({ ...prev, [id]: !prev[id] }));
-  };
-
-  // Delete staff member
-  const handleDeleteStaff = async (id: string, name: string) => {
-    if (!confirm(`Are you sure you want to remove account for "${name}"?`)) return;
-    const updated = users.filter((u) => u.id !== id);
-    saveDatabaseState(updated);
-  };
-
-  // Add new member (matches initial registration in /login)
-  const handleAddNewMember = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setRegisterError('');
-
-    if (!newName.trim()) {
-      setRegisterError('Please enter employee full name.');
-      return;
-    }
-    if (!newPin.trim() || newPin.length !== 4) {
-      setRegisterError('Security PIN must be exactly 4 digits.');
-      return;
-    }
-    if (confirmPin && newPin !== confirmPin) {
-      setRegisterError('PIN confirmation does not match.');
-      return;
-    }
-
-    try {
-      setIsSubmitting(true);
-      const res = await fetch('/api/auth/register', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          name: newName.trim(),
-          pin: newPin.trim(),
-          role: newRole,
-        }),
-      });
-
-      const data = await res.json();
-      if (res.ok) {
-        await loadStaffDatabase();
-        setNewName('');
-        setNewPin('');
-        setConfirmPin('');
-        setIsAddModalOpen(false);
-      } else {
-        setRegisterError(data.error || 'Failed to register new member.');
-      }
-    } catch (e: any) {
-      setRegisterError(e.message || 'Network error registering member.');
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  // If password locked: show clean Admin Password verification screen
-  if (!isUnlocked) {
-    return (
-      <div className="min-h-screen bg-parchment-50 flex items-center justify-center p-4 font-sans">
-        <div className="bg-white rounded-3xl max-w-sm w-full p-6 sm:p-8 shadow-xl border border-parchment-300 text-center">
-          <div className="w-14 h-14 rounded-2xl bg-[#9E341D] text-white flex items-center justify-center mx-auto mb-4 shadow-md">
-            <Lock className="w-7 h-7" />
-          </div>
-
-          <h2 className="text-lg font-black text-slatepos-950 tracking-tight">Staff &amp; Admin Credentials</h2>
-          <p className="text-xs font-semibold text-slatepos-500 mt-1 mb-6">Enter Admin Password to enter</p>
-
-          <form onSubmit={handleVerifyAdminPassword} className="space-y-4">
-            <div>
-              <input
-                type="password"
-                required
-                autoFocus
-                value={adminPasswordInput}
-                onChange={(e) => {
-                  setAdminPasswordInput(e.target.value);
-                  setPasswordError('');
-                }}
-                placeholder="Enter Admin Password"
-                className="w-full px-4 py-3 rounded-2xl border-2 border-stone-800 text-sm font-bold text-center text-black bg-parchment-50 focus:bg-white focus:outline-none focus:border-[#9E341D] transition"
-              />
-            </div>
-
-            {passwordError && (
-              <p className="text-xs font-bold text-red-600 bg-red-50 p-2.5 rounded-xl border border-red-200">
-                {passwordError}
-              </p>
-            )}
-
-            <button
-              type="submit"
-              className="w-full py-3 rounded-2xl bg-[#9E341D] hover:bg-[#852B17] text-white font-black text-xs uppercase tracking-wider shadow-md active:scale-98 transition cursor-pointer"
-            >
-              Enter Section
-            </button>
-
-            <button
-              type="button"
-              onClick={handleBack}
-              className="w-full py-2 text-xs font-bold text-slatepos-500 hover:text-slatepos-900 transition"
-            >
-              Cancel &amp; Return
-            </button>
-          </form>
-        </div>
-      </div>
-    );
-  }
 
   return (
-    <div className="min-h-screen bg-parchment-50 font-sans pb-32">
-      {/* Top Header - Kept only Back button and Title (Excel option, + icon, and description removed as requested) */}
-      <header className="bg-slatepos-900 border-b border-slatepos-800 text-white px-4 sm:px-6 py-4 sticky top-0 z-30 shadow-md">
-        <div className="max-w-7xl mx-auto flex items-center justify-between">
-          <div className="flex items-center space-x-3.5">
+    <div className="min-h-screen bg-[#F8F9FA] text-[#0A0C10] flex flex-col md:flex-row font-sans selection:bg-zinc-800 selection:text-white">
+      
+      {/* ============================================================== */}
+      {/* 1. LEFT SIDEBAR                                                 */}
+      {/* ============================================================== */}
+      <aside className="hidden md:flex md:w-64 lg:w-72 bg-[#0C0E12] text-zinc-300 flex-col justify-between border-r border-zinc-800 shrink-0 select-none">
+        
+        {/* Top Brand Logo - Occupies Maximum Space */}
+        <div className="p-4 lg:p-5 border-b border-zinc-800/80">
+          <div className="flex items-center justify-between gap-2">
+            <Link href="/" className="flex-1 flex items-center justify-start group py-1">
+              <img 
+                src="/brand-calligraphy-uploaded.png" 
+                alt="ഇത്തിപ്പൂരം - Ithi Pooram" 
+                className="w-full max-h-16 lg:max-h-20 object-contain invert brightness-200 transition group-hover:scale-102"
+              />
+            </Link>
             <button 
-              onClick={handleBack} 
-              className="p-2 rounded-xl bg-slatepos-800 hover:bg-slatepos-700 text-slatepos-300 transition-colors"
-              title="Back to Previous Page"
+              onClick={handleSignOut}
+              title="Sign Out"
+              className="p-1.5 rounded-lg bg-zinc-800/60 hover:bg-zinc-700 text-zinc-400 hover:text-white transition shrink-0"
             >
-              <ArrowLeft className="w-5 h-5" />
+              <LogOut className="w-4 h-4" />
             </button>
-
-            <img 
-              src="/ithipooram-logo.png" 
-              alt="Ithi Pooram" 
-              className="w-9 h-9 rounded-xl object-contain shadow-sm shrink-0 border border-slatepos-700 bg-white/10"
-            />
-
-            <div>
-              <h1 className="text-base sm:text-lg font-extrabold tracking-wide text-white">STAFF &amp; ADMIN CREDENTIALS</h1>
-            </div>
           </div>
         </div>
+
+        {/* Navigation Items */}
+        <nav className="p-4 space-y-1.5 flex-1">
+          <Link
+            href="/"
+            className="flex items-center space-x-3 px-3.5 py-3 rounded-2xl text-zinc-400 hover:bg-zinc-900 hover:text-white font-bold text-sm transition"
+          >
+            <Home className="w-4 h-4" />
+            <span>Home</span>
+          </Link>
+
+          <Link
+            href="/qr"
+            className="flex items-center space-x-3 px-3.5 py-3 rounded-2xl text-zinc-400 hover:bg-zinc-900 hover:text-white font-bold text-sm transition"
+          >
+            <Grid3X3 className="w-4 h-4" />
+            <span>Table</span>
+          </Link>
+
+          <Link
+            href="/menu"
+            className="flex items-center space-x-3 px-3.5 py-3 rounded-2xl text-zinc-400 hover:bg-zinc-900 hover:text-white font-bold text-sm transition"
+          >
+            <UtensilsCrossed className="w-4 h-4" />
+            <span>Items</span>
+          </Link>
+
+          <Link
+            href="/reports"
+            className="flex items-center justify-between px-3.5 py-3 rounded-2xl text-zinc-400 hover:bg-zinc-900 hover:text-white font-bold text-sm transition"
+          >
+            <div className="flex items-center space-x-3">
+              <BarChart3 className="w-4 h-4" />
+              <span>Reports</span>
+            </div>
+            <ChevronRight className="w-3.5 h-3.5 text-zinc-600" />
+          </Link>
+
+          <Link
+            href="/users"
+            className="flex items-center justify-between px-3.5 py-3 rounded-2xl bg-white text-black font-extrabold text-sm shadow-md transition"
+          >
+            <div className="flex items-center space-x-3">
+              <MoreHorizontal className="w-4 h-4" />
+              <span>More</span>
+            </div>
+            <ChevronRight className="w-3.5 h-3.5 text-zinc-600" />
+          </Link>
+        </nav>
+
+        {/* Bottom Actions */}
+        <div className="p-4 border-t border-zinc-800/80 space-y-3">
+          <Link
+            href="/billing"
+            className="w-full flex items-center justify-center py-3 px-4 rounded-2xl border border-zinc-700 bg-zinc-900 hover:bg-zinc-800 text-white font-extrabold text-xs shadow-sm transition active:scale-98"
+          >
+            <span>+ Add Order</span>
+          </Link>
+
+          <div className="flex items-center justify-between p-2.5 rounded-2xl bg-zinc-900/60 border border-zinc-800">
+            <div className="flex items-center space-x-2.5">
+              <div className="w-8 h-8 rounded-xl bg-white text-black font-black text-xs flex items-center justify-center">
+                IP
+              </div>
+              <div className="overflow-hidden">
+                <p className="text-xs font-bold text-white truncate">Ithi Pooram</p>
+                <p className="text-[10px] text-zinc-400 truncate">Vanchiyoor, TVM</p>
+              </div>
+            </div>
+            <button onClick={handleSignOut} className="text-zinc-500 hover:text-white p-1">
+              <ChevronRight className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+      </aside>
+
+      {/* ============================================================== */}
+      {/* 2. MOBILE TOP BAR                                               */}
+      {/* ============================================================== */}
+      <header className="md:hidden bg-[#0C0E12] text-white p-4 border-b border-zinc-800 flex items-center justify-between sticky top-0 z-40">
+        <div className="flex items-center space-x-3 flex-1">
+          <button
+            onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+            className="p-2 rounded-xl bg-zinc-900 border border-zinc-700 text-zinc-300"
+          >
+            {isMobileMenuOpen ? <X className="w-5 h-5" /> : <MenuIcon className="w-5 h-5" />}
+          </button>
+          <img 
+            src="/brand-calligraphy-uploaded.png" 
+            alt="ഇത്തിപ്പൂരം" 
+            className="h-9 w-auto object-contain invert brightness-200"
+          />
+        </div>
+        <Link href="/billing" className="px-3.5 py-1.5 rounded-xl bg-white text-black font-black text-xs">
+          <span>+ Add Order</span>
+        </Link>
       </header>
 
-      {/* Main Body */}
-      <main className="max-w-7xl mx-auto p-4 sm:p-6 space-y-6">
-        {/* Top Controls: Registered Accounts Option & Add New Member Button */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-5 rounded-3xl border border-parchment-200 shadow-2xs">
-          <div className="flex items-center space-x-4">
-            <div className="w-12 h-12 rounded-2xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-700">
-              <Users className="w-6 h-6" />
-            </div>
-            <div>
-              <span className="text-[11px] font-bold text-slatepos-500 uppercase tracking-wider block">
-                Registered Accounts
-              </span>
-              <div className="text-2xl font-black text-slatepos-950 flex items-center space-x-2">
-                <span>{users.length}</span>
-                <span className="text-xs font-bold text-emerald-700 bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-200">
-                  {users.filter((u) => u.isActive !== false).length} Active Accounts
-                </span>
-              </div>
-            </div>
-          </div>
-
-          <div>
-            <button
-              onClick={() => {
-                setRegisterError('');
-                setIsAddModalOpen(true);
-              }}
-              className="w-full sm:w-auto px-5 py-3 rounded-2xl bg-[#9E341D] hover:bg-[#852B17] text-white font-black text-xs sm:text-sm uppercase tracking-wider shadow-md flex items-center justify-center space-x-2 active:scale-98 transition cursor-pointer"
-            >
-              <UserPlus className="w-4 h-4" />
-              <span>Add New Member</span>
-            </button>
-          </div>
-        </div>
-
-        {/* Registered Accounts Viewable Registry Table */}
-        <div className="bg-white rounded-3xl border border-parchment-200 overflow-hidden shadow-2xs">
-          <div className="p-4 sm:px-6 py-4 border-b border-parchment-200 flex items-center justify-between">
-            <div>
-              <h2 className="text-base font-extrabold text-slatepos-950">Registered Accounts</h2>
-              <p className="text-xs text-slatepos-500">Viewable account credentials for all registered staff &amp; administrators</p>
-            </div>
-            <span className="text-xs font-mono font-bold text-slatepos-500">
-              {users.length} Total
-            </span>
-          </div>
-
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs text-slatepos-700">
-              <thead className="bg-slatepos-900 text-[11px] font-bold uppercase tracking-wider text-white border-b border-slatepos-800">
-                <tr>
-                  <th className="py-3.5 px-4">Staff ID</th>
-                  <th className="py-3.5 px-4">Employee Name</th>
-                  <th className="py-3.5 px-4">4-Digit Security PIN</th>
-                  <th className="py-3.5 px-4">Role</th>
-                  <th className="py-3.5 px-4">Registration Date &amp; Time</th>
-                  <th className="py-3.5 px-4 text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-parchment-100">
-                {users.length === 0 ? (
-                  <tr>
-                    <td colSpan={6} className="py-12 text-center text-slatepos-400 font-medium">
-                      No accounts registered yet. Click &quot;Add New Member&quot; to register your first staff account.
-                    </td>
-                  </tr>
-                ) : (
-                  users.map((staff, idx) => {
-                    const isPinShown = revealedPins[staff.id];
-                    const isZebra = idx % 2 === 1;
-
-                    return (
-                      <tr 
-                        key={staff.id} 
-                        className={`hover:bg-amber-50/40 transition ${isZebra ? 'bg-parchment-50/50' : 'bg-white'}`}
-                      >
-                        {/* Staff ID */}
-                        <td className="py-3.5 px-4 font-mono font-bold text-slatepos-700">
-                          {staff.id}
-                        </td>
-
-                        {/* Employee Name */}
-                        <td className="py-3.5 px-4">
-                          <div className="font-extrabold text-slatepos-950 text-sm">{staff.fullName}</div>
-                        </td>
-
-                        {/* 4-Digit Security PIN (Masked with Eye reveal) */}
-                        <td className="py-3.5 px-4">
-                          <div className="inline-flex items-center space-x-1.5 px-2.5 py-1 rounded-xl bg-amber-50 border border-amber-200">
-                            <span className="font-mono font-black text-sm text-[#9E341D] tracking-wider">
-                              {isPinShown ? staff.pin : '••••'}
-                            </span>
-                            <button
-                              type="button"
-                              onClick={() => togglePinReveal(staff.id)}
-                              className="p-1 rounded-lg text-slatepos-400 hover:text-slatepos-800 cursor-pointer"
-                              title={isPinShown ? 'Hide PIN' : 'Reveal PIN'}
-                            >
-                              {isPinShown ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
-                            </button>
-                          </div>
-                        </td>
-
-                        {/* Role Pill */}
-                        <td className="py-3.5 px-4">
-                          <span className={`px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider ${
-                            staff.role === 'MAIN_ADMIN' 
-                              ? 'bg-[#9E341D] text-white' 
-                              : staff.role === 'MANAGER'
-                              ? 'bg-slatepos-800 text-white'
-                              : staff.role === 'KITCHEN_STAFF'
-                              ? 'bg-amber-500 text-slatepos-950 font-black'
-                              : 'bg-emerald-100 text-emerald-800'
-                          }`}>
-                            {staff.role}
-                          </span>
-                        </td>
-
-                        {/* Registration Date */}
-                        <td className="py-3.5 px-4 text-slatepos-600 font-medium">
-                          {staff.registeredAt || 'Today'}
-                        </td>
-
-                        {/* Actions */}
-                        <td className="py-3.5 px-4 text-right">
-                          <button
-                            onClick={() => handleDeleteStaff(staff.id, staff.fullName)}
-                            className="p-1.5 rounded-lg text-slatepos-400 hover:text-red-600 transition cursor-pointer"
-                            title="Remove Account"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        </td>
-                      </tr>
-                    );
-                  })
-                )}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </main>
-
-      {/* MODAL: ADD NEW MEMBER (Identical to initial Login/Registration Process) */}
-      {isAddModalOpen && (
-        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl max-w-md w-full p-6 sm:p-7 shadow-2xl border border-parchment-200 animate-in zoom-in-95 duration-150">
-            <div className="flex items-center justify-between pb-3 border-b border-parchment-200">
-              <div className="flex items-center space-x-2.5">
-                <div className="w-9 h-9 rounded-xl bg-[#9E341D] text-white flex items-center justify-center font-bold">
-                  <UserPlus className="w-5 h-5" />
-                </div>
-                <div>
-                  <h3 className="text-base font-extrabold text-slatepos-950">Add New Member</h3>
-                  <p className="text-[11px] text-slatepos-500">Register new staff account &amp; 4-digit PIN</p>
-                </div>
-              </div>
-              <button
-                onClick={() => setIsAddModalOpen(false)}
-                className="p-1.5 rounded-lg text-slatepos-400 hover:bg-parchment-100"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <form onSubmit={handleAddNewMember} className="my-4 space-y-4 text-xs">
-              {registerError && (
-                <div className="p-2.5 rounded-xl bg-red-50 border border-red-200 text-red-700 font-bold">
-                  {registerError}
-                </div>
-              )}
-
-              <div>
-                <label className="block font-bold text-slatepos-800 uppercase tracking-wider mb-1">
-                  Employee Full Name:
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={newName}
-                  onChange={(e) => setNewName(e.target.value)}
-                  placeholder="e.g. Rahul / Adhithiyan"
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-parchment-300 text-sm font-semibold text-black bg-white focus:outline-none focus:border-[#9E341D]"
-                />
-              </div>
-
-              <div>
-                <label className="block font-bold text-slatepos-800 uppercase tracking-wider mb-1">
-                  Staff Role:
-                </label>
-                <select
-                  value={newRole}
-                  onChange={(e: any) => setNewRole(e.target.value)}
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-parchment-300 text-xs font-bold text-black bg-white focus:outline-none focus:border-[#9E341D]"
-                >
-                  <option value="CASHIER">CASHIER (Counter POS)</option>
-                  <option value="MANAGER">MANAGER (Floor &amp; Operations)</option>
-                  <option value="KITCHEN_STAFF">KITCHEN_STAFF (Kitchen Display System)</option>
-                  <option value="MENU_EDITOR">MENU_EDITOR (Live Menu Updates)</option>
-                  <option value="MAIN_ADMIN">MAIN_ADMIN (Full Executive Control)</option>
-                </select>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block font-bold text-slatepos-800 uppercase tracking-wider mb-1">
-                    4-Digit PIN:
-                  </label>
-                  <input
-                    type="password"
-                    maxLength={4}
-                    required
-                    value={newPin}
-                    onChange={(e) => setNewPin(e.target.value.replace(/\D/g, ''))}
-                    placeholder="4 Digits (e.g. 1234)"
-                    className="w-full px-3.5 py-2.5 rounded-xl border border-parchment-300 text-sm font-mono font-bold text-[#9E341D] bg-white focus:outline-none focus:border-[#9E341D]"
-                  />
-                </div>
-
-                <div>
-                  <label className="block font-bold text-slatepos-800 uppercase tracking-wider mb-1">
-                    Confirm PIN:
-                  </label>
-                  <input
-                    type="password"
-                    maxLength={4}
-                    value={confirmPin}
-                    onChange={(e) => setConfirmPin(e.target.value.replace(/\D/g, ''))}
-                    placeholder="Confirm PIN"
-                    className="w-full px-3.5 py-2.5 rounded-xl border border-parchment-300 text-sm font-mono font-bold text-[#9E341D] bg-white focus:outline-none focus:border-[#9E341D]"
-                  />
-                </div>
-              </div>
-
-              <div className="pt-2 flex justify-end space-x-2">
-                <button
-                  type="button"
-                  onClick={() => setIsAddModalOpen(false)}
-                  className="px-4 py-2.5 rounded-xl font-bold text-slatepos-600 hover:bg-parchment-100"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={isSubmitting}
-                  className="px-5 py-2.5 rounded-xl font-black bg-[#9E341D] hover:bg-[#832B18] text-white shadow-md active:scale-95 transition disabled:opacity-50"
-                >
-                  {isSubmitting ? 'Registering...' : 'Register Member'}
-                </button>
-              </div>
-            </form>
-          </div>
+      {/* Mobile Drawer */}
+      {isMobileMenuOpen && (
+        <div className="md:hidden bg-[#0C0E12] border-b border-zinc-800 px-4 py-3 space-y-2 z-30">
+          <Link href="/" onClick={() => setIsMobileMenuOpen(false)} className="flex items-center space-x-3 px-3 py-2.5 rounded-xl text-zinc-300 font-bold text-sm">
+            <Home className="w-4 h-4" />
+            <span>Home</span>
+          </Link>
+          <Link href="/qr" onClick={() => setIsMobileMenuOpen(false)} className="flex items-center space-x-3 px-3 py-2.5 rounded-xl text-zinc-300 font-bold text-sm">
+            <Grid3X3 className="w-4 h-4" />
+            <span>Table</span>
+          </Link>
+          <Link href="/menu" onClick={() => setIsMobileMenuOpen(false)} className="flex items-center space-x-3 px-3 py-2.5 rounded-xl text-zinc-300 font-bold text-sm">
+            <UtensilsCrossed className="w-4 h-4" />
+            <span>Items</span>
+          </Link>
+          <Link href="/reports" onClick={() => setIsMobileMenuOpen(false)} className="flex items-center space-x-3 px-3 py-2.5 rounded-xl text-zinc-300 font-bold text-sm">
+            <BarChart3 className="w-4 h-4" />
+            <span>Reports</span>
+          </Link>
+          <Link href="/users" onClick={() => setIsMobileMenuOpen(false)} className="flex items-center space-x-3 px-3 py-2.5 rounded-xl bg-white text-black font-black text-sm">
+            <MoreHorizontal className="w-4 h-4" />
+            <span>More</span>
+          </Link>
         </div>
       )}
+
+      {/* ============================================================== */}
+      {/* 3. MAIN MORE WORKSPACE (Customers option completely skipped)    */}
+      {/* ============================================================== */}
+      <main className="flex-1 flex flex-col w-full overflow-hidden">
+        
+        {/* Top Header */}
+        <div className="px-6 py-4 bg-white border-b border-zinc-200">
+          <h1 className="text-xl sm:text-2xl font-black text-black">More Options</h1>
+        </div>
+
+        {/* Two-Column Layout: Left Sub-Nav + Right Configuration Panel */}
+        <div className="flex-1 flex flex-col md:flex-row overflow-hidden">
+          
+          {/* Left Sub-Nav (Customers skipped -> Staff Access, Printer, Support) */}
+          <div className="w-full md:w-56 lg:w-60 bg-white border-b md:border-b-0 md:border-r border-zinc-200 p-4 space-y-1.5 shrink-0">
+            <button
+              onClick={() => setActiveTab('printer')}
+              className={`w-full text-left px-3.5 py-2.5 rounded-2xl text-xs font-extrabold transition cursor-pointer ${
+                activeTab === 'printer'
+                  ? 'bg-zinc-100 text-black shadow-xs'
+                  : 'text-zinc-600 hover:bg-zinc-50'
+              }`}
+            >
+              Printer
+            </button>
+            <button
+              onClick={() => setActiveTab('staff')}
+              className={`w-full text-left px-3.5 py-2.5 rounded-2xl text-xs font-extrabold transition cursor-pointer ${
+                activeTab === 'staff'
+                  ? 'bg-zinc-100 text-black shadow-xs'
+                  : 'text-zinc-600 hover:bg-zinc-50'
+              }`}
+            >
+              Staff Access
+            </button>
+            <button
+              onClick={() => setActiveTab('support')}
+              className={`w-full text-left px-3.5 py-2.5 rounded-2xl text-xs font-extrabold transition cursor-pointer ${
+                activeTab === 'support'
+                  ? 'bg-zinc-100 text-black shadow-xs'
+                  : 'text-zinc-600 hover:bg-zinc-50'
+              }`}
+            >
+              Support
+            </button>
+          </div>
+
+          {/* Right Main Panel */}
+          <div className="flex-1 p-4 sm:p-6 overflow-y-auto">
+            
+            {/* PRINTER SETTINGS PANEL (Designed matching uploaded image with custom bill preview) */}
+            {activeTab === 'printer' && (
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start max-w-5xl">
+                
+                {/* Left 7 cols: Printer Configuration */}
+                <div className="lg:col-span-7 space-y-6">
+                  
+                  {/* Select default printer card */}
+                  <div className="bg-white rounded-3xl p-5 border border-zinc-200 shadow-xs space-y-4">
+                    <span className="text-xs font-extrabold text-black block">Select default printer</span>
+
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between p-3.5 rounded-2xl border-2 border-black bg-zinc-50">
+                        <span className="text-xs font-bold text-black">Microsoft Print to PDF</span>
+                        <div className="w-10 h-5 bg-black rounded-full p-0.5 flex items-center justify-end">
+                          <div className="w-4 h-4 bg-white rounded-full shadow-sm" />
+                        </div>
+                      </div>
+
+                      <div className="flex items-center justify-between p-3.5 rounded-2xl border border-zinc-200 bg-white">
+                        <span className="text-xs font-semibold text-zinc-600">Standard 80mm Thermal (USB / LAN)</span>
+                        <div className="w-10 h-5 bg-zinc-200 rounded-full p-0.5 flex items-center justify-start">
+                          <div className="w-4 h-4 bg-white rounded-full shadow-sm" />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Connect new printer banner */}
+                  <div className="border border-dashed border-zinc-300 rounded-3xl p-6 text-center space-y-3 bg-white">
+                    <h4 className="text-xs font-black text-black uppercase tracking-wider">Connect new printer</h4>
+                    <p className="text-xs text-zinc-500">Install the printer setup &amp; connect your printer via USB or Bluetooth.</p>
+                    <div className="flex items-center justify-center gap-2 pt-1">
+                      <button className="px-3.5 py-2 rounded-xl border border-zinc-300 hover:border-black text-black font-extrabold text-xs transition">
+                        ↓ 2-inch printer setup
+                      </button>
+                      <button className="px-3.5 py-2 rounded-xl border border-zinc-300 hover:border-black text-black font-extrabold text-xs transition">
+                        ↓ 3-inch printer setup
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Page Size & Extra Lines */}
+                  <div className="bg-white rounded-3xl p-5 border border-zinc-200 shadow-xs space-y-5">
+                    <div>
+                      <span className="text-xs font-extrabold text-black block mb-2">Page Size</span>
+                      <div className="flex items-center space-x-6 text-xs font-bold text-black">
+                        <label className="flex items-center space-x-2 cursor-pointer">
+                          <input
+                            type="radio"
+                            name="pagesize"
+                            checked={pageSize === '2-inch'}
+                            onChange={() => setPageSize('2-inch')}
+                            className="accent-black"
+                          />
+                          <span>2-inch</span>
+                        </label>
+                        <label className="flex items-center space-x-2 cursor-pointer">
+                          <input
+                            type="radio"
+                            name="pagesize"
+                            checked={pageSize === '3-inch'}
+                            onChange={() => setPageSize('3-inch')}
+                            className="accent-black"
+                          />
+                          <span>3-inch</span>
+                        </label>
+                      </div>
+                    </div>
+
+                    <div>
+                      <span className="text-xs font-extrabold text-black block mb-1">Extra lines at the end</span>
+                      <p className="text-[11px] text-zinc-400 mb-2">Provides extra spacing at the end of the invoice.</p>
+                      <div className="inline-flex items-center space-x-3 bg-zinc-100 p-1 rounded-xl">
+                        <button
+                          onClick={() => setExtraLines(Math.max(0, extraLines - 1))}
+                          className="w-7 h-7 rounded-lg bg-white text-black font-bold flex items-center justify-center shadow-xs"
+                        >
+                          -
+                        </button>
+                        <span className="font-mono font-bold text-xs px-2">{extraLines}</span>
+                        <button
+                          onClick={() => setExtraLines(extraLines + 1)}
+                          className="w-7 h-7 rounded-lg bg-white text-black font-bold flex items-center justify-center shadow-xs"
+                        >
+                          +
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+
+                </div>
+
+                {/* Right 5 cols: Live Bill Preview (Custom Designed for Ithi Pooram) */}
+                <div className="lg:col-span-5 space-y-2">
+                  <span className="text-xs font-bold text-zinc-500 block text-center lg:text-left">Preview</span>
+                  
+                  {/* Minimal Awesome Receipt Preview */}
+                  <div className="bg-white rounded-3xl p-5 border border-zinc-200 shadow-md font-mono text-xs text-black space-y-3 max-w-sm mx-auto">
+                    {/* Header */}
+                    <div className="text-center space-y-1">
+                      <div className="flex justify-center mb-1">
+                        <img 
+                          src="/brand-calligraphy-uploaded.png" 
+                          alt="ഇത്തിപ്പൂരം" 
+                          className="h-9 w-auto object-contain"
+                        />
+                      </div>
+                      <p className="text-[10px] text-zinc-500 font-sans">Phone: +91 94470 00000</p>
+                      <div className="border-b border-dashed border-zinc-300 pt-2" />
+                      <p className="text-[11px] font-black uppercase tracking-wider font-sans pt-1">BILL OF SUPPLY</p>
+                    </div>
+
+                    {/* Metadata */}
+                    <div className="text-[11px] space-y-0.5">
+                      <div className="flex justify-between">
+                        <span>Payment: Cash</span>
+                        <span>Date: 04/11/2026</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>Table: T1</span>
+                        <span>Invoice: 1001</span>
+                      </div>
+                      <div className="border-b border-dashed border-zinc-300 pt-1" />
+                    </div>
+
+                    {/* Table items */}
+                    <div className="space-y-1 text-[11px]">
+                      <div className="flex justify-between font-bold text-zinc-500 text-[10px] uppercase">
+                        <span>Item Name</span>
+                        <div className="flex space-x-4">
+                          <span>Price</span>
+                          <span>Amount</span>
+                        </div>
+                      </div>
+                      <div>
+                        <div className="flex justify-between">
+                          <span className="font-bold">Aavoli fry</span>
+                          <div className="flex space-x-4 font-mono">
+                            <span>120.00</span>
+                            <span className="font-bold">120.00</span>
+                          </div>
+                        </div>
+                        <span className="text-[10px] text-zinc-400">x1</span>
+                      </div>
+                      <div className="border-b border-dashed border-zinc-300 pt-1" />
+                    </div>
+
+                    {/* Totals */}
+                    <div className="space-y-1 pt-1">
+                      <div className="flex justify-between font-black text-sm">
+                        <span>Grand Total:</span>
+                        <span>₹120.00</span>
+                      </div>
+                    </div>
+
+                    {/* Malayalam Minimal Footer */}
+                    <div className="text-center pt-3 border-t border-dashed border-zinc-300 text-[10px] text-zinc-500 font-sans space-y-0.5">
+                      <p className="font-bold text-black font-malayalam">നന്ദി, വീണ്ടും വരിക</p>
+                      <p>Thank you! Visit again.</p>
+                    </div>
+                  </div>
+                </div>
+
+              </div>
+            )}
+
+            {/* STAFF ACCESS TAB */}
+            {activeTab === 'staff' && (
+              <div className="bg-white rounded-3xl p-6 border border-zinc-200 shadow-xs max-w-2xl space-y-4">
+                <h3 className="text-base font-black text-black">Staff Credentials &amp; Access</h3>
+                <p className="text-xs text-zinc-500">Configure 4-digit rapid tablet PINs for Cashier, Chef, and Manager accounts.</p>
+                <Link
+                  href="/users"
+                  className="inline-flex items-center space-x-2 px-5 py-3 rounded-2xl bg-black hover:bg-zinc-800 text-white font-extrabold text-xs transition"
+                >
+                  <span>Open Staff Accounts &rarr;</span>
+                </Link>
+              </div>
+            )}
+
+            {/* SUPPORT TAB */}
+            {activeTab === 'support' && (
+              <div className="bg-white rounded-3xl p-6 border border-zinc-200 shadow-xs max-w-2xl space-y-3">
+                <h3 className="text-base font-black text-black">Ithi Pooram Operational Support</h3>
+                <p className="text-xs text-zinc-500">For hardware printer setup, tablet deployment, or cloud sync inquiries, contact technical support directly.</p>
+                <div className="pt-2 text-xs font-mono font-bold text-zinc-800">
+                  support@ithipooram.in | +91 94470 00000
+                </div>
+              </div>
+            )}
+
+          </div>
+
+        </div>
+
+      </main>
+
     </div>
   );
 }
