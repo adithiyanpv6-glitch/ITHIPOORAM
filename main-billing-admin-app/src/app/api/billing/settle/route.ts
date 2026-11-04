@@ -67,32 +67,38 @@ export async function POST(request: Request) {
       success: true,
     });
 
-    const thermalReceipt = `
-========================================
-             ITHI POORAM
-       ഇത്തിപ്പൂരം തനി നാടൻ രുചി
-       Vanchiyoor, Trivandrum
-     GSTIN: 32AAAAI0000A1Z5
-----------------------------------------
-Invoice: ${invoiceNumber}
-Date:    ${now.toLocaleDateString('en-IN')} ${now.toLocaleTimeString('en-IN')}
-Table:   ${order.tableCode} (${order.tableName})
+    const thermalReceipt = `--------------------------------
+          ഇത്തിപ്പൂരം
+          ITHI POORAM
+    Kerala Lunch & Seafood
+    Vanchiyoor, Trivandrum
+    GSTIN: 32AAAAI0000A1Z5
+--------------------------------
+Inv: ${invoiceNumber}
+Date: ${now.toLocaleDateString('en-IN')} ${now.toLocaleTimeString('en-IN')}
+Table: ${order.tableCode} (${order.tableName})
 Cashier: ${order.cashierName}
-----------------------------------------
-Item                  Qty   Rate    Total
-----------------------------------------
-${order.items.map((i) => `${i.itemName.padEnd(21).substring(0, 21)} ${String(i.quantity).padStart(2)}  ${(i.pricePaise / 100).toFixed(2).padStart(6)} ${(i.lineTotalPaise / 100).toFixed(2).padStart(7)}`).join('\n')}
-----------------------------------------
-Subtotal:                    ₹${(order.subtotalPaise / 100).toFixed(2)}
-CGST (2.5%):                 ₹${(order.cgstPaise / 100).toFixed(2)}
-SGST (2.5%):                 ₹${(order.sgstPaise / 100).toFixed(2)}
-----------------------------------------
-GRAND TOTAL:                 ₹${(order.grandTotalPaise / 100).toFixed(2)}
+--------------------------------
+ITEM             QTY  RATE TOTAL
+--------------------------------
+${order.items.map((i) => {
+  const name = i.itemName.padEnd(16).substring(0, 16);
+  const qty = String(i.quantity).padStart(3);
+  const rate = (i.pricePaise / 100).toFixed(0).padStart(5);
+  const tot = (i.lineTotalPaise / 100).toFixed(0).padStart(6);
+  return `${name} ${qty} ${rate} ${tot}`;
+}).join('\n')}
+--------------------------------
+Subtotal:              ₹${(order.subtotalPaise / 100).toFixed(2)}
+CGST (2.5%):           ₹${(order.cgstPaise / 100).toFixed(2)}
+SGST (2.5%):           ₹${(order.sgstPaise / 100).toFixed(2)}
+--------------------------------
+GRAND TOTAL:           ₹${(order.grandTotalPaise / 100).toFixed(2)}
 Payment: [${order.paymentMode}] ${order.paymentRef ? `Ref: ${order.paymentRef}` : 'VERIFIED'}
-========================================
-   Thank You! Please Visit Again.
-========================================
-`.trim();
+--------------------------------
+      നന്ദി! വീണ്ടും വരിക
+      Thank You! Visit Again
+--------------------------------`.trim();
 
     return NextResponse.json(
       {

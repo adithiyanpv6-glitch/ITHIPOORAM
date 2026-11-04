@@ -106,33 +106,34 @@ export async function apiRequest<T = any>(endpoint: string, options: RequestInit
         }
 
         const invoiceNumber = `INV-${new Date().toISOString().slice(0, 10).replace(/-/g, '')}-0001`;
-        const thermalReceipt = `================================================
-                    ഇത്തിപ്പൂരം
-                    ITHI POORAM
-       Authentic Kerala Lunch & Seafood Spot
-   Opp. Old Secretariat Gate, MG Road, Trivandrum
-                  Ph: +91 471 233 4567
-                 FSSAI: 11324007000890
-================================================
-               RESTAURANT RECEIPT
-------------------------------------------------
-Invoice: ${invoiceNumber}             Table: ${tCode}
-Order Ref: ${order.customerCode}        Time: ${new Date().toLocaleTimeString()}
-Cashier: Gokul Krishnan (Counter 1)
-------------------------------------------------
-ITEM [QTY x RATE]                    TOTAL (INR)
-------------------------------------------------
-${order.items.map((i: any) => `${i.itemNameSnapshot}\n  ${i.quantity} x ₹${(i.itemPriceSnapshotPaise/100).toFixed(2)}                      ₹${(i.lineTotalPaise/100).toFixed(2)}`).join('\n')}
-------------------------------------------------
-Total:                                   ₹${(order.grandTotalPaise/100).toFixed(2)}
-================================================
-NET PAYABLE:                             ₹${(order.grandTotalPaise/100).toFixed(2)}
-================================================
-Payment Mode: ${body.paymentMode}
-------------------------------------------------
-         Thank you for dining with us!
-        ഇത്തിപ്പൂരം വീണ്ടും സന്ദർശിക്കുക
-`;
+        const thermalReceipt = `--------------------------------
+          ഇത്തിപ്പൂരം
+          ITHI POORAM
+    Kerala Lunch & Seafood
+    Vanchiyoor, Trivandrum
+      Ph: +91 471 233 4567
+--------------------------------
+Inv: ${invoiceNumber}
+Table: ${tCode}   Ref: ${order.customerCode}
+Time: ${new Date().toLocaleTimeString()}
+Cashier: Counter 1
+--------------------------------
+ITEM             QTY  RATE TOTAL
+--------------------------------
+${order.items.map((i: any) => {
+  const name = (i.itemNameSnapshot || '').padEnd(16).substring(0, 16);
+  const qty = String(i.quantity).padStart(3);
+  const rate = String(Math.round(i.itemPriceSnapshotPaise / 100)).padStart(5);
+  const tot = String(Math.round(i.lineTotalPaise / 100)).padStart(6);
+  return `${name} ${qty} ${rate} ${tot}`;
+}).join('\n')}
+--------------------------------
+GRAND TOTAL:           ₹${(order.grandTotalPaise / 100).toFixed(2)}
+Payment: ${body.paymentMode}
+--------------------------------
+      നന്ദി! വീണ്ടും വരിക
+      Thank You! Visit Again
+--------------------------------`;
         return {
           message: 'Payment confirmed and invoice created.',
           order,

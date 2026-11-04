@@ -4,51 +4,40 @@
 
 @layer base {
   body {
-    @apply bg-[#F4EFEA] text-[#1E242B] antialiased selection:bg-[#9E341D] selection:text-white;
+    @apply bg-[#0C0E12] text-stone-100;
   }
 }
 
-@keyframes shimmer {
-  0% {
-    background-position: -200% 0;
-  }
-  100% {
-    background-position: 200% 0;
-  }
-}
-
-/* Custom scrollbars for POS touch screens */
-::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
-}
-::-webkit-scrollbar-track {
-  background: transparent;
-}
-::-webkit-scrollbar-thumb {
-  background: #cbd5e1;
-  border-radius: 9999px;
-}
-
-/* Print Styles for 80mm ESC/POS Thermal Receipts */
+/* Print styling dedicated for SEZNIK 58mm & standard 80mm thermal receipt printers */
 @media print {
+  @page {
+    margin: 0;
+    size: 58mm auto; /* Default to SEZNIK 58mm paper roll */
+  }
+
   body * {
     visibility: hidden;
   }
-  #printable-receipt, #printable-receipt * {
-    visibility: visible;
+
+  #printable-receipt,
+  #printable-receipt * {
+    visibility: visible !important;
   }
+
   #printable-receipt {
     position: absolute;
     left: 0;
     top: 0;
-    width: 80mm;
-    margin: 0;
-    padding: 2mm;
-    font-family: 'Courier New', Courier, monospace !important;
-    font-size: 11px;
-    line-height: 1.25;
-    color: black;
-    background: white;
+    width: 48mm !important; /* 58mm roll with 48mm printable area */
+    max-width: 48mm !important;
+    padding: 2mm 1mm !important;
+    font-size: 10px !important;
+    line-height: 1.15 !important;
+    color: #000000 !important;
+    background: #FFFFFF !important;
+    box-shadow: none !important;
+    border: none !important;
+    margin: 0 !important;
+    page-break-after: always;
   }
 }

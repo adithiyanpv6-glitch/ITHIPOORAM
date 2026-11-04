@@ -16,21 +16,25 @@ import {
   LogOut, 
   Menu as MenuIcon, 
   X, 
-  Plus, 
-  Check, 
-  FileText
+  Bluetooth,
+  CheckCircle2, 
+  Loader2,
+  RefreshCw
 } from 'lucide-react';
 import { getCurrentUser } from '../../lib/api';
+import { printDirectToBluetoothThermalPrinter } from '../../lib/thermalPrinter';
 
 export default function MorePage() {
   const router = useRouter();
 
-  // Active sub-tab in More (Customers option completely skipped as requested)
-  const [activeTab, setActiveTab] = useState<'staff' | 'printer' | 'support'>('printer');
-  const [defaultPrinter, setDefaultPrinter] = useState<string>('Microsoft Print to PDF');
-  const [pageSize, setPageSize] = useState<'2-inch' | '3-inch'>('3-inch');
+  // Active sub-tab in More (Customers option completely skipped)
+  const [activeTab, setActiveTab] = useState<'printer' | 'staff' | 'support'>('printer');
+  const [defaultPrinter, setDefaultPrinter] = useState<string>('SEZNIK 58mm Thermal Printer');
+  const [pageSize, setPageSize] = useState<'2-inch' | '3-inch'>('2-inch'); // 2-inch for SEZNIK 58mm
   const [extraLines, setExtraLines] = useState<number>(2);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isBluetoothPrinting, setIsBluetoothPrinting] = useState(false);
+  const [btStatus, setBtStatus] = useState<string | null>(null);
 
   useEffect(() => {
     const user = getCurrentUser();
@@ -45,6 +49,34 @@ export default function MorePage() {
       localStorage.removeItem('ithipooram_token');
     }
     router.replace('/login');
+  };
+
+  // Direct Bluetooth Test Print for SEZNIK 58mm
+  const handleBluetoothTestPrint = async () => {
+    setIsBluetoothPrinting(true);
+    setBtStatus(null);
+    try {
+      await printDirectToBluetoothThermalPrinter({
+        restaurantName: 'ITHI POORAM',
+        restaurantLocation: 'Vanchiyoor, Trivandrum',
+        phone: '+91 94470 00000',
+        invoiceNumber: 'INV-TEST-01',
+        orderCode: '#01',
+        tableCode: 'T1',
+        dateTime: new Date().toLocaleString('en-IN'),
+        items: [
+          { name: 'Aavoli fry', qty: 1, price: 120, total: 120 },
+        ],
+        grandTotal: 120,
+        paymentMode: 'Cash',
+        extraLines: extraLines,
+      });
+      setBtStatus('Test print sent successfully to SEZNIK!');
+    } catch (err: any) {
+      setBtStatus(`Bluetooth Error: ${err.message || 'Device disconnected or cancelled'}`);
+    } finally {
+      setIsBluetoothPrinting(false);
+    }
   };
 
   return (
@@ -199,19 +231,22 @@ export default function MorePage() {
       )}
 
       {/* ============================================================== */}
-      {/* 3. MAIN MORE WORKSPACE (Customers option completely skipped)    */}
+      {/* 3. MAIN WORKSPACE (SEZNIK PRINTER INTEGRATED)                   */}
       {/* ============================================================== */}
       <main className="flex-1 flex flex-col w-full overflow-hidden">
         
         {/* Top Header */}
-        <div className="px-6 py-4 bg-white border-b border-zinc-200">
+        <div className="px-6 py-4 bg-white border-b border-zinc-200 flex items-center justify-between">
           <h1 className="text-xl sm:text-2xl font-black text-black">More Options</h1>
+          <span className="text-[10px] font-black uppercase tracking-wider bg-zinc-100 text-zinc-800 px-2.5 py-1 rounded-full border border-zinc-300">
+            SEZNIK 58mm Enabled
+          </span>
         </div>
 
-        {/* Two-Column Layout: Left Sub-Nav + Right Configuration Panel */}
+        {/* Two-Column Layout */}
         <div className="flex-1 flex flex-col md:flex-row overflow-hidden">
           
-          {/* Left Sub-Nav (Customers skipped -> Staff Access, Printer, Support) */}
+          {/* Left Sub-Nav (Printer, Staff Access, Support) */}
           <div className="w-full md:w-56 lg:w-60 bg-white border-b md:border-b-0 md:border-r border-zinc-200 p-4 space-y-1.5 shrink-0">
             <button
               onClick={() => setActiveTab('printer')}
@@ -221,7 +256,7 @@ export default function MorePage() {
                   : 'text-zinc-600 hover:bg-zinc-50'
               }`}
             >
-              Printer
+              Printer (SEZNIK)
             </button>
             <button
               onClick={() => setActiveTab('staff')}
@@ -248,7 +283,7 @@ export default function MorePage() {
           {/* Right Main Panel */}
           <div className="flex-1 p-4 sm:p-6 overflow-y-auto">
             
-            {/* PRINTER SETTINGS PANEL (Designed matching uploaded image with custom bill preview) */}
+            {/* PRINTER SETTINGS PANEL (SEZNIK 58MM CONFIGURATION) */}
             {activeTab === 'printer' && (
               <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start max-w-5xl">
                 
@@ -260,15 +295,23 @@ export default function MorePage() {
                     <span className="text-xs font-extrabold text-black block">Select default printer</span>
 
                     <div className="space-y-2">
+                      {/* Active SEZNIK 58mm Thermal */}
                       <div className="flex items-center justify-between p-3.5 rounded-2xl border-2 border-black bg-zinc-50">
-                        <span className="text-xs font-bold text-black">Microsoft Print to PDF</span>
+                        <div className="flex items-center space-x-2.5">
+                          <Printer className="w-4 h-4 text-black" />
+                          <div>
+                            <span className="text-xs font-extrabold text-black block">SEZNIK 58mm Thermal Printer</span>
+                            <span className="text-[10px] text-emerald-700 font-bold">Bluetooth / USB (2-Inch Thermal Roll)</span>
+                          </div>
+                        </div>
                         <div className="w-10 h-5 bg-black rounded-full p-0.5 flex items-center justify-end">
                           <div className="w-4 h-4 bg-white rounded-full shadow-sm" />
                         </div>
                       </div>
 
+                      {/* Standard System Dialog Print */}
                       <div className="flex items-center justify-between p-3.5 rounded-2xl border border-zinc-200 bg-white">
-                        <span className="text-xs font-semibold text-zinc-600">Standard 80mm Thermal (USB / LAN)</span>
+                        <span className="text-xs font-semibold text-zinc-600">Standard System Print Dialog (USB/LAN)</span>
                         <div className="w-10 h-5 bg-zinc-200 rounded-full p-0.5 flex items-center justify-start">
                           <div className="w-4 h-4 bg-white rounded-full shadow-sm" />
                         </div>
@@ -276,21 +319,52 @@ export default function MorePage() {
                     </div>
                   </div>
 
-                  {/* Connect new printer banner */}
-                  <div className="border border-dashed border-zinc-300 rounded-3xl p-6 text-center space-y-3 bg-white">
-                    <h4 className="text-xs font-black text-black uppercase tracking-wider">Connect new printer</h4>
-                    <p className="text-xs text-zinc-500">Install the printer setup &amp; connect your printer via USB or Bluetooth.</p>
-                    <div className="flex items-center justify-center gap-2 pt-1">
-                      <button className="px-3.5 py-2 rounded-xl border border-zinc-300 hover:border-black text-black font-extrabold text-xs transition">
-                        ↓ 2-inch printer setup
+                  {/* Bluetooth Direct Connect Button */}
+                  <div className="bg-white rounded-3xl p-5 border border-zinc-200 shadow-xs space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center space-x-2">
+                        <Bluetooth className="w-4 h-4 text-blue-600" />
+                        <span className="text-xs font-black text-black">SEZNIK Bluetooth Direct Connect</span>
+                      </div>
+                      <span className="text-[10px] font-mono font-bold bg-blue-50 text-blue-700 px-2 py-0.5 rounded-md">
+                        ESC/POS 58mm
+                      </span>
+                    </div>
+
+                    <p className="text-xs text-zinc-500">
+                      Print bills straight from your tablet or laptop browser directly to your SEZNIK Bluetooth printer without any cables.
+                    </p>
+
+                    {btStatus && (
+                      <div className={`p-2.5 rounded-xl text-xs font-bold ${
+                        btStatus.includes('Error') 
+                          ? 'bg-red-50 text-red-700 border border-red-200' 
+                          : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                      }`}>
+                        {btStatus}
+                      </div>
+                    )}
+
+                    <div className="pt-1 flex items-center gap-2">
+                      <button
+                        onClick={handleBluetoothTestPrint}
+                        disabled={isBluetoothPrinting}
+                        className="px-4 py-2.5 rounded-xl bg-black hover:bg-zinc-800 text-white text-xs font-black flex items-center space-x-2 transition disabled:opacity-50 cursor-pointer shadow-xs active:scale-98"
+                      >
+                        {isBluetoothPrinting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Printer className="w-3.5 h-3.5" />}
+                        <span>Print Test Bill (SEZNIK Bluetooth)</span>
                       </button>
-                      <button className="px-3.5 py-2 rounded-xl border border-zinc-300 hover:border-black text-black font-extrabold text-xs transition">
-                        ↓ 3-inch printer setup
+
+                      <button
+                        onClick={() => window.print()}
+                        className="px-3.5 py-2.5 rounded-xl border border-zinc-300 hover:border-black text-black text-xs font-bold transition cursor-pointer"
+                      >
+                        System Print (USB)
                       </button>
                     </div>
                   </div>
 
-                  {/* Page Size & Extra Lines */}
+                  {/* Page Size & Extra Lines for SEZNIK 58mm */}
                   <div className="bg-white rounded-3xl p-5 border border-zinc-200 shadow-xs space-y-5">
                     <div>
                       <span className="text-xs font-extrabold text-black block mb-2">Page Size</span>
@@ -303,7 +377,7 @@ export default function MorePage() {
                             onChange={() => setPageSize('2-inch')}
                             className="accent-black"
                           />
-                          <span>2-inch</span>
+                          <span>2-inch (58mm - SEZNIK Default)</span>
                         </label>
                         <label className="flex items-center space-x-2 cursor-pointer">
                           <input
@@ -313,14 +387,14 @@ export default function MorePage() {
                             onChange={() => setPageSize('3-inch')}
                             className="accent-black"
                           />
-                          <span>3-inch</span>
+                          <span>3-inch (80mm)</span>
                         </label>
                       </div>
                     </div>
 
                     <div>
                       <span className="text-xs font-extrabold text-black block mb-1">Extra lines at the end</span>
-                      <p className="text-[11px] text-zinc-400 mb-2">Provides extra spacing at the end of the invoice.</p>
+                      <p className="text-[11px] text-zinc-400 mb-2">Provides tear-off margin space for SEZNIK paper cutter.</p>
                       <div className="inline-flex items-center space-x-3 bg-zinc-100 p-1 rounded-xl">
                         <button
                           onClick={() => setExtraLines(Math.max(0, extraLines - 1))}
@@ -341,71 +415,74 @@ export default function MorePage() {
 
                 </div>
 
-                {/* Right 5 cols: Live Bill Preview (Custom Designed for Ithi Pooram) */}
+                {/* Right 5 cols: Live Bill Preview Optimized for SEZNIK 58mm */}
                 <div className="lg:col-span-5 space-y-2">
-                  <span className="text-xs font-bold text-zinc-500 block text-center lg:text-left">Preview</span>
+                  <span className="text-xs font-bold text-zinc-500 block text-center lg:text-left">
+                    SEZNIK 58mm Preview
+                  </span>
                   
-                  {/* Minimal Awesome Receipt Preview */}
-                  <div className="bg-white rounded-3xl p-5 border border-zinc-200 shadow-md font-mono text-xs text-black space-y-3 max-w-sm mx-auto">
+                  {/* SEZNIK 58mm Narrow Slip Preview */}
+                  <div 
+                    id="printable-receipt"
+                    className="bg-white rounded-3xl p-4 sm:p-5 border border-zinc-200 shadow-md font-mono text-[11px] text-black space-y-3 max-w-[280px] mx-auto"
+                  >
                     {/* Header */}
-                    <div className="text-center space-y-1">
+                    <div className="text-center space-y-0.5">
                       <div className="flex justify-center mb-1">
                         <img 
                           src="/brand-calligraphy-uploaded.png" 
                           alt="ഇത്തിപ്പൂരം" 
-                          className="h-9 w-auto object-contain"
+                          className="h-8 w-auto object-contain"
                         />
                       </div>
-                      <p className="text-[10px] text-zinc-500 font-sans">Phone: +91 94470 00000</p>
-                      <div className="border-b border-dashed border-zinc-300 pt-2" />
-                      <p className="text-[11px] font-black uppercase tracking-wider font-sans pt-1">BILL OF SUPPLY</p>
+                      <p className="text-[9px] text-zinc-600 font-sans font-bold">Vanchiyoor, Trivandrum</p>
+                      <p className="text-[9px] text-zinc-400 font-sans">Ph: +91 94470 00000</p>
+                      <div className="border-b border-dashed border-zinc-400 pt-1.5" />
+                      <p className="text-[10px] font-black uppercase tracking-wider font-sans pt-1">BILL OF SUPPLY</p>
                     </div>
 
                     {/* Metadata */}
-                    <div className="text-[11px] space-y-0.5">
+                    <div className="text-[10px] space-y-0.5">
                       <div className="flex justify-between">
-                        <span>Payment: Cash</span>
-                        <span>Date: 04/11/2026</span>
+                        <span>Inv: 1001</span>
+                        <span>04/11/2026</span>
                       </div>
                       <div className="flex justify-between">
                         <span>Table: T1</span>
-                        <span>Invoice: 1001</span>
+                        <span>Mode: Cash</span>
                       </div>
-                      <div className="border-b border-dashed border-zinc-300 pt-1" />
+                      <div className="border-b border-dashed border-zinc-400 pt-1" />
                     </div>
 
-                    {/* Table items */}
-                    <div className="space-y-1 text-[11px]">
-                      <div className="flex justify-between font-bold text-zinc-500 text-[10px] uppercase">
-                        <span>Item Name</span>
-                        <div className="flex space-x-4">
-                          <span>Price</span>
-                          <span>Amount</span>
+                    {/* Items for 58mm */}
+                    <div className="space-y-1 text-[10px]">
+                      <div className="flex justify-between font-bold text-zinc-500 uppercase">
+                        <span>ITEM</span>
+                        <div className="flex space-x-2">
+                          <span>QTY</span>
+                          <span>AMT</span>
                         </div>
                       </div>
-                      <div>
-                        <div className="flex justify-between">
-                          <span className="font-bold">Aavoli fry</span>
-                          <div className="flex space-x-4 font-mono">
-                            <span>120.00</span>
-                            <span className="font-bold">120.00</span>
-                          </div>
+                      <div className="flex justify-between">
+                        <span className="font-bold truncate max-w-[120px]">Aavoli fry</span>
+                        <div className="flex space-x-3 font-mono">
+                          <span>1</span>
+                          <span className="font-bold">120.00</span>
                         </div>
-                        <span className="text-[10px] text-zinc-400">x1</span>
                       </div>
-                      <div className="border-b border-dashed border-zinc-300 pt-1" />
+                      <div className="border-b border-dashed border-zinc-400 pt-1" />
                     </div>
 
                     {/* Totals */}
-                    <div className="space-y-1 pt-1">
-                      <div className="flex justify-between font-black text-sm">
-                        <span>Grand Total:</span>
-                        <span>₹120.00</span>
+                    <div className="space-y-0.5 pt-0.5">
+                      <div className="flex justify-between font-black text-xs">
+                        <span>TOTAL:</span>
+                        <span>Rs.120.00</span>
                       </div>
                     </div>
 
-                    {/* Malayalam Minimal Footer */}
-                    <div className="text-center pt-3 border-t border-dashed border-zinc-300 text-[10px] text-zinc-500 font-sans space-y-0.5">
+                    {/* Footer */}
+                    <div className="text-center pt-2 border-t border-dashed border-zinc-400 text-[9px] text-zinc-500 font-sans space-y-0.5">
                       <p className="font-bold text-black font-malayalam">നന്ദി, വീണ്ടും വരിക</p>
                       <p>Thank you! Visit again.</p>
                     </div>

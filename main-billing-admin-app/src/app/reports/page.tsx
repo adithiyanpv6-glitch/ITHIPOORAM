@@ -21,6 +21,7 @@ import {
   ChevronLeft
 } from 'lucide-react';
 import { apiRequest, getCurrentUser } from '../../lib/api';
+import { printDirectToBluetoothThermalPrinter } from '../../lib/thermalPrinter';
 
 export default function ReportsPage() {
   const router = useRouter();
@@ -549,7 +550,7 @@ export default function ReportsPage() {
               </button>
             </div>
 
-            <div className="my-5 p-5 bg-[#FAFAFA] rounded-2xl border border-dashed border-zinc-300 font-mono text-xs text-black space-y-4">
+            <div id="printable-receipt" className="my-5 p-5 bg-[#FAFAFA] rounded-2xl border border-dashed border-zinc-300 font-mono text-xs text-black space-y-4">
               <div className="text-center space-y-1">
                 <div className="flex justify-center mb-1">
                   <img 
@@ -586,20 +587,50 @@ export default function ReportsPage() {
               </div>
             </div>
 
-            <div className="flex space-x-2">
+            <div className="space-y-2">
               <button
-                onClick={() => setSelectedReceipt(null)}
-                className="flex-1 py-2.5 rounded-xl border border-zinc-200 text-xs font-bold text-zinc-600 hover:bg-zinc-50"
-              >
-                Close
-              </button>
-              <button
-                onClick={() => window.print()}
-                className="flex-1 py-2.5 rounded-xl bg-black hover:bg-zinc-800 text-white text-xs font-black flex items-center justify-center space-x-1.5"
+                onClick={async () => {
+                  try {
+                    await printDirectToBluetoothThermalPrinter({
+                      restaurantName: 'ITHI POORAM',
+                      restaurantLocation: 'Vanchiyoor, Trivandrum',
+                      phone: '+91 471 233 4567',
+                      invoiceNumber: selectedReceipt.orderCode || 'INV-001',
+                      tableCode: selectedReceipt.tableCode || 'Dine-In',
+                      items: [{
+                        name: (selectedReceipt.items || 'Food Items').substring(0, 16),
+                        qty: 1,
+                        price: (selectedReceipt.amountPaise || 12000) / 100,
+                        total: (selectedReceipt.amountPaise || 12000) / 100,
+                      }],
+                      grandTotal: (selectedReceipt.amountPaise || 12000) / 100,
+                      paymentMode: selectedReceipt.paymentType || 'Cash',
+                    });
+                    alert('Sent to SEZNIK Bluetooth printer successfully!');
+                  } catch (e: any) {
+                    alert('SEZNIK Bluetooth: ' + (e.message || 'Connection error'));
+                  }
+                }}
+                className="w-full py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-black flex items-center justify-center space-x-1.5 shadow-xs cursor-pointer"
               >
                 <Printer className="w-3.5 h-3.5" />
-                <span>Print Bill</span>
+                <span>Print to SEZNIK (Bluetooth)</span>
               </button>
+              <div className="flex space-x-2">
+                <button
+                  onClick={() => setSelectedReceipt(null)}
+                  className="flex-1 py-2 rounded-xl border border-zinc-200 text-xs font-bold text-zinc-600 hover:bg-zinc-50"
+                >
+                  Close
+                </button>
+                <button
+                  onClick={() => window.print()}
+                  className="flex-1 py-2 rounded-xl bg-black hover:bg-zinc-800 text-white text-xs font-black flex items-center justify-center space-x-1.5"
+                >
+                  <Printer className="w-3.5 h-3.5" />
+                  <span>58mm Thermal Print (USB)</span>
+                </button>
+              </div>
             </div>
           </div>
         </div>
