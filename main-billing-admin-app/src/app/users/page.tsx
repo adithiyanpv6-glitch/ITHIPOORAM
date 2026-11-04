@@ -31,7 +31,7 @@ export default function MorePage() {
   const [activeTab, setActiveTab] = useState<'printer' | 'staff' | 'support'>('printer');
   const [defaultPrinter, setDefaultPrinter] = useState<string>('SEZNIK 58mm Thermal Printer');
   const [pageSize, setPageSize] = useState<'2-inch' | '3-inch'>('2-inch'); // 2-inch for SEZNIK 58mm
-  const [extraLines, setExtraLines] = useState<number>(2);
+  const [extraLines, setExtraLines] = useState<number>(6);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isBluetoothPrinting, setIsBluetoothPrinting] = useState(false);
   const [btStatus, setBtStatus] = useState<string | null>(null);
@@ -57,20 +57,20 @@ export default function MorePage() {
     setBtStatus(null);
     try {
       await printDirectToBluetoothThermalPrinter({
-        restaurantName: 'ITHI POORAM',
+        restaurantName: 'ഇത്തിപ്പൂരം',
         restaurantLocation: 'Vanchiyoor, Trivandrum',
         phone: '+91 94470 00000',
-        invoiceNumber: 'INV-TEST-01',
+        invoiceNumber: '1001',
         orderCode: '#01',
         tableCode: 'T1',
-        dateTime: new Date().toLocaleString('en-IN'),
+        dateTime: '04/11/2026',
         items: [
           { name: 'Aavoli fry', qty: 1, price: 120, total: 120 },
         ],
         grandTotal: 120,
         paymentMode: 'Cash',
         extraLines: extraLines,
-      });
+      }, 'bitmap');
       setBtStatus('Test print sent successfully to SEZNIK!');
     } catch (err: any) {
       setBtStatus(`Bluetooth Error: ${err.message || 'Device disconnected or cancelled'}`);

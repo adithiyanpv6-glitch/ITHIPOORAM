@@ -605,7 +605,8 @@ export default function ReportsPage() {
                       }],
                       grandTotal: (selectedReceipt.amountPaise || 12000) / 100,
                       paymentMode: selectedReceipt.paymentType || 'Cash',
-                    });
+                    extraLines: 7,
+                  }, 'bitmap');
                     alert('Sent to SEZNIK Bluetooth printer successfully!');
                   } catch (e: any) {
                     alert('SEZNIK Bluetooth: ' + (e.message || 'Connection error'));

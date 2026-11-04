@@ -802,7 +802,7 @@ export default function BillingTerminalPage() {
                       items,
                       grandTotal: (printedInvoice?.grandTotalPaise || selectedOrder?.grandTotalPaise || 0) / 100,
                       paymentMode: paymentMode,
-                      extraLines: 2,
+                      extraLines: 7,
                     });
                     alert('Printed successfully to SEZNIK Bluetooth printer!');
                   } catch (e: any) {

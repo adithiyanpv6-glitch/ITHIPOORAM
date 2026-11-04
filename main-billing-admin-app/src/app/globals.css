@@ -30,7 +30,7 @@
     top: 0;
     width: 48mm !important; /* 58mm roll with 48mm printable area */
     max-width: 48mm !important;
-    padding: 2mm 1mm !important;
+    padding: 2mm 1mm 32mm 1mm !important;
     font-size: 10px !important;
     line-height: 1.15 !important;
     color: #000000 !important;
