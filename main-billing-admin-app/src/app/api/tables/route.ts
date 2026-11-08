@@ -1,10 +1,10 @@
 import { NextResponse } from 'next/server';
-import { db, refreshTableSummaries } from '@/lib/serverDb';
+import { db, refreshTableSummaries, persistDb } from '@/lib/serverDb';
 import { autoDispatchTableExcelToTelegram } from '@/lib/autoTelegramExcelSync';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+  'Access-Control-Allow-Methods': 'GET, POST, DELETE, OPTIONS',
   'Access-Control-Allow-Headers': 'Content-Type, Authorization',
 };
 
@@ -52,9 +52,28 @@ export async function POST(request: Request) {
       }
     }
     refreshTableSummaries();
+    persistDb();
 
     // Auto-dispatch updated multi-sheet Excel file to Telegram group
     autoDispatchTableExcelToTelegram(`Table QR Setup Updated (${db.tables.length} tables active)`).catch(() => {});
+
+    return NextResponse.json({ success: true, tables: db.tables }, { headers: corsHeaders });
+  } catch (err: any) {
+    return NextResponse.json({ error: err.message }, { status: 500, headers: corsHeaders });
+  }
+}
+
+export async function DELETE(request: Request) {
+  try {
+    const { searchParams } = new URL(request.url);
+    const tableCode = searchParams.get('tableCode');
+    if (!tableCode) {
+      return NextResponse.json({ error: 'tableCode is required' }, { status: 400, headers: corsHeaders });
+    }
+
+    db.tables = db.tables.filter((t) => t.tableCode.toUpperCase() !== tableCode.toUpperCase());
+    refreshTableSummaries();
+    persistDb();
 
     return NextResponse.json({ success: true, tables: db.tables }, { headers: corsHeaders });
   } catch (err: any) {

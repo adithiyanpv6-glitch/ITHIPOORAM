@@ -15,13 +15,16 @@ import {
   LogOut, 
   Menu as MenuIcon, 
   X, 
-  Clock, 
-  CheckCircle2, 
-  ArrowUpRight,
+  QrCode,
+  Download,
   Trash2,
-  Edit2
+  ExternalLink,
+  Layers,
+  CheckCircle2,
+  Printer
 } from 'lucide-react';
-import { apiRequest, getCurrentUser } from '../../lib/api';
+import QRCode from 'qrcode';
+import { getCurrentUser } from '../../lib/api';
 
 export default function TablesManagementPage() {
   const router = useRouter();
@@ -35,17 +38,39 @@ export default function TablesManagementPage() {
   const [loading, setLoading] = useState(true);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
-  // Add Table Modal State
+  // Add Table Modal State (Enhanced with Previous Method's Range & Room Generation)
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
-  const [newTableCode, setNewTableCode] = useState('');
-  const [newCapacity, setNewCapacity] = useState('4');
+  const [addMode, setAddMode] = useState<'batch' | 'single'>('batch');
+  const [roomName, setRoomName] = useState('AC Hall');
+  const [tablePrefix, setTablePrefix] = useState('T');
+  const [startNumber, setStartNumber] = useState('1');
+  const [tableCount, setTableCount] = useState('5');
+  const [singleTableCode, setSingleTableCode] = useState('');
+  const [capacity, setCapacity] = useState('4');
+  const [isSeatSharing, setIsSeatSharing] = useState(false);
+  const [isGenerating, setIsGenerating] = useState(false);
+
+  // QR Stand Preview Modal State
+  const [selectedTableForQr, setSelectedTableForQr] = useState<any | null>(null);
+  const [generatedQrDataUrl, setGeneratedQrDataUrl] = useState<string>('');
+
+  // Customer Base URL for Table QRs
+  const [customerBaseUrl, setCustomerBaseUrl] = useState<string>('');
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const origin = window.location.origin;
+      // If deployed or local, customer url routes to root or dedicated customer app
+      setCustomerBaseUrl(origin);
+    }
+  }, []);
 
   // Load tables & running orders
   const loadData = async () => {
     try {
       setLoading(true);
 
-      // Fetch tables
+      // Fetch tables from central API (persisted to disk)
       const tblRes = await fetch('/api/tables');
       if (tblRes.ok) {
         const tblList = await tblRes.json();
@@ -88,31 +113,119 @@ export default function TablesManagementPage() {
     router.replace('/login');
   };
 
-  // Add table handler
-  const handleAddTable = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const code = newTableCode.trim().toLowerCase();
-    if (!code) return;
+  // Preview generated table codes (matching previous method functionality)
+  const previewCodes = useMemo(() => {
+    if (addMode === 'single') {
+      const code = (singleTableCode || `${tablePrefix}${startNumber}`).trim().toUpperCase();
+      return [{ code, label: `${roomName} - Table ${code}` }];
+    }
 
-    const newTbl = {
-      tableCode: code,
-      displayName: code.toUpperCase(),
-      capacity: parseInt(newCapacity, 10) || 4,
-    };
+    const start = parseInt(startNumber, 10) || 1;
+    const count = Math.min(20, Math.max(1, parseInt(tableCount, 10) || 1));
+    const prefix = tablePrefix.trim().toUpperCase();
+    const list: Array<{ code: string; label: string }> = [];
+    const letters = 'ABCDEF';
+
+    for (let i = 0; i < count; i++) {
+      const num = start + i;
+      if (isSeatSharing) {
+        for (let s = 0; s < 2; s++) {
+          const seatLetter = letters[s];
+          const code = `${prefix}${num}${seatLetter}`;
+          list.push({ code, label: `${roomName} - Table ${num} (Seat ${seatLetter})` });
+        }
+      } else {
+        const code = `${prefix}${num}`;
+        list.push({ code, label: `${roomName} - Table ${num}` });
+      }
+    }
+    return list;
+  }, [addMode, singleTableCode, tablePrefix, startNumber, tableCount, roomName, isSeatSharing]);
+
+  // Add tables handler (Supports both Batch and Single Table)
+  const handleSaveTables = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (previewCodes.length === 0) return;
+    setIsGenerating(true);
 
     try {
-      const updatedList = [...tables, newTbl];
-      await fetch('/api/tables', {
+      const newTables = previewCodes.map((item) => ({
+        tableCode: item.code,
+        displayName: item.label,
+        capacity: parseInt(capacity, 10) || 4,
+        roomName: roomName.trim(),
+      }));
+
+      // Combine with existing (avoiding duplicate codes)
+      const existingFiltered = tables.filter(
+        (t) => !newTables.some((nt) => nt.tableCode.toUpperCase() === t.tableCode.toUpperCase())
+      );
+      const updatedList = [...existingFiltered, ...newTables];
+
+      const res = await fetch('/api/tables', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ tables: updatedList }),
       });
-      setTables(updatedList);
-      setNewTableCode('');
-      setIsAddModalOpen(false);
+
+      if (res.ok) {
+        setTables(updatedList);
+        setIsAddModalOpen(false);
+        setSingleTableCode('');
+      } else {
+        alert('Failed to save tables');
+      }
     } catch (err) {
-      alert('Failed to add table');
+      alert('Error creating tables');
+    } finally {
+      setIsGenerating(false);
     }
+  };
+
+  // Delete a table
+  const handleDeleteTable = async (code: string) => {
+    if (!confirm(`Are you sure you want to delete Table ${code.toUpperCase()}?`)) return;
+    try {
+      const res = await fetch(`/api/tables?tableCode=${encodeURIComponent(code)}`, {
+        method: 'DELETE',
+      });
+      if (res.ok) {
+        setTables((prev) => prev.filter((t) => t.tableCode.toUpperCase() !== code.toUpperCase()));
+        if (selectedTableForQr?.tableCode?.toUpperCase() === code.toUpperCase()) {
+          setSelectedTableForQr(null);
+        }
+      }
+    } catch (e) {
+      alert('Failed to delete table');
+    }
+  };
+
+  // Open QR Stand Modal
+  const handleOpenQrModal = async (tbl: any) => {
+    setSelectedTableForQr(tbl);
+    const code = (tbl.tableCode || '').toUpperCase();
+    const targetUrl = `${customerBaseUrl}?table=${code}&room=${encodeURIComponent(tbl.roomName || 'Dine-In')}`;
+
+    try {
+      const qrUrl = await QRCode.toDataURL(targetUrl, {
+        width: 500,
+        margin: 2,
+        color: { dark: '#000000', light: '#FFFFFF' },
+        errorCorrectionLevel: 'H',
+      });
+      setGeneratedQrDataUrl(qrUrl);
+    } catch (err) {
+      console.error('Failed to generate QR:', err);
+    }
+  };
+
+  // Download QR Code PNG
+  const handleDownloadQr = () => {
+    if (!generatedQrDataUrl || !selectedTableForQr) return;
+    const a = document.createElement('a');
+    a.href = generatedQrDataUrl;
+    a.download = `IthiPooram_QR_Table_${selectedTableForQr.tableCode}.png`;
+    a.click();
   };
 
   // Mapping active orders by tableCode
@@ -162,7 +275,7 @@ export default function TablesManagementPage() {
             </Link>
             <button 
               onClick={handleSignOut}
-              title="Sign Out"
+              title="Sign out of terminal"
               className="p-1.5 rounded-lg bg-zinc-800/60 hover:bg-zinc-700 text-zinc-400 hover:text-white transition shrink-0"
             >
               <LogOut className="w-4 h-4" />
@@ -239,171 +352,168 @@ export default function TablesManagementPage() {
           >
             <span>+ Add Order</span>
           </Link>
-
-          <div className="flex items-center justify-between p-2.5 rounded-2xl bg-zinc-900/60 border border-zinc-800">
-            <div className="flex items-center space-x-2.5">
-              <div className="w-8 h-8 rounded-xl bg-white text-black font-black text-xs flex items-center justify-center">
-                IP
-              </div>
-              <div className="overflow-hidden">
-                <p className="text-xs font-bold text-white truncate">Ithi Pooram</p>
-                <p className="text-[10px] text-zinc-400 truncate">Vanchiyoor, TVM</p>
-              </div>
-            </div>
-            <button onClick={handleSignOut} className="text-zinc-500 hover:text-white p-1">
-              <ChevronRight className="w-4 h-4" />
-            </button>
-          </div>
         </div>
       </aside>
 
       {/* ============================================================== */}
-      {/* 2. MOBILE TOP BAR                                               */}
+      {/* 2. TOP MOBILE HEADER                                            */}
       {/* ============================================================== */}
-      <header className="md:hidden bg-[#0C0E12] text-white p-4 border-b border-zinc-800 flex items-center justify-between sticky top-0 z-40">
-        <div className="flex items-center space-x-3 flex-1">
-          <button
-            onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-            className="p-2 rounded-xl bg-zinc-900 border border-zinc-700 text-zinc-300"
-          >
-            {isMobileMenuOpen ? <X className="w-5 h-5" /> : <MenuIcon className="w-5 h-5" />}
-          </button>
+      <div className="md:hidden bg-[#0C0E12] text-white p-4 flex items-center justify-between border-b border-zinc-800 sticky top-0 z-40">
+        <Link href="/">
           <img 
             src="/brand-calligraphy-uploaded.png" 
             alt="ഇത്തിപ്പൂരം" 
-            className="h-9 w-auto object-contain invert brightness-200"
+            className="h-8 w-auto object-contain invert brightness-200"
           />
-        </div>
-        <Link href="/billing" className="px-3.5 py-1.5 rounded-xl bg-white text-black font-black text-xs">
-          <span>+ Add Order</span>
         </Link>
-      </header>
+        <button
+          onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+          className="p-2 rounded-xl bg-zinc-800 text-zinc-200"
+        >
+          {isMobileMenuOpen ? <X className="w-5 h-5" /> : <MenuIcon className="w-5 h-5" />}
+        </button>
+      </div>
 
       {/* Mobile Drawer */}
       {isMobileMenuOpen && (
-        <div className="md:hidden bg-[#0C0E12] border-b border-zinc-800 px-4 py-3 space-y-2 z-30">
-          <Link href="/" onClick={() => setIsMobileMenuOpen(false)} className="flex items-center space-x-3 px-3 py-2.5 rounded-xl text-zinc-300 font-bold text-sm">
-            <Home className="w-4 h-4" />
-            <span>Home</span>
-          </Link>
-          <Link href="/qr" onClick={() => setIsMobileMenuOpen(false)} className="flex items-center space-x-3 px-3 py-2.5 rounded-xl bg-white text-black font-black text-sm">
-            <Grid3X3 className="w-4 h-4" />
-            <span>Table</span>
-          </Link>
-          <Link href="/menu" onClick={() => setIsMobileMenuOpen(false)} className="flex items-center space-x-3 px-3 py-2.5 rounded-xl text-zinc-300 font-bold text-sm">
-            <UtensilsCrossed className="w-4 h-4" />
-            <span>Items</span>
-          </Link>
-          <Link href="/reports" onClick={() => setIsMobileMenuOpen(false)} className="flex items-center space-x-3 px-3 py-2.5 rounded-xl text-zinc-300 font-bold text-sm">
-            <BarChart3 className="w-4 h-4" />
-            <span>Reports</span>
-          </Link>
-          <Link href="/users" onClick={() => setIsMobileMenuOpen(false)} className="flex items-center space-x-3 px-3 py-2.5 rounded-xl text-zinc-300 font-bold text-sm">
-            <MoreHorizontal className="w-4 h-4" />
-            <span>More</span>
-          </Link>
+        <div className="md:hidden bg-[#0C0E12] border-b border-zinc-800 p-4 space-y-2 text-sm font-bold">
+          <Link href="/" className="block py-2 text-zinc-300">Home</Link>
+          <Link href="/qr" className="block py-2 text-white font-black">Table</Link>
+          <Link href="/menu" className="block py-2 text-zinc-300">Items</Link>
+          <Link href="/reports" className="block py-2 text-zinc-300">Reports</Link>
+          <Link href="/kitchen" className="block py-2 text-orange-400">Kitchen (KDS)</Link>
+          <Link href="/users" className="block py-2 text-zinc-300">More</Link>
         </div>
       )}
 
       {/* ============================================================== */}
-      {/* 3. MAIN TABLES WORKSPACE (Designed matching uploaded image)     */}
+      {/* 3. MAIN WORKSPACE                                               */}
       {/* ============================================================== */}
       <main className="flex-1 p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto w-full space-y-6 overflow-y-auto">
         
-        {/* Top Filter Bar: All (x), Occupied (y), Empty (z) */}
-        <div className="inline-flex items-center bg-zinc-100 p-1 rounded-2xl">
-          <button
-            onClick={() => setFilterTab('all')}
-            className={`px-4 py-2 rounded-xl text-xs font-black transition cursor-pointer ${
-              filterTab === 'all'
-                ? 'bg-white text-blue-600 shadow-xs'
-                : 'text-zinc-600 hover:text-black'
-            }`}
-          >
-            All ({tables.length})
-          </button>
-          <button
-            onClick={() => setFilterTab('occupied')}
-            className={`px-4 py-2 rounded-xl text-xs font-black transition cursor-pointer ${
-              filterTab === 'occupied'
-                ? 'bg-white text-blue-600 shadow-xs'
-                : 'text-zinc-600 hover:text-black'
-            }`}
-          >
-            Occupied ({occupiedCount})
-          </button>
-          <button
-            onClick={() => setFilterTab('empty')}
-            className={`px-4 py-2 rounded-xl text-xs font-black transition cursor-pointer ${
-              filterTab === 'empty'
-                ? 'bg-white text-blue-600 shadow-xs'
-                : 'text-zinc-600 hover:text-black'
-            }`}
-          >
-            Empty ({emptyCount})
-          </button>
+        {/* Top Header Filter Pill (All, Occupied, Empty) */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div>
+            <h1 className="text-xl sm:text-2xl font-black text-black">Table Management</h1>
+            <p className="text-xs font-semibold text-zinc-400 mt-0.5">
+              Select tables to view active checks or generate QR stands
+            </p>
+          </div>
+
+          {/* Filter Pills matching uploaded design */}
+          <div className="inline-flex items-center p-1 bg-zinc-200/70 rounded-2xl text-xs font-bold text-zinc-600">
+            <button
+              onClick={() => setFilterTab('all')}
+              className={`px-4 py-1.5 rounded-xl transition ${
+                filterTab === 'all'
+                  ? 'bg-white text-blue-600 font-extrabold shadow-xs'
+                  : 'hover:text-black'
+              }`}
+            >
+              All ({tables.length})
+            </button>
+            <button
+              onClick={() => setFilterTab('occupied')}
+              className={`px-4 py-1.5 rounded-xl transition ${
+                filterTab === 'occupied'
+                  ? 'bg-white text-blue-600 font-extrabold shadow-xs'
+                  : 'hover:text-black'
+              }`}
+            >
+              Occupied ({occupiedCount})
+            </button>
+            <button
+              onClick={() => setFilterTab('empty')}
+              className={`px-4 py-1.5 rounded-xl transition ${
+                filterTab === 'empty'
+                  ? 'bg-white text-blue-600 font-extrabold shadow-xs'
+                  : 'hover:text-black'
+              }`}
+            >
+              Empty ({emptyCount})
+            </button>
+          </div>
         </div>
 
-        {/* Grid Display: [+ ADD TABLE] Box + Registered Table Dine-In Cards */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
+        {/* ============================================================== */}
+        {/* DINE-IN TABLES GRID                                             */}
+        {/* ============================================================== */}
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3.5">
           
-          {/* 1. [+ ADD TABLE] Box (Dashed card matching uploaded screenshot) */}
+          {/* 1. ADD TABLE CARD (Matching present theme dashed card) */}
           <button
             onClick={() => setIsAddModalOpen(true)}
-            className="h-28 rounded-3xl border border-dashed border-zinc-300 bg-white hover:border-black hover:bg-zinc-50 flex flex-col items-center justify-center space-y-2 p-3 transition group cursor-pointer shadow-xs"
+            className="h-28 rounded-3xl border-2 border-dashed border-zinc-300 hover:border-black bg-white hover:bg-zinc-50 flex flex-col items-center justify-center p-3 text-center transition cursor-pointer group shadow-xs active:scale-98"
           >
-            <div className="w-8 h-8 rounded-full border border-zinc-300 group-hover:border-black flex items-center justify-center text-zinc-500 group-hover:text-black transition">
-              <Plus className="w-4 h-4" />
+            <div className="w-8 h-8 rounded-full border border-zinc-400 group-hover:border-black flex items-center justify-center mb-1.5 transition">
+              <Plus className="w-4 h-4 text-zinc-500 group-hover:text-black" />
             </div>
-            <span className="text-[10px] font-extrabold tracking-wider uppercase text-zinc-600 group-hover:text-black">
+            <span className="text-[11px] font-black uppercase tracking-wider text-zinc-700 group-hover:text-black">
               ADD TABLE
             </span>
           </button>
 
-          {/* 2. Registered Tables Cards (e.g. ac1, T1...) */}
+          {/* 2. Registered Tables Cards (e.g. T1, ac1, T2...) */}
           {filteredTables.map((t) => {
-            const code = (t.tableCode || '').toLowerCase();
-            const activeOrder = orderMap[code];
+            const code = (t.tableCode || '').toUpperCase();
+            const activeOrder = orderMap[code.toLowerCase()];
 
             return (
               <div
                 key={t.id || code}
-                className={`h-28 rounded-3xl p-4 flex flex-col justify-between border transition shadow-xs ${
+                className={`h-28 rounded-3xl p-3.5 flex flex-col justify-between border transition shadow-xs relative group ${
                   activeOrder
                     ? 'bg-white border-blue-500 shadow-blue-500/10'
-                    : 'bg-white border-dashed border-zinc-300 hover:border-zinc-400'
+                    : 'bg-white border-dashed border-zinc-300 hover:border-zinc-500'
                 }`}
               >
                 <div>
                   <div className="flex items-center justify-between">
-                    <span className="text-base font-extrabold text-black font-mono">
+                    <span className="text-base font-black text-black font-mono">
                       {code}
                     </span>
-                    {activeOrder && (
-                      <span className="w-2.5 h-2.5 rounded-full bg-blue-600 animate-pulse" title="Active Order Present" />
-                    )}
+                    <div className="flex items-center space-x-1">
+                      {activeOrder && (
+                        <span className="w-2.5 h-2.5 rounded-full bg-blue-600 animate-pulse" title="Active Order Present" />
+                      )}
+                      <button
+                        onClick={() => handleOpenQrModal(t)}
+                        className="p-1 text-zinc-400 hover:text-black rounded-lg hover:bg-zinc-100 transition"
+                        title="View / Download Table QR"
+                      >
+                        <QrCode className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
                   </div>
-                  <span className="text-[10px] text-zinc-400 font-semibold block mt-0.5">
-                    {activeOrder ? 'Active Order' : 'Empty Table'}
+                  <span className="text-[10px] text-zinc-400 font-semibold block truncate">
+                    {t.roomName || 'Dine-In'} ({t.capacity || 4}p)
                   </span>
                 </div>
 
-                <div>
+                <div className="flex items-center justify-between pt-1">
                   {activeOrder ? (
                     <Link
                       href="/billing"
-                      className="text-xs font-bold text-blue-600 hover:underline flex items-center space-x-1"
+                      className="text-xs font-black text-blue-600 hover:underline flex items-center space-x-0.5 truncate"
                     >
                       <span>₹{((activeOrder.grandTotalPaise || 0) / 100).toFixed(0)} Settle &rarr;</span>
                     </Link>
                   ) : (
                     <Link
                       href="/billing"
-                      className="text-xs font-bold text-blue-600 hover:underline flex items-center space-x-1"
+                      className="text-xs font-bold text-zinc-600 hover:text-black flex items-center space-x-0.5"
                     >
-                      <span>Assign here &rarr;</span>
+                      <span>Assign &rarr;</span>
                     </Link>
                   )}
+
+                  <button
+                    onClick={() => handleDeleteTable(t.tableCode)}
+                    className="opacity-0 group-hover:opacity-100 p-1 text-zinc-400 hover:text-red-600 transition"
+                    title="Delete Table"
+                  >
+                    <Trash2 className="w-3 h-3" />
+                  </button>
                 </div>
               </div>
             );
@@ -413,61 +523,301 @@ export default function TablesManagementPage() {
 
       </main>
 
-      {/* ADD TABLE MODAL */}
+      {/* ============================================================== */}
+      {/* ENHANCED ADD TABLE MODAL (FUNCTIONALITY OF PREVIOUS METHOD)      */}
+      {/* ============================================================== */}
       {isAddModalOpen && (
         <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl max-w-sm w-full p-6 shadow-2xl border border-zinc-200">
+          <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-zinc-200 space-y-5">
+            
+            {/* Modal Header */}
             <div className="flex items-center justify-between pb-3 border-b border-zinc-100">
-              <h3 className="font-black text-black text-base">Add New Table</h3>
-              <button onClick={() => setIsAddModalOpen(false)} className="text-zinc-400 hover:text-black">
+              <div>
+                <h3 className="font-black text-black text-base">Add Dining Tables</h3>
+                <p className="text-[11px] text-zinc-400 font-semibold">
+                  Configure single tables or generate batch ranges with QRs
+                </p>
+              </div>
+              <button 
+                onClick={() => setIsAddModalOpen(false)} 
+                className="text-zinc-400 hover:text-black p-1 rounded-lg"
+              >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            <form onSubmit={handleAddTable} className="my-4 space-y-4 text-xs">
+            {/* Mode Selector Pill: Batch / Range vs Single Table */}
+            <div className="grid grid-cols-2 p-1 bg-zinc-100 rounded-2xl text-xs font-bold">
+              <button
+                type="button"
+                onClick={() => setAddMode('batch')}
+                className={`py-2 rounded-xl transition ${
+                  addMode === 'batch' ? 'bg-black text-white shadow-xs' : 'text-zinc-600 hover:text-black'
+                }`}
+              >
+                Batch / Range (e.g. 5 Tables)
+              </button>
+              <button
+                type="button"
+                onClick={() => setAddMode('single')}
+                className={`py-2 rounded-xl transition ${
+                  addMode === 'single' ? 'bg-black text-white shadow-xs' : 'text-zinc-600 hover:text-black'
+                }`}
+              >
+                Single Table (e.g. T1 / ac1)
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveTables} className="space-y-4 text-xs">
+              
+              {/* Room / Dining Section Preset Pills */}
               <div>
-                <label className="block font-bold text-zinc-700 uppercase tracking-wider mb-1">
-                  Table Name / Code:
+                <label className="block font-bold text-zinc-700 uppercase tracking-wider mb-1.5">
+                  Dining Area / Room:
                 </label>
+                <div className="flex flex-wrap gap-1.5 mb-2">
+                  {['AC Hall', 'Main Dining', 'Verandah', 'Family Room'].map((preset) => (
+                    <button
+                      type="button"
+                      key={preset}
+                      onClick={() => setRoomName(preset)}
+                      className={`px-3 py-1 rounded-xl text-[11px] font-bold border transition ${
+                        roomName === preset 
+                          ? 'bg-zinc-900 text-white border-zinc-900' 
+                          : 'bg-zinc-50 text-zinc-600 border-zinc-200 hover:border-zinc-400'
+                      }`}
+                    >
+                      {preset}
+                    </button>
+                  ))}
+                </div>
                 <input
                   type="text"
                   required
-                  autoFocus
-                  value={newTableCode}
-                  onChange={(e) => setNewTableCode(e.target.value)}
-                  placeholder="e.g. ac1 / T1 / TQ1"
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-zinc-300 font-mono font-bold text-black focus:outline-none focus:border-black"
+                  value={roomName}
+                  onChange={(e) => setRoomName(e.target.value)}
+                  placeholder="e.g. AC Hall, Courtyard"
+                  className="w-full px-3.5 py-2 rounded-xl border border-zinc-300 font-semibold text-black focus:outline-none focus:border-black"
                 />
               </div>
 
+              {/* Mode Specific Inputs */}
+              {addMode === 'batch' ? (
+                <div className="space-y-3 p-3.5 bg-zinc-50 rounded-2xl border border-zinc-200">
+                  <div className="grid grid-cols-3 gap-2">
+                    <div>
+                      <label className="block font-bold text-zinc-600 text-[10px] uppercase mb-1">
+                        Prefix:
+                      </label>
+                      <input
+                        type="text"
+                        value={tablePrefix}
+                        onChange={(e) => setTablePrefix(e.target.value)}
+                        placeholder="T"
+                        className="w-full px-3 py-2 rounded-xl border border-zinc-300 font-mono font-bold text-center text-black focus:border-black"
+                      />
+                    </div>
+                    <div>
+                      <label className="block font-bold text-zinc-600 text-[10px] uppercase mb-1">
+                        Start No:
+                      </label>
+                      <input
+                        type="number"
+                        min="1"
+                        value={startNumber}
+                        onChange={(e) => setStartNumber(e.target.value)}
+                        className="w-full px-3 py-2 rounded-xl border border-zinc-300 font-mono font-bold text-center text-black focus:border-black"
+                      />
+                    </div>
+                    <div>
+                      <label className="block font-bold text-zinc-600 text-[10px] uppercase mb-1">
+                        How Many:
+                      </label>
+                      <input
+                        type="number"
+                        min="1"
+                        max="20"
+                        value={tableCount}
+                        onChange={(e) => setTableCount(e.target.value)}
+                        className="w-full px-3 py-2 rounded-xl border border-zinc-300 font-mono font-bold text-center text-black focus:border-black"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Seat Sharing Mode toggle from previous method */}
+                  <label className="flex items-center space-x-2 pt-1 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={isSeatSharing}
+                      onChange={(e) => setIsSeatSharing(e.target.checked)}
+                      className="accent-black rounded"
+                    />
+                    <span className="text-[11px] font-bold text-zinc-700">
+                      Enable Seat Sharing (Generates Seat A &amp; Seat B per table)
+                    </span>
+                  </label>
+                </div>
+              ) : (
+                <div>
+                  <label className="block font-bold text-zinc-700 uppercase tracking-wider mb-1">
+                    Table Name / Code:
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    autoFocus
+                    value={singleTableCode}
+                    onChange={(e) => setSingleTableCode(e.target.value)}
+                    placeholder="e.g. T1 / ac1 / TQ1"
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-zinc-300 font-mono font-bold text-black focus:outline-none focus:border-black"
+                  />
+                </div>
+              )}
+
+              {/* Seating Capacity */}
               <div>
                 <label className="block font-bold text-zinc-700 uppercase tracking-wider mb-1">
-                  Seating Capacity:
+                  Seating Capacity per Table:
                 </label>
                 <input
                   type="number"
-                  value={newCapacity}
-                  onChange={(e) => setNewCapacity(e.target.value)}
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-zinc-300 font-mono font-bold text-black focus:outline-none focus:border-black"
+                  min="1"
+                  max="16"
+                  value={capacity}
+                  onChange={(e) => setCapacity(e.target.value)}
+                  className="w-full px-3.5 py-2 rounded-xl border border-zinc-300 font-mono font-bold text-black focus:outline-none focus:border-black"
                 />
               </div>
 
-              <div className="pt-2 flex justify-end space-x-2">
+              {/* Live Preview of Generated Tables */}
+              <div>
+                <span className="block font-bold text-zinc-500 text-[11px] uppercase tracking-wider mb-1.5">
+                  Tables to be created ({previewCodes.length}):
+                </span>
+                <div className="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto p-2 bg-zinc-100 rounded-xl border border-zinc-200">
+                  {previewCodes.map((item) => (
+                    <span
+                      key={item.code}
+                      className="px-2 py-0.5 rounded-lg bg-white border border-zinc-300 font-mono font-bold text-[10px] text-black shadow-2xs"
+                    >
+                      {item.code}
+                    </span>
+                  ))}
+                </div>
+              </div>
+
+              {/* Modal Actions */}
+              <div className="pt-2 flex justify-end space-x-2 border-t border-zinc-100">
                 <button
                   type="button"
                   onClick={() => setIsAddModalOpen(false)}
-                  className="px-4 py-2 rounded-xl text-zinc-600 font-bold"
+                  className="px-4 py-2.5 rounded-xl text-zinc-600 font-bold hover:bg-zinc-100 transition cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2 rounded-xl bg-black text-white font-black hover:bg-zinc-800 transition"
+                  disabled={isGenerating || previewCodes.length === 0}
+                  className="px-5 py-2.5 rounded-xl bg-black hover:bg-zinc-800 text-white font-black transition disabled:opacity-50 cursor-pointer shadow-xs active:scale-98"
                 >
-                  Add Table
+                  {isGenerating ? 'Generating QRs...' : `Create ${previewCodes.length} Table(s)`}
                 </button>
               </div>
+
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* ============================================================== */}
+      {/* TABLE QR STAND PREVIEW & DOWNLOAD MODAL                         */}
+      {/* ============================================================== */}
+      {selectedTableForQr && (
+        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl max-w-sm w-full p-6 shadow-2xl border border-zinc-200 text-center space-y-4">
+            
+            <div className="flex items-center justify-between pb-2 border-b border-zinc-100">
+              <span className="text-xs font-bold text-zinc-400 uppercase tracking-wider">
+                Table QR Stand
+              </span>
+              <button 
+                onClick={() => setSelectedTableForQr(null)}
+                className="text-zinc-400 hover:text-black"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Printable Acrylic Stand Card */}
+            <div className="p-5 bg-zinc-50 rounded-2xl border border-zinc-200 space-y-3">
+              <div className="flex justify-center mb-1">
+                <img 
+                  src="/brand-calligraphy-uploaded.png" 
+                  alt="ഇത്തിപ്പൂരം" 
+                  className="h-9 w-auto object-contain"
+                />
+              </div>
+
+              <div className="space-y-0.5">
+                <h3 className="text-xl font-black font-mono text-black">
+                  {selectedTableForQr.tableCode}
+                </h3>
+                <span className="text-xs font-bold text-zinc-500">
+                  {selectedTableForQr.displayName || selectedTableForQr.roomName || 'Dine-In Table'}
+                </span>
+              </div>
+
+              {/* Scannable QR Code */}
+              {generatedQrDataUrl ? (
+                <div className="flex justify-center py-2">
+                  <img 
+                    src={generatedQrDataUrl} 
+                    alt={`QR Code for Table ${selectedTableForQr.tableCode}`} 
+                    className="w-44 h-44 object-contain rounded-xl border border-zinc-200 bg-white p-2 shadow-xs"
+                  />
+                </div>
+              ) : (
+                <div className="w-44 h-44 flex items-center justify-center bg-white rounded-xl mx-auto border border-zinc-200">
+                  <span className="text-xs font-mono text-zinc-400">Loading QR...</span>
+                </div>
+              )}
+
+              <p className="text-[11px] text-zinc-600 font-bold font-sans">
+                Scan to view menu &amp; order food from your phone
+              </p>
+            </div>
+
+            {/* Actions */}
+            <div className="space-y-2">
+              <button
+                onClick={handleDownloadQr}
+                className="w-full py-2.5 rounded-xl bg-black hover:bg-zinc-800 text-white font-black text-xs flex items-center justify-center space-x-1.5 shadow-xs cursor-pointer"
+              >
+                <Download className="w-3.5 h-3.5" />
+                <span>Download QR Image (PNG)</span>
+              </button>
+
+              <div className="flex space-x-2">
+                <a
+                  href={`${customerBaseUrl}?table=${selectedTableForQr.tableCode}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="flex-1 py-2 rounded-xl border border-zinc-200 hover:border-black text-black font-bold text-xs flex items-center justify-center space-x-1 transition"
+                >
+                  <ExternalLink className="w-3.5 h-3.5" />
+                  <span>Test Link</span>
+                </a>
+
+                <button
+                  onClick={() => handleDeleteTable(selectedTableForQr.tableCode)}
+                  className="px-3.5 py-2 rounded-xl border border-red-200 hover:bg-red-50 text-red-600 font-bold text-xs flex items-center justify-center space-x-1 transition cursor-pointer"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                  <span>Delete</span>
+                </button>
+              </div>
+            </div>
+
           </div>
         </div>
       )}
