@@ -22,7 +22,8 @@ import {
   Layers,
   CheckCircle2,
   Printer,
-  Receipt
+  Receipt,
+  Edit3
 } from 'lucide-react';
 import QRCode from 'qrcode';
 import { getCurrentUser } from '../../lib/api';
@@ -49,7 +50,16 @@ export default function TablesManagementPage() {
   const [singleTableCode, setSingleTableCode] = useState('');
   const [capacity, setCapacity] = useState('4');
   const [isSeatSharing, setIsSeatSharing] = useState(false);
+  const [seatLettersInput, setSeatLettersInput] = useState('A, B, C, D');
   const [isGenerating, setIsGenerating] = useState(false);
+
+  // Edit Table Modal State
+  const [editingTable, setEditingTable] = useState<any | null>(null);
+  const [editTableCode, setEditTableCode] = useState('');
+  const [editDisplayName, setEditDisplayName] = useState('');
+  const [editRoomName, setEditRoomName] = useState('');
+  const [editCapacity, setEditCapacity] = useState('4');
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
 
   // QR Stand Preview Modal State
   const [selectedTableForQr, setSelectedTableForQr] = useState<any | null>(null);
@@ -134,26 +144,37 @@ export default function TablesManagementPage() {
     router.replace('/login');
   };
 
-  // Preview generated table codes (matching previous method functionality)
+  // Preview generated table codes (with fully customizable seat sharing letters like A, B, C, D)
   const previewCodes = useMemo(() => {
+    // Parse user-specified seat sharing letters/codes (e.g. "A, B, C, D", "A, B", "B, C", "D")
+    const rawSeats = seatLettersInput
+      .split(/[,/\s]+/)
+      .map((s) => s.trim().toUpperCase())
+      .filter(Boolean);
+    const activeSeats = rawSeats.length > 0 ? rawSeats : ['A', 'B'];
+
     if (addMode === 'single') {
       const code = (singleTableCode || `${tablePrefix}${startNumber}`).trim().toUpperCase();
+      if (isSeatSharing) {
+        return activeSeats.map((seat) => ({
+          code: `${code}${seat}`,
+          label: `${roomName} - Table ${code} (Seat ${seat})`,
+        }));
+      }
       return [{ code, label: `${roomName} - Table ${code}` }];
     }
 
     const start = parseInt(startNumber, 10) || 1;
-    const count = Math.min(20, Math.max(1, parseInt(tableCount, 10) || 1));
+    const count = Math.min(30, Math.max(1, parseInt(tableCount, 10) || 1));
     const prefix = tablePrefix.trim().toUpperCase();
     const list: Array<{ code: string; label: string }> = [];
-    const letters = 'ABCDEF';
 
     for (let i = 0; i < count; i++) {
       const num = start + i;
       if (isSeatSharing) {
-        for (let s = 0; s < 2; s++) {
-          const seatLetter = letters[s];
-          const code = `${prefix}${num}${seatLetter}`;
-          list.push({ code, label: `${roomName} - Table ${num} (Seat ${seatLetter})` });
+        for (const seat of activeSeats) {
+          const code = `${prefix}${num}${seat}`;
+          list.push({ code, label: `${roomName} - Table ${num} (Seat ${seat})` });
         }
       } else {
         const code = `${prefix}${num}`;
@@ -161,7 +182,59 @@ export default function TablesManagementPage() {
       }
     }
     return list;
-  }, [addMode, singleTableCode, tablePrefix, startNumber, tableCount, roomName, isSeatSharing]);
+  }, [addMode, singleTableCode, tablePrefix, startNumber, tableCount, roomName, isSeatSharing, seatLettersInput]);
+
+  // Edit Table handlers
+  const handleOpenEditModal = (t: any) => {
+    setEditingTable(t);
+    setEditTableCode(t.tableCode || '');
+    setEditDisplayName(t.displayName || '');
+    setEditRoomName(t.roomName || 'AC Hall');
+    setEditCapacity(String(t.capacity || 4));
+    setIsEditModalOpen(true);
+  };
+
+  const handleSaveEditedTable = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingTable || !editTableCode.trim()) return;
+
+    const oldCode = editingTable.tableCode.toUpperCase();
+    const newCode = editTableCode.trim().toUpperCase();
+
+    const updatedList = tables.map((t) => {
+      if (t.tableCode.toUpperCase() === oldCode) {
+        return {
+          ...t,
+          tableCode: newCode,
+          displayName: editDisplayName.trim() || `${editRoomName} - Table ${newCode}`,
+          roomName: editRoomName.trim(),
+          capacity: parseInt(editCapacity, 10) || 4,
+        };
+      }
+      return t;
+    });
+
+    try {
+      const res = await fetch('/api/tables', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tables: updatedList, replace: true }),
+      });
+
+      if (res.ok) {
+        setTables(updatedList);
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('ithipooram_custom_tables', JSON.stringify(updatedList));
+        }
+        setIsEditModalOpen(false);
+        setEditingTable(null);
+      } else {
+        alert('Failed to update table');
+      }
+    } catch (e) {
+      alert('Error updating table');
+    }
+  };
 
   // Add tables handler (Supports both Batch and Single Table)
   const handleSaveTables = async (e: React.FormEvent) => {
@@ -552,13 +625,22 @@ export default function TablesManagementPage() {
                     </Link>
                   )}
 
-                  <button
-                    onClick={() => handleDeleteTable(t.tableCode)}
-                    className="opacity-0 group-hover:opacity-100 p-1 text-zinc-400 hover:text-red-600 transition"
-                    title="Delete Table"
-                  >
-                    <Trash2 className="w-3 h-3" />
-                  </button>
+                  <div className="flex items-center space-x-0.5 opacity-0 group-hover:opacity-100 transition">
+                    <button
+                      onClick={() => handleOpenEditModal(t)}
+                      className="p-1 text-zinc-400 hover:text-black rounded hover:bg-zinc-100 transition"
+                      title="Edit Table Name / Seat"
+                    >
+                      <Edit3 className="w-3 h-3" />
+                    </button>
+                    <button
+                      onClick={() => handleDeleteTable(t.tableCode)}
+                      className="p-1 text-zinc-400 hover:text-red-600 rounded hover:bg-red-50 transition"
+                      title="Delete Table"
+                    >
+                      <Trash2 className="w-3 h-3" />
+                    </button>
+                  </div>
                 </div>
               </div>
             );
@@ -689,18 +771,6 @@ export default function TablesManagementPage() {
                     </div>
                   </div>
 
-                  {/* Seat Sharing Mode toggle from previous method */}
-                  <label className="flex items-center space-x-2 pt-1 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={isSeatSharing}
-                      onChange={(e) => setIsSeatSharing(e.target.checked)}
-                      className="accent-black rounded"
-                    />
-                    <span className="text-[11px] font-bold text-zinc-700">
-                      Enable Seat Sharing (Generates Seat A &amp; Seat B per table)
-                    </span>
-                  </label>
                 </div>
               ) : (
                 <div>
@@ -718,6 +788,73 @@ export default function TablesManagementPage() {
                   />
                 </div>
               )}
+
+              {/* Customizable Seat Sharing Section (Editable according to user wish: A, B, C, D...) */}
+              <div className="p-3.5 bg-zinc-50 rounded-2xl border border-zinc-200 space-y-2.5">
+                <label className="flex items-center space-x-2.5 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={isSeatSharing}
+                    onChange={(e) => setIsSeatSharing(e.target.checked)}
+                    className="w-4 h-4 accent-black rounded cursor-pointer"
+                  />
+                  <div>
+                    <span className="text-xs font-black text-black block">
+                      Enable Seat Sharing (Sub-Tables)
+                    </span>
+                    <span className="text-[10px] text-zinc-500 font-semibold block">
+                      Generate individual QR codes for each seat (e.g. A, B, C, D)
+                    </span>
+                  </div>
+                </label>
+
+                {isSeatSharing && (
+                  <div className="pt-2 border-t border-zinc-200/80 space-y-2.5 animate-in fade-in-50 duration-150">
+                    <label className="block text-[10px] font-extrabold uppercase tracking-wider text-zinc-600">
+                      Choose Preset or Type Your Own Seats:
+                    </label>
+
+                    {/* Quick Presets */}
+                    <div className="flex flex-wrap gap-1.5">
+                      {[
+                        { label: 'A, B', desc: '2 Seats' },
+                        { label: 'A, B, C', desc: '3 Seats' },
+                        { label: 'A, B, C, D', desc: '4 Seats' },
+                        { label: 'B, C', desc: 'Custom' },
+                        { label: 'D', desc: 'Seat D' },
+                        { label: '1, 2, 3, 4', desc: 'Numeric' },
+                      ].map((preset) => (
+                        <button
+                          type="button"
+                          key={preset.label}
+                          onClick={() => setSeatLettersInput(preset.label)}
+                          className={`px-2.5 py-1 rounded-xl text-[10px] font-mono font-bold border transition cursor-pointer ${
+                            seatLettersInput.trim() === preset.label
+                              ? 'bg-black text-white border-black shadow-xs'
+                              : 'bg-white text-zinc-700 border-zinc-200 hover:border-zinc-400'
+                          }`}
+                        >
+                          {preset.label} <span className="opacity-70 font-sans">({preset.desc})</span>
+                        </button>
+                      ))}
+                    </div>
+
+                    {/* Custom Editable Text Box */}
+                    <div>
+                      <span className="block text-[10px] text-zinc-500 font-bold uppercase mb-1">
+                        Editable Seat Letters / Identifiers (comma-separated):
+                      </span>
+                      <input
+                        type="text"
+                        value={seatLettersInput}
+                        onChange={(e) => setSeatLettersInput(e.target.value)}
+                        placeholder="e.g. A, B, C or A, B, C, D or B, C"
+                        className="w-full px-3 py-2 rounded-xl border border-zinc-300 font-mono font-bold text-xs text-black focus:outline-none focus:border-black bg-white"
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
 
               {/* Seating Capacity */}
               <div>
@@ -863,6 +1000,107 @@ export default function TablesManagementPage() {
               </div>
             </div>
 
+          </div>
+        </div>
+      )}
+
+      {/* ============================================================== */}
+      {/* EDIT TABLE MODAL (CUSTOMIZE TABLE CODE / SEAT SUFFIX)           */}
+      {/* ============================================================== */}
+      {isEditModalOpen && editingTable && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl max-w-sm w-full p-6 shadow-2xl border border-zinc-200 text-xs text-black animate-in zoom-in-95 duration-100">
+            <div className="flex items-center justify-between pb-3 border-b border-zinc-100 mb-4">
+              <div className="flex items-center space-x-2">
+                <Edit3 className="w-4 h-4 text-black" />
+                <h3 className="text-base font-black text-black">Edit Table / Seat</h3>
+              </div>
+              <button
+                onClick={() => {
+                  setIsEditModalOpen(false);
+                  setEditingTable(null);
+                }}
+                className="text-zinc-400 hover:text-black p-1"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveEditedTable} className="space-y-4">
+              <div>
+                <label className="block font-bold text-zinc-700 uppercase tracking-wider mb-1">
+                  Table Code / Seat (e.g. T1A, T1B, T1C, T1D):
+                </label>
+                <input
+                  type="text"
+                  required
+                  autoFocus
+                  value={editTableCode}
+                  onChange={(e) => setEditTableCode(e.target.value)}
+                  placeholder="e.g. T1A or ac1"
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-zinc-300 font-mono font-bold text-black focus:outline-none focus:border-black"
+                />
+              </div>
+
+              <div>
+                <label className="block font-bold text-zinc-700 uppercase tracking-wider mb-1">
+                  Display Label:
+                </label>
+                <input
+                  type="text"
+                  value={editDisplayName}
+                  onChange={(e) => setEditDisplayName(e.target.value)}
+                  placeholder="e.g. AC Hall - Table 1 (Seat A)"
+                  className="w-full px-3.5 py-2 rounded-xl border border-zinc-300 font-medium text-black focus:outline-none focus:border-black"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="block font-bold text-zinc-700 uppercase tracking-wider mb-1">
+                    Room Area:
+                  </label>
+                  <input
+                    type="text"
+                    value={editRoomName}
+                    onChange={(e) => setEditRoomName(e.target.value)}
+                    className="w-full px-3 py-2 rounded-xl border border-zinc-300 font-semibold text-black focus:outline-none focus:border-black"
+                  />
+                </div>
+                <div>
+                  <label className="block font-bold text-zinc-700 uppercase tracking-wider mb-1">
+                    Capacity:
+                  </label>
+                  <input
+                    type="number"
+                    min="1"
+                    max="16"
+                    value={editCapacity}
+                    onChange={(e) => setEditCapacity(e.target.value)}
+                    className="w-full px-3 py-2 rounded-xl border border-zinc-300 font-mono font-bold text-black focus:outline-none focus:border-black"
+                  />
+                </div>
+              </div>
+
+              <div className="pt-2 flex justify-end space-x-2 border-t border-zinc-100">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsEditModalOpen(false);
+                    setEditingTable(null);
+                  }}
+                  className="px-4 py-2.5 rounded-xl text-zinc-600 font-bold hover:bg-zinc-100 transition"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-2.5 rounded-xl bg-black hover:bg-zinc-800 text-white font-black transition shadow-xs cursor-pointer active:scale-98"
+                >
+                  Save Changes
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}
