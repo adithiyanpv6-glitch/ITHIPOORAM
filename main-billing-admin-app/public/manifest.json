@@ -1,21 +1,26 @@
 {
-  "name": "Ithi Pooram - Billing POS & Executive Console",
-  "short_name": "Ithi POS",
-  "description": "High-Volume Counter POS, Billing Tablet & Executive Management Console",
-  "start_url": "/login",
+  "name": "ഇത്തിപ്പൂരം POS - Restaurant Terminal",
+  "short_name": "ഇത്തിപ്പൂരം POS",
+  "description": "Main Billing POS Counter, Tables & Daily Revenue Management for Ithi Pooram",
+  "start_url": "/",
+  "scope": "/",
   "display": "standalone",
+  "display_override": ["window-controls-overlay", "standalone", "minimal-ui"],
+  "orientation": "any",
   "background_color": "#0C0E12",
   "theme_color": "#0C0E12",
   "icons": [
     {
       "src": "/logo.png",
       "sizes": "192x192",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any maskable"
     },
     {
       "src": "/logo.png",
       "sizes": "512x512",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any maskable"
     }
   ]
 }
