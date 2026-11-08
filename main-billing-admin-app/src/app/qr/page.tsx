@@ -305,7 +305,7 @@ export default function TablesManagementPage() {
   const handleOpenQrModal = async (tbl: any) => {
     setSelectedTableForQr(tbl);
     const code = (tbl.tableCode || '').toUpperCase();
-    const targetUrl = `${customerBaseUrl}?table=${code}&room=${encodeURIComponent(tbl.roomName || 'Dine-In')}`;
+    const targetUrl = `${customerBaseUrl}/order?table=${code}&room=${encodeURIComponent(tbl.roomName || 'Dine-In')}`;
 
     try {
       const qrUrl = await QRCode.toDataURL(targetUrl, {
@@ -981,7 +981,7 @@ export default function TablesManagementPage() {
 
               <div className="flex space-x-2">
                 <a
-                  href={`${customerBaseUrl}?table=${selectedTableForQr.tableCode}`}
+                  href={`${customerBaseUrl}/order?table=${selectedTableForQr.tableCode}`}
                   target="_blank"
                   rel="noreferrer"
                   className="flex-1 py-2 rounded-xl border border-zinc-200 hover:border-black text-black font-bold text-xs flex items-center justify-center space-x-1 transition"

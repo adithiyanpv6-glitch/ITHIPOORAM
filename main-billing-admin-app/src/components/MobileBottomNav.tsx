@@ -47,7 +47,7 @@ export default function MobileBottomNav() {
     setDeferredPrompt(null);
   };
 
-  if (pathname === '/login') {
+  if (pathname === '/login' || pathname.startsWith('/order') || pathname.startsWith('/t/')) {
     return null;
   }
 
