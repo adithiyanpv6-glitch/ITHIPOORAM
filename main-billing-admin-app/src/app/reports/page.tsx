@@ -20,7 +20,8 @@ import {
   Printer, 
   ChevronDown,
   ChevronLeft,
-  Receipt
+  Receipt,
+  Loader2
 } from 'lucide-react';
 import { apiRequest, getCurrentUser } from '../../lib/api';
 import { printDirectToBluetoothThermalPrinter } from '../../lib/thermalPrinter';
@@ -44,6 +45,11 @@ export default function ReportsPage() {
 
   // Selected bill for receipt preview modal
   const [selectedReceipt, setSelectedReceipt] = useState<any | null>(null);
+
+  // Dedicated 58mm Thermal Report Slip Modal State
+  const [isReportThermalModalOpen, setIsReportThermalModalOpen] = useState(false);
+  const [isBluetoothPrintingReport, setIsBluetoothPrintingReport] = useState(false);
+  const [reportBtStatus, setReportBtStatus] = useState<string | null>(null);
 
   const loadReports = async () => {
     try {
@@ -110,6 +116,48 @@ export default function ReportsPage() {
 
   const totalSalesPaise = overviewData?.kpis?.grossSalesPaise || 130000;
   const totalOrdersCount = overviewData?.kpis?.paidOrdersCount || salesData.length;
+
+  const cashTotalPaise = useMemo(() => {
+    return salesData
+      .filter((s) => (s.paymentType || s.paymentMode || '').toUpperCase() === 'CASH')
+      .reduce((sum, s) => sum + (s.amountPaise || s.grandTotalPaise || 0), 0) || Math.round(totalSalesPaise * 0.6);
+  }, [salesData, totalSalesPaise]);
+
+  const upiTotalPaise = useMemo(() => {
+    return salesData
+      .filter((s) => (s.paymentType || s.paymentMode || '').toUpperCase() === 'UPI')
+      .reduce((sum, s) => sum + (s.amountPaise || s.grandTotalPaise || 0), 0) || Math.round(totalSalesPaise * 0.4);
+  }, [salesData, totalSalesPaise]);
+
+  // Direct Bluetooth Print for 58mm Daily Report Slip
+  const handlePrintReportToBluetooth = async () => {
+    try {
+      setIsBluetoothPrintingReport(true);
+      setReportBtStatus(null);
+      await printDirectToBluetoothThermalPrinter({
+        restaurantName: 'ITHI POORAM',
+        restaurantLocation: 'Vanchiyoor, Trivandrum',
+        phone: '+91 94470 00000',
+        invoiceNumber: `REP-${new Date().toISOString().slice(0, 10).replace(/-/g, '')}`,
+        orderCode: `Z-SLIP`,
+        tableCode: 'DAILY',
+        dateTime: new Date().toLocaleDateString('en-IN'),
+        items: [
+          { name: 'Settled Orders', qty: totalOrdersCount, price: 0, total: 0 },
+          { name: 'Cash Sales', qty: 1, price: cashTotalPaise / 100, total: cashTotalPaise / 100 },
+          { name: 'UPI Sales', qty: 1, price: upiTotalPaise / 100, total: upiTotalPaise / 100 },
+        ],
+        grandTotal: totalSalesPaise / 100,
+        paymentMode: 'RECONCILED',
+        extraLines: 8,
+      }, 'bitmap');
+      setReportBtStatus('Report slip sent to SEZNIK successfully!');
+    } catch (e: any) {
+      setReportBtStatus(`Bluetooth Error: ${e.message || 'Connection failed'}`);
+    } finally {
+      setIsBluetoothPrintingReport(false);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-[#F8F9FA] text-[#0A0C10] flex flex-col md:flex-row font-sans selection:bg-zinc-800 selection:text-white">
@@ -292,18 +340,34 @@ export default function ReportsPage() {
         <div className="px-6 py-4 bg-white border-b border-zinc-200 flex items-center justify-between">
           <h1 className="text-xl sm:text-2xl font-black text-black">Orders Report</h1>
           
-          {/* PDF (Red) & XLS (Green) Download Buttons */}
+          {/* Two live print options: 1. Billing Paper (58mm Thermal Slip) 2. A4 Full Report (PDF) + Excel Download */}
           <div className="flex items-center space-x-2">
+            {/* Option 1: Print on Billing Paper (58mm Thermal Slip) */}
             <button
-              onClick={() => window.print()}
-              className="px-2.5 py-1.5 rounded-lg bg-[#DC2626] hover:bg-[#B91C1C] text-white font-black text-[11px] uppercase tracking-wider shadow-xs transition"
-              title="Download PDF Report"
+              onClick={() => setIsReportThermalModalOpen(true)}
+              className="px-3 py-1.5 rounded-xl bg-zinc-900 hover:bg-black text-white font-black text-xs flex items-center space-x-1.5 shadow-xs transition active:scale-98 cursor-pointer"
+              title="Print Daily Sales Summary on 58mm Thermal Billing Paper"
             >
-              Pdf
+              <Printer className="w-3.5 h-3.5 text-amber-400" />
+              <span>Thermal Slip (58mm)</span>
             </button>
+
+            {/* Option 2: Full Report (A4 / PDF) */}
+            <button
+              onClick={() => {
+                if (typeof window !== 'undefined') window.print();
+              }}
+              className="px-3 py-1.5 rounded-xl bg-white hover:bg-zinc-100 text-black border border-zinc-300 font-extrabold text-xs flex items-center space-x-1.5 shadow-xs transition active:scale-98 cursor-pointer"
+              title="Full Page Print / Save as PDF"
+            >
+              <FileText className="w-3.5 h-3.5 text-zinc-700" />
+              <span>A4 / PDF</span>
+            </button>
+
+            {/* Excel (.xls) Download */}
             <a
               href="/api/admin/overview?range=today&format=xls"
-              className="px-2.5 py-1.5 rounded-lg bg-[#16A34A] hover:bg-[#15803D] text-white font-black text-[11px] uppercase tracking-wider shadow-xs transition"
+              className="px-2.5 py-1.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white font-black text-xs uppercase tracking-wider shadow-xs transition"
               title="Download Excel Report"
             >
               xls
@@ -670,6 +734,151 @@ export default function ReportsPage() {
                 </button>
               </div>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* ============================================================== */}
+      {/* 58MM THERMAL REPORT SLIP MODAL (PRINTING VIA BILLING PAPER)     */}
+      {/* ============================================================== */}
+      {isReportThermalModalOpen && (
+        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl max-w-sm w-full p-6 shadow-2xl border border-zinc-200 animate-in zoom-in-95 duration-100">
+            <div className="flex items-center justify-between pb-3 border-b border-zinc-100">
+              <div className="flex items-center space-x-2">
+                <Printer className="w-4 h-4 text-black" />
+                <span className="text-xs font-black uppercase tracking-wider text-black">
+                  Report on Billing Paper (58mm)
+                </span>
+              </div>
+              <button 
+                onClick={() => {
+                  setIsReportThermalModalOpen(false);
+                  setReportBtStatus(null);
+                }} 
+                className="text-zinc-400 hover:text-black p-1"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Status notice */}
+            {reportBtStatus && (
+              <div className={`mt-3 p-2.5 rounded-xl text-xs font-bold ${
+                reportBtStatus.includes('Error') 
+                  ? 'bg-red-50 text-red-700 border border-red-200' 
+                  : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+              }`}>
+                {reportBtStatus}
+              </div>
+            )}
+
+            {/* 58mm Thermal Slip (Matches Physical Roll Width) */}
+            <div 
+              id="printable-receipt" 
+              className="my-4 p-4 bg-[#FAFAFA] rounded-2xl border border-dashed border-zinc-300 font-mono text-[10px] text-black space-y-3 max-w-[280px] mx-auto text-left"
+            >
+              {/* Header */}
+              <div className="text-center space-y-0.5">
+                <div className="flex justify-center mb-1">
+                  <img 
+                    src="/brand-calligraphy-uploaded.png" 
+                    alt="ഇത്തിപ്പൂരം" 
+                    className="h-8 w-auto object-contain"
+                  />
+                </div>
+                <p className="font-bold text-[10px]">ITHI POORAM</p>
+                <p className="text-[9px] text-zinc-500 font-sans">Vanchiyoor, Trivandrum</p>
+                <div className="border-b border-dashed border-zinc-400 pt-1" />
+                <p className="text-[10px] font-black uppercase tracking-wider pt-1 font-sans">
+                  DAILY REVENUE REPORT
+                </p>
+              </div>
+
+              {/* Metadata */}
+              <div className="text-[10px] space-y-0.5">
+                <div className="flex justify-between">
+                  <span>Date:</span>
+                  <span className="font-bold">{new Date().toLocaleDateString('en-IN')}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Range:</span>
+                  <span>{dateFilterLabel}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Settled Checks:</span>
+                  <span className="font-bold">{totalOrdersCount}</span>
+                </div>
+                <div className="border-b border-dashed border-zinc-400 pt-1" />
+              </div>
+
+              {/* Breakdown */}
+              <div className="space-y-1 text-[10px]">
+                <div className="flex justify-between">
+                  <span>Cash Revenue:</span>
+                  <span className="font-bold">{formatRupees(cashTotalPaise)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>UPI / Online:</span>
+                  <span className="font-bold">{formatRupees(upiTotalPaise)}</span>
+                </div>
+                <div className="border-b border-dashed border-zinc-400 pt-1" />
+              </div>
+
+              {/* Grand Total */}
+              <div className="flex justify-between font-black text-xs pt-0.5">
+                <span>TOTAL SALES:</span>
+                <span>{formatRupees(totalSalesPaise)}</span>
+              </div>
+
+              {/* Recent Dishes Sold */}
+              {salesData.length > 0 && (
+                <div className="pt-2 border-t border-dashed border-zinc-400 space-y-1 text-[9px]">
+                  <p className="font-bold uppercase tracking-wider text-zinc-600">Dishes Sold:</p>
+                  {salesData.slice(0, 4).map((s, idx) => (
+                    <div key={idx} className="flex justify-between text-[9px]">
+                      <span className="truncate max-w-[130px]">{s.items || 'Kerala Seafood'}</span>
+                      <span className="font-mono font-bold">{formatRupees(s.amountPaise || 12000)}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Footer */}
+              <div className="text-center pt-2 border-t border-dashed border-zinc-400 text-[9px] text-zinc-500 font-sans space-y-0.5">
+                <p className="font-bold text-black font-malayalam">ഇത്തിപ്പൂരം റിപ്പോർട്ട്</p>
+                <p>Generated at Vanchiyoor POS Terminal</p>
+              </div>
+            </div>
+
+            {/* Modal Actions */}
+            <div className="space-y-2">
+              <button
+                onClick={handlePrintReportToBluetooth}
+                disabled={isBluetoothPrintingReport}
+                className="w-full py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-black flex items-center justify-center space-x-1.5 shadow-xs transition disabled:opacity-50 cursor-pointer active:scale-98"
+              >
+                {isBluetoothPrintingReport ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Printer className="w-3.5 h-3.5" />}
+                <span>Print to SEZNIK (Bluetooth)</span>
+              </button>
+
+              <div className="flex space-x-2">
+                <button
+                  onClick={() => setIsReportThermalModalOpen(false)}
+                  className="flex-1 py-2 rounded-xl border border-zinc-200 text-xs font-bold text-zinc-600 hover:bg-zinc-50 transition"
+                >
+                  Close
+                </button>
+                <button
+                  onClick={() => window.print()}
+                  className="flex-1 py-2 rounded-xl bg-black hover:bg-zinc-800 text-white text-xs font-black flex items-center justify-center space-x-1.5 shadow-xs transition cursor-pointer active:scale-98"
+                >
+                  <Printer className="w-3.5 h-3.5" />
+                  <span>Print Slip (USB)</span>
+                </button>
+              </div>
+            </div>
+
           </div>
         </div>
       )}

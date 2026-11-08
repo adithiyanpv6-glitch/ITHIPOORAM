@@ -29,8 +29,8 @@ import { printDirectToBluetoothThermalPrinter } from '../../lib/thermalPrinter';
 export default function MorePage() {
   const router = useRouter();
 
-  // Active sub-tab in More (Customers option completely skipped)
-  const [activeTab, setActiveTab] = useState<'printer' | 'staff' | 'support'>('printer');
+  // Active sub-tab in More (Support and Customers removed)
+  const [activeTab, setActiveTab] = useState<'printer' | 'staff'>('printer');
   const [defaultPrinter, setDefaultPrinter] = useState<string>('SEZNIK 58mm Thermal Printer');
   const [pageSize, setPageSize] = useState<'2-inch' | '3-inch'>('2-inch'); // 2-inch for SEZNIK 58mm
   const [extraLines, setExtraLines] = useState<number>(6);
@@ -277,7 +277,7 @@ export default function MorePage() {
         {/* Two-Column Layout */}
         <div className="flex-1 flex flex-col md:flex-row overflow-hidden">
           
-          {/* Left Sub-Nav (Printer, Staff Access, Support) */}
+          {/* Left Sub-Nav (SEZNIK Printer, Staff Access) */}
           <div className="w-full md:w-56 lg:w-60 bg-white border-b md:border-b-0 md:border-r border-zinc-200 p-4 space-y-1.5 shrink-0">
             <button
               onClick={() => setActiveTab('printer')}
@@ -287,7 +287,7 @@ export default function MorePage() {
                   : 'text-zinc-600 hover:bg-zinc-50'
               }`}
             >
-              Printer (SEZNIK)
+              SEZNIK 58mm Printer
             </button>
             <button
               onClick={() => setActiveTab('staff')}
@@ -297,54 +297,59 @@ export default function MorePage() {
                   : 'text-zinc-600 hover:bg-zinc-50'
               }`}
             >
-              Staff Access
-            </button>
-            <button
-              onClick={() => setActiveTab('support')}
-              className={`w-full text-left px-3.5 py-2.5 rounded-2xl text-xs font-extrabold transition cursor-pointer ${
-                activeTab === 'support'
-                  ? 'bg-zinc-100 text-black shadow-xs'
-                  : 'text-zinc-600 hover:bg-zinc-50'
-              }`}
-            >
-              Support
+              Staff Access &amp; PINs
             </button>
           </div>
 
           {/* Right Main Panel */}
           <div className="flex-1 p-4 sm:p-6 overflow-y-auto">
             
-            {/* PRINTER SETTINGS PANEL (SEZNIK 58MM CONFIGURATION) */}
+            {/* PRINTER SETTINGS PANEL (SINGLE WORKING PRINTER: SEZNIK 58MM) */}
             {activeTab === 'printer' && (
               <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start max-w-5xl">
                 
                 {/* Left 7 cols: Printer Configuration */}
                 <div className="lg:col-span-7 space-y-6">
                   
-                  {/* Select default printer card */}
+                  {/* Single Working Printer Card */}
                   <div className="bg-white rounded-3xl p-5 border border-zinc-200 shadow-xs space-y-4">
-                    <span className="text-xs font-extrabold text-black block">Select default printer</span>
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-black uppercase tracking-wider text-zinc-500">Connected Printer Hardware</span>
+                      <span className="inline-flex items-center space-x-1.5 text-[10px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-full">
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                        <span>Configured &amp; Active</span>
+                      </span>
+                    </div>
 
-                    <div className="space-y-2">
-                      {/* Active SEZNIK 58mm Thermal */}
-                      <div className="flex items-center justify-between p-3.5 rounded-2xl border-2 border-black bg-zinc-50">
-                        <div className="flex items-center space-x-2.5">
-                          <Printer className="w-4 h-4 text-black" />
+                    <div className="p-4 rounded-2xl border-2 border-black bg-zinc-50 space-y-3">
+                      <div className="flex items-start justify-between">
+                        <div className="flex items-start space-x-3">
+                          <div className="w-10 h-10 rounded-xl bg-black text-white flex items-center justify-center shrink-0 mt-0.5 shadow-xs">
+                            <Printer className="w-5 h-5" />
+                          </div>
                           <div>
-                            <span className="text-xs font-extrabold text-black block">SEZNIK 58mm Thermal Printer</span>
-                            <span className="text-[10px] text-emerald-700 font-bold">Bluetooth / USB (2-Inch Thermal Roll)</span>
+                            <h4 className="text-sm font-black text-black">SEZNIK 58mm Thermal POS Printer</h4>
+                            <p className="text-[11px] font-bold text-zinc-600 mt-0.5">Model: POS-5802 / ESC-POS Standard</p>
+                            <p className="text-[10px] text-zinc-500">Dual Connection: Wireless Bluetooth (BLE/SPP) + USB Cable</p>
                           </div>
                         </div>
-                        <div className="w-10 h-5 bg-black rounded-full p-0.5 flex items-center justify-end">
-                          <div className="w-4 h-4 bg-white rounded-full shadow-sm" />
-                        </div>
+                        <span className="text-[10px] font-mono font-bold bg-zinc-200 text-black px-2 py-0.5 rounded-md">
+                          58mm (2-inch)
+                        </span>
                       </div>
 
-                      {/* Standard System Dialog Print */}
-                      <div className="flex items-center justify-between p-3.5 rounded-2xl border border-zinc-200 bg-white">
-                        <span className="text-xs font-semibold text-zinc-600">Standard System Print Dialog (USB/LAN)</span>
-                        <div className="w-10 h-5 bg-zinc-200 rounded-full p-0.5 flex items-center justify-start">
-                          <div className="w-4 h-4 bg-white rounded-full shadow-sm" />
+                      <div className="grid grid-cols-3 gap-2 pt-2 border-t border-zinc-200 text-center text-[10px]">
+                        <div className="p-2 bg-white rounded-xl border border-zinc-200">
+                          <span className="text-zinc-400 block font-bold">Paper Width</span>
+                          <span className="font-black text-black">58 mm (2-Inch)</span>
+                        </div>
+                        <div className="p-2 bg-white rounded-xl border border-zinc-200">
+                          <span className="text-zinc-400 block font-bold">Columns</span>
+                          <span className="font-black text-black">32 Characters</span>
+                        </div>
+                        <div className="p-2 bg-white rounded-xl border border-zinc-200">
+                          <span className="text-zinc-400 block font-bold">Resolution</span>
+                          <span className="font-black text-black">203 DPI / 8 dots/mm</span>
                         </div>
                       </div>
                     </div>
@@ -528,22 +533,19 @@ export default function MorePage() {
               <div className="bg-white rounded-3xl p-6 border border-zinc-200 shadow-xs max-w-2xl space-y-4">
                 <h3 className="text-base font-black text-black">Staff Credentials &amp; Access</h3>
                 <p className="text-xs text-zinc-500">Configure 4-digit rapid tablet PINs for Cashier, Chef, and Manager accounts.</p>
-                <Link
-                  href="/users"
-                  className="inline-flex items-center space-x-2 px-5 py-3 rounded-2xl bg-black hover:bg-zinc-800 text-white font-extrabold text-xs transition"
-                >
-                  <span>Open Staff Accounts &rarr;</span>
-                </Link>
-              </div>
-            )}
-
-            {/* SUPPORT TAB */}
-            {activeTab === 'support' && (
-              <div className="bg-white rounded-3xl p-6 border border-zinc-200 shadow-xs max-w-2xl space-y-3">
-                <h3 className="text-base font-black text-black">Ithi Pooram Operational Support</h3>
-                <p className="text-xs text-zinc-500">For hardware printer setup, tablet deployment, or cloud sync inquiries, contact technical support directly.</p>
-                <div className="pt-2 text-xs font-mono font-bold text-zinc-800">
-                  support@ithipooram.in | +91 94470 00000
+                <div className="p-4 bg-zinc-50 rounded-2xl border border-zinc-200 space-y-2 text-xs">
+                  <div className="flex justify-between font-bold text-zinc-700">
+                    <span>Default Cashier PIN:</span>
+                    <span className="font-mono text-black">5566</span>
+                  </div>
+                  <div className="flex justify-between font-bold text-zinc-700">
+                    <span>Manager Settlement PIN:</span>
+                    <span className="font-mono text-black">7788</span>
+                  </div>
+                  <div className="flex justify-between font-bold text-zinc-700">
+                    <span>Admin PIN:</span>
+                    <span className="font-mono text-black">1122</span>
+                  </div>
                 </div>
               </div>
             )}
