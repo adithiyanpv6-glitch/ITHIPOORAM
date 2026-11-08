@@ -22,7 +22,9 @@ import {
   Check,
   BellRing,
   FileSpreadsheet,
-  AlertCircle
+  AlertCircle,
+  Calendar,
+  Receipt
 } from 'lucide-react';
 import { apiRequest, getCurrentUser } from '../lib/api';
 
@@ -82,8 +84,26 @@ export default function RootHomePage() {
         const tblRes = await fetch('/api/tables');
         if (tblRes.ok) {
           const tblList = await tblRes.json();
-          if (Array.isArray(tblList)) {
+          if (Array.isArray(tblList) && tblList.length > 0) {
             setTables(tblList);
+            if (typeof window !== 'undefined') {
+              localStorage.setItem('ithipooram_custom_tables', JSON.stringify(tblList));
+            }
+          } else if (typeof window !== 'undefined') {
+            const saved = localStorage.getItem('ithipooram_custom_tables');
+            if (saved) {
+              try {
+                const parsed = JSON.parse(saved);
+                if (Array.isArray(parsed) && parsed.length > 0) {
+                  setTables(parsed);
+                  fetch('/api/tables', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ tables: parsed }),
+                  }).catch(() => {});
+                }
+              } catch (e) {}
+            }
           }
         }
       } catch (e) {}
@@ -147,15 +167,29 @@ export default function RootHomePage() {
     try {
       setDayCloseLoading(true);
       const res = await fetch('/api/admin/day-close', { method: 'POST' });
-      if (res.ok) {
-        const data = await res.json();
+      const data = await res.json().catch(() => ({}));
+      if (res.ok && data.success) {
         setDayCloseSummary(data.summary);
+
+        // Instant Excel Download directly in user browser
+        if (data.summary?.excelContent) {
+          const blob = new Blob([data.summary.excelContent], { type: 'application/vnd.ms-excel' });
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = data.summary.excelFileName || `Daily_Report_${new Date().toISOString().slice(0, 10)}.xls`;
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          URL.revokeObjectURL(url);
+        }
+
         await loadDashboardData();
       } else {
-        alert('Failed to close day');
+        alert(data.error || data.message || 'Failed to close day');
       }
-    } catch (e) {
-      alert('Error closing day');
+    } catch (e: any) {
+      alert(e.message || 'Error closing day');
     } finally {
       setDayCloseLoading(false);
     }
@@ -216,7 +250,7 @@ export default function RootHomePage() {
             <span>Home</span>
           </Link>
 
-          {/* 2. Table Option (Second after Home - "10" removed, only shows count when tables exist) */}
+          {/* 2. Table Option */}
           <Link
             href="/qr"
             className="flex items-center justify-between px-3.5 py-3 rounded-2xl text-zinc-400 hover:bg-zinc-900 hover:text-white font-bold text-sm transition"
@@ -232,7 +266,23 @@ export default function RootHomePage() {
             )}
           </Link>
 
-          {/* 3. Items (Live Menu) */}
+          {/* 3. Billing Option (Synced to Table Orders & POS Settlement) */}
+          <Link
+            href="/billing"
+            className="flex items-center justify-between px-3.5 py-3 rounded-2xl text-zinc-400 hover:bg-zinc-900 hover:text-white font-bold text-sm transition"
+          >
+            <div className="flex items-center space-x-3">
+              <Receipt className="w-4 h-4" />
+              <span>Billing</span>
+            </div>
+            {runningOrdersCount > 0 && (
+              <span className="text-[10px] font-mono font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 px-2 py-0.5 rounded-full">
+                {runningOrdersCount}
+              </span>
+            )}
+          </Link>
+
+          {/* 4. Items (Live Menu) */}
           <Link
             href="/menu"
             className="flex items-center space-x-3 px-3.5 py-3 rounded-2xl text-zinc-400 hover:bg-zinc-900 hover:text-white font-bold text-sm transition"
@@ -356,6 +406,14 @@ export default function RootHomePage() {
             <span>Table</span>
           </Link>
           <Link
+            href="/billing"
+            onClick={() => setIsMobileMenuOpen(false)}
+            className="flex items-center space-x-3 px-3 py-2.5 rounded-xl text-zinc-300 hover:bg-zinc-900 font-bold text-sm"
+          >
+            <Receipt className="w-4 h-4" />
+            <span>Billing</span>
+          </Link>
+          <Link
             href="/menu"
             onClick={() => setIsMobileMenuOpen(false)}
             className="flex items-center space-x-3 px-3 py-2.5 rounded-xl text-zinc-300 hover:bg-zinc-900 font-bold text-sm"
@@ -387,12 +445,29 @@ export default function RootHomePage() {
       {/* ============================================================== */}
       <main className="flex-1 p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto w-full space-y-6 overflow-y-auto">
         
-        {/* Top Header Label (Billing POS terminal button removed from top right as requested) */}
-        <div className="flex items-center justify-between">
+        {/* Top Header Label with prominent Day & Date */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-zinc-200/80">
           <div>
-            <h1 className="text-2xl sm:text-3xl font-black text-black tracking-tight">Home</h1>
-            <p className="text-xs font-semibold text-zinc-500 mt-0.5">
-              Ithi Pooram Management &amp; Live Restaurant Dashboard
+            <div className="flex flex-wrap items-center gap-3">
+              <h1 className="text-2xl sm:text-3xl font-black text-black tracking-tight">Home</h1>
+              {/* Prominent Day & Date Badge */}
+              <div className="flex items-center space-x-2 text-xs font-extrabold text-zinc-800 bg-white px-3.5 py-1.5 rounded-2xl border border-zinc-300/80 shadow-xs">
+                <Calendar className="w-4 h-4 text-black shrink-0" />
+                <span>
+                  {new Date().toLocaleDateString('en-IN', {
+                    weekday: 'long',
+                    day: '2-digit',
+                    month: 'long',
+                    year: 'numeric',
+                  })}
+                </span>
+                <span className="text-[11px] text-zinc-500 font-semibold font-malayalam border-l border-zinc-300 pl-2">
+                  {new Date().toLocaleDateString('ml-IN', { weekday: 'long' })}
+                </span>
+              </div>
+            </div>
+            <p className="text-xs font-semibold text-zinc-500 mt-1">
+              ഇത്തിപ്പൂരം (Ithi Pooram) — Live Counter POS &amp; Dining Table Management
             </p>
           </div>
 

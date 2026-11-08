@@ -17,7 +17,9 @@ import {
   X, 
   Upload, 
   Sparkles, 
-  ChevronDown 
+  ChevronDown,
+  Receipt,
+  ChefHat
 } from 'lucide-react';
 import { apiRequest, getCurrentUser } from '../../lib/api';
 
@@ -228,6 +230,15 @@ export default function MenuItemsPage() {
             <span>Table</span>
           </Link>
 
+          {/* Dedicated Billing Link */}
+          <Link
+            href="/billing"
+            className="flex items-center space-x-3 px-3.5 py-3 rounded-2xl text-zinc-400 hover:bg-zinc-900 hover:text-white font-bold text-sm transition"
+          >
+            <Receipt className="w-4 h-4" />
+            <span>Billing</span>
+          </Link>
+
           <Link
             href="/menu"
             className="flex items-center space-x-3 px-3.5 py-3 rounded-2xl bg-white text-black font-extrabold text-sm shadow-md transition"
@@ -245,6 +256,18 @@ export default function MenuItemsPage() {
               <span>Reports</span>
             </div>
             <ChevronRight className="w-3.5 h-3.5 text-zinc-600" />
+          </Link>
+
+          {/* Kitchen Display (KDS) */}
+          <Link
+            href="/kitchen"
+            className="flex items-center justify-between px-3.5 py-3 rounded-2xl text-zinc-400 hover:bg-zinc-900 hover:text-white font-bold text-sm transition"
+          >
+            <div className="flex items-center space-x-3">
+              <ChefHat className="w-4 h-4 text-orange-400" />
+              <span>Kitchen (KDS)</span>
+            </div>
+            <span className="w-2 h-2 rounded-full bg-orange-500 animate-ping" />
           </Link>
 
           <Link
@@ -322,6 +345,10 @@ export default function MenuItemsPage() {
             <Grid3X3 className="w-4 h-4" />
             <span>Table</span>
           </Link>
+          <Link href="/billing" onClick={() => setIsMobileMenuOpen(false)} className="flex items-center space-x-3 px-3 py-2.5 rounded-xl text-zinc-300 font-bold text-sm">
+            <Receipt className="w-4 h-4" />
+            <span>Billing</span>
+          </Link>
           <Link href="/menu" onClick={() => setIsMobileMenuOpen(false)} className="flex items-center space-x-3 px-3 py-2.5 rounded-xl bg-white text-black font-black text-sm">
             <UtensilsCrossed className="w-4 h-4" />
             <span>Items</span>
@@ -329,6 +356,10 @@ export default function MenuItemsPage() {
           <Link href="/reports" onClick={() => setIsMobileMenuOpen(false)} className="flex items-center space-x-3 px-3 py-2.5 rounded-xl text-zinc-300 font-bold text-sm">
             <BarChart3 className="w-4 h-4" />
             <span>Reports</span>
+          </Link>
+          <Link href="/kitchen" onClick={() => setIsMobileMenuOpen(false)} className="flex items-center space-x-3 px-3 py-2.5 rounded-xl text-zinc-300 font-bold text-sm">
+            <ChefHat className="w-4 h-4 text-orange-400" />
+            <span>Kitchen (KDS)</span>
           </Link>
           <Link href="/users" onClick={() => setIsMobileMenuOpen(false)} className="flex items-center space-x-3 px-3 py-2.5 rounded-xl text-zinc-300 font-bold text-sm">
             <MoreHorizontal className="w-4 h-4" />

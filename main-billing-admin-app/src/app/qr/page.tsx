@@ -21,7 +21,8 @@ import {
   ExternalLink,
   Layers,
   CheckCircle2,
-  Printer
+  Printer,
+  Receipt
 } from 'lucide-react';
 import QRCode from 'qrcode';
 import { getCurrentUser } from '../../lib/api';
@@ -74,8 +75,28 @@ export default function TablesManagementPage() {
       const tblRes = await fetch('/api/tables');
       if (tblRes.ok) {
         const tblList = await tblRes.json();
-        if (Array.isArray(tblList)) {
+        if (Array.isArray(tblList) && tblList.length > 0) {
           setTables(tblList);
+          if (typeof window !== 'undefined') {
+            localStorage.setItem('ithipooram_custom_tables', JSON.stringify(tblList));
+          }
+        } else if (typeof window !== 'undefined') {
+          // Dual-layer recovery: check localStorage if server returned empty
+          const saved = localStorage.getItem('ithipooram_custom_tables');
+          if (saved) {
+            try {
+              const parsed = JSON.parse(saved);
+              if (Array.isArray(parsed) && parsed.length > 0) {
+                setTables(parsed);
+                // Reseed server
+                fetch('/api/tables', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ tables: parsed }),
+                }).catch(() => {});
+              }
+            } catch (e) {}
+          }
         }
       }
 
@@ -170,6 +191,9 @@ export default function TablesManagementPage() {
 
       if (res.ok) {
         setTables(updatedList);
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('ithipooram_custom_tables', JSON.stringify(updatedList));
+        }
         setIsAddModalOpen(false);
         setSingleTableCode('');
       } else {
@@ -190,7 +214,11 @@ export default function TablesManagementPage() {
         method: 'DELETE',
       });
       if (res.ok) {
-        setTables((prev) => prev.filter((t) => t.tableCode.toUpperCase() !== code.toUpperCase()));
+        const remaining = tables.filter((t) => t.tableCode.toUpperCase() !== code.toUpperCase());
+        setTables(remaining);
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('ithipooram_custom_tables', JSON.stringify(remaining));
+        }
         if (selectedTableForQr?.tableCode?.toUpperCase() === code.toUpperCase()) {
           setSelectedTableForQr(null);
         }
@@ -301,6 +329,22 @@ export default function TablesManagementPage() {
             <span>Table</span>
           </Link>
 
+          {/* Dedicated Billing Link */}
+          <Link
+            href="/billing"
+            className="flex items-center justify-between px-3.5 py-3 rounded-2xl text-zinc-400 hover:bg-zinc-900 hover:text-white font-bold text-sm transition"
+          >
+            <div className="flex items-center space-x-3">
+              <Receipt className="w-4 h-4" />
+              <span>Billing</span>
+            </div>
+            {runningOrders.length > 0 && (
+              <span className="text-[10px] font-mono font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 px-2 py-0.5 rounded-full">
+                {runningOrders.length}
+              </span>
+            )}
+          </Link>
+
           <Link
             href="/menu"
             className="flex items-center space-x-3 px-3.5 py-3 rounded-2xl text-zinc-400 hover:bg-zinc-900 hover:text-white font-bold text-sm transition"
@@ -379,6 +423,7 @@ export default function TablesManagementPage() {
         <div className="md:hidden bg-[#0C0E12] border-b border-zinc-800 p-4 space-y-2 text-sm font-bold">
           <Link href="/" className="block py-2 text-zinc-300">Home</Link>
           <Link href="/qr" className="block py-2 text-white font-black">Table</Link>
+          <Link href="/billing" className="block py-2 text-zinc-300">Billing</Link>
           <Link href="/menu" className="block py-2 text-zinc-300">Items</Link>
           <Link href="/reports" className="block py-2 text-zinc-300">Reports</Link>
           <Link href="/kitchen" className="block py-2 text-orange-400">Kitchen (KDS)</Link>

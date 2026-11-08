@@ -20,7 +20,8 @@ import {
   Bluetooth,
   CheckCircle2, 
   Loader2,
-  RefreshCw
+  RefreshCw,
+  Receipt
 } from 'lucide-react';
 import { getCurrentUser } from '../../lib/api';
 import { printDirectToBluetoothThermalPrinter } from '../../lib/thermalPrinter';
@@ -126,6 +127,15 @@ export default function MorePage() {
             <span>Table</span>
           </Link>
 
+          {/* Dedicated Billing Link */}
+          <Link
+            href="/billing"
+            className="flex items-center space-x-3 px-3.5 py-3 rounded-2xl text-zinc-400 hover:bg-zinc-900 hover:text-white font-bold text-sm transition"
+          >
+            <Receipt className="w-4 h-4" />
+            <span>Billing</span>
+          </Link>
+
           <Link
             href="/menu"
             className="flex items-center space-x-3 px-3.5 py-3 rounded-2xl text-zinc-400 hover:bg-zinc-900 hover:text-white font-bold text-sm transition"
@@ -228,6 +238,10 @@ export default function MorePage() {
             <Grid3X3 className="w-4 h-4" />
             <span>Table</span>
           </Link>
+          <Link href="/billing" onClick={() => setIsMobileMenuOpen(false)} className="flex items-center space-x-3 px-3 py-2.5 rounded-xl text-zinc-300 font-bold text-sm">
+            <Receipt className="w-4 h-4" />
+            <span>Billing</span>
+          </Link>
           <Link href="/menu" onClick={() => setIsMobileMenuOpen(false)} className="flex items-center space-x-3 px-3 py-2.5 rounded-xl text-zinc-300 font-bold text-sm">
             <UtensilsCrossed className="w-4 h-4" />
             <span>Items</span>
@@ -235,6 +249,10 @@ export default function MorePage() {
           <Link href="/reports" onClick={() => setIsMobileMenuOpen(false)} className="flex items-center space-x-3 px-3 py-2.5 rounded-xl text-zinc-300 font-bold text-sm">
             <BarChart3 className="w-4 h-4" />
             <span>Reports</span>
+          </Link>
+          <Link href="/kitchen" onClick={() => setIsMobileMenuOpen(false)} className="flex items-center space-x-3 px-3 py-2.5 rounded-xl text-zinc-300 font-bold text-sm">
+            <ChefHat className="w-4 h-4 text-orange-400" />
+            <span>Kitchen (KDS)</span>
           </Link>
           <Link href="/users" onClick={() => setIsMobileMenuOpen(false)} className="flex items-center space-x-3 px-3 py-2.5 rounded-xl bg-white text-black font-black text-sm">
             <MoreHorizontal className="w-4 h-4" />

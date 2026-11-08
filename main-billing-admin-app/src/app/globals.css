@@ -8,27 +8,28 @@
   }
 }
 
-/* Print styling dedicated for SEZNIK 58mm & standard 80mm thermal receipt printers */
+/* Dedicated Print Engine: Intelligently handles 58mm Thermal Slips vs Full A4 PDF Reports */
 @media print {
-  @page {
-    margin: 0;
-    size: 58mm auto; /* Default to SEZNIK 58mm paper roll */
+  /* Case 1: When printing 58mm Thermal Receipt Modal */
+  body:has(#printable-receipt) {
+    background: #FFFFFF !important;
+    color: #000000 !important;
   }
 
-  body * {
+  body:has(#printable-receipt) * {
     visibility: hidden;
   }
 
-  #printable-receipt,
-  #printable-receipt * {
+  body:has(#printable-receipt) #printable-receipt,
+  body:has(#printable-receipt) #printable-receipt * {
     visibility: visible !important;
   }
 
-  #printable-receipt {
+  body:has(#printable-receipt) #printable-receipt {
     position: absolute;
     left: 0;
     top: 0;
-    width: 48mm !important; /* 58mm roll with 48mm printable area */
+    width: 48mm !important;
     max-width: 48mm !important;
     padding: 2mm 1mm 32mm 1mm !important;
     font-size: 10px !important;
@@ -39,5 +40,50 @@
     border: none !important;
     margin: 0 !important;
     page-break-after: always;
+  }
+
+  /* Case 2: When printing Full-Page PDF Reports (/reports) */
+  body:not(:has(#printable-receipt)) {
+    background: #FFFFFF !important;
+    color: #000000 !important;
+  }
+
+  body:not(:has(#printable-receipt)) aside,
+  body:not(:has(#printable-receipt)) header,
+  body:not(:has(#printable-receipt)) nav,
+  body:not(:has(#printable-receipt)) button,
+  body:not(:has(#printable-receipt)) .no-print,
+  body:not(:has(#printable-receipt)) .fixed {
+    display: none !important;
+  }
+
+  body:not(:has(#printable-receipt)) #printable-report-area,
+  body:not(:has(#printable-receipt)) #printable-report-area * {
+    visibility: visible !important;
+    color: #000000 !important;
+  }
+
+  body:not(:has(#printable-receipt)) #printable-report-area {
+    position: relative !important;
+    width: 100% !important;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+
+  body:not(:has(#printable-receipt)) table {
+    width: 100% !important;
+    border-collapse: collapse !important;
+  }
+
+  body:not(:has(#printable-receipt)) th,
+  body:not(:has(#printable-receipt)) td {
+    border: 1px solid #D4D4D8 !important;
+    padding: 6px 10px !important;
+    color: #000000 !important;
+  }
+
+  body:not(:has(#printable-receipt)) th {
+    background: #F4F4F5 !important;
+    font-weight: bold !important;
   }
 }

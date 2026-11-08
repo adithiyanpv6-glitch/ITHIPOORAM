@@ -264,7 +264,8 @@ if (!global.__ITHIPOORAM_DB__) {
 }
 
 
-const DB_FILE_PATH = path.join(process.cwd(), 'data', 'restaurant_store.json');
+const isVercel = process.env.VERCEL === '1' || (process.env.NODE_ENV === 'production' && !process.env.LOCAL_DEV);
+const DB_FILE_PATH = isVercel ? path.join('/tmp', 'restaurant_store.json') : path.join(process.cwd(), 'data', 'restaurant_store.json');
 
 export function persistDb() {
   try {
@@ -347,3 +348,6 @@ export function refreshTableSummaries() {
   }
   persistDb();
 }
+
+// Automatically load persisted database from disk on module initialisation
+loadDbFromDisk();

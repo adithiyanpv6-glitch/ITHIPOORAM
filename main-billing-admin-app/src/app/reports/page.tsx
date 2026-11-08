@@ -19,7 +19,8 @@ import {
   Calendar as CalendarIcon, 
   Printer, 
   ChevronDown,
-  ChevronLeft
+  ChevronLeft,
+  Receipt
 } from 'lucide-react';
 import { apiRequest, getCurrentUser } from '../../lib/api';
 import { printDirectToBluetoothThermalPrinter } from '../../lib/thermalPrinter';
@@ -154,6 +155,15 @@ export default function ReportsPage() {
           >
             <Grid3X3 className="w-4 h-4" />
             <span>Table</span>
+          </Link>
+
+          {/* Dedicated Billing Terminal Link */}
+          <Link
+            href="/billing"
+            className="flex items-center space-x-3 px-3.5 py-3 rounded-2xl text-zinc-400 hover:bg-zinc-900 hover:text-white font-bold text-sm transition"
+          >
+            <Receipt className="w-4 h-4" />
+            <span>Billing</span>
           </Link>
 
           <Link
@@ -473,8 +483,20 @@ export default function ReportsPage() {
             </div>
           </div>
 
-          {/* Metric Cards (Total Sales & Total Orders) */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 max-w-md gap-4">
+          {/* ============================================================== */}
+          {/* PRINTABLE REPORT AREA (PDF Export & Print Target)               */}
+          {/* ============================================================== */}
+          <div id="printable-report-area" className="space-y-5">
+            
+            {/* Header visible only on print */}
+            <div className="hidden print:block pb-3 border-b-2 border-black">
+              <h2 className="text-xl font-black text-black font-malayalam">ഇത്തിപ്പൂരം (ITHI POORAM)</h2>
+              <p className="text-xs text-zinc-600 font-bold">Vanchiyoor, Trivandrum — Orders &amp; Revenue Report</p>
+              <p className="text-[10px] text-zinc-500 font-mono mt-0.5">Date Range: {dateFilterLabel} | Generated: {new Date().toLocaleString('en-IN')}</p>
+            </div>
+
+            {/* Metric Cards (Total Sales & Total Orders) */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 max-w-md gap-4">
             <div className="bg-white p-5 rounded-3xl border border-zinc-200 shadow-xs">
               <span className="text-[10px] font-extrabold uppercase tracking-wider text-zinc-400 block mb-1">
                 TOTAL SALES
@@ -547,6 +569,8 @@ export default function ReportsPage() {
               </table>
             </div>
           </div>
+
+          </div> {/* End #printable-report-area */}
 
         </div>
 

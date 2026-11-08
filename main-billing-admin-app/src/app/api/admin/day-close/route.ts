@@ -43,14 +43,7 @@ export async function POST(request: Request) {
 
     const itemSummary = Object.values(itemMap);
 
-    // Generate Excel Spreadsheet (SpreadsheetML) for permanent day-close document
-    const archiveDir = path.join(process.cwd(), 'reports_archive');
-    if (!fs.existsSync(archiveDir)) {
-      fs.mkdirSync(archiveDir, { recursive: true });
-    }
-
     const excelFileName = `Daily_Report_${todayStr}.xls`;
-    const excelFilePath = path.join(archiveDir, excelFileName);
 
     const itemRowsXml = itemSummary
       .map(
@@ -131,7 +124,17 @@ ${invoiceRowsXml}
  </Worksheet>
 </Workbook>`;
 
-    fs.writeFileSync(excelFilePath, xlsContent, 'utf8');
+    // Safe file writing (works on local Windows AND tolerates Vercel read-only system)
+    try {
+      const isVercel = process.env.VERCEL === '1' || (process.env.NODE_ENV === 'production' && !process.env.LOCAL_DEV);
+      const targetDir = isVercel ? '/tmp/reports_archive' : path.join(process.cwd(), 'reports_archive');
+      if (!fs.existsSync(targetDir)) {
+        fs.mkdirSync(targetDir, { recursive: true });
+      }
+      fs.writeFileSync(path.join(targetDir, excelFileName), xlsContent, 'utf8');
+    } catch (fsErr) {
+      console.warn('File save skipped in serverless environment:', fsErr);
+    }
 
     // Reset Table States for tomorrow morning
     for (const t of db.tables) {
@@ -146,7 +149,7 @@ ${invoiceRowsXml}
       actionType: 'DAY_CLOSED_Z_REPORT',
       module: 'BILLING',
       usernameSnapshot: 'Cashier / Admin',
-      reason: `Business day closed. Saved ${excelFileName} with ${(totalSalesPaise / 100).toFixed(2)} INR total.`,
+      reason: `Business day closed. Generated ${excelFileName} with ${(totalSalesPaise / 100).toFixed(2)} INR total.`,
       success: true,
     });
 
@@ -154,7 +157,7 @@ ${invoiceRowsXml}
 
     return NextResponse.json({
       success: true,
-      message: `Day ${todayStr} closed successfully. Excel saved.`,
+      message: `Day ${todayStr} closed successfully. Excel ready.`,
       summary: {
         date: todayStr,
         totalOrders: paidOrders.length,
@@ -162,6 +165,7 @@ ${invoiceRowsXml}
         cashPaise,
         upiPaise,
         excelFileName,
+        excelContent: xlsContent, // Returned so client triggers instant download
       },
     }, { headers: corsHeaders });
   } catch (err: any) {

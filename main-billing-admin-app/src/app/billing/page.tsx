@@ -106,9 +106,28 @@ export default function BillingTerminalPage() {
         }
       }
 
-      const data = await apiRequest<TableSummary[]>('/tables');
-      setTables(data);
-      if (data.length > 0) {
+      let data = await apiRequest<TableSummary[]>('/tables');
+      if ((!data || data.length === 0) && typeof window !== 'undefined') {
+        const savedCustomTables = localStorage.getItem('ithipooram_custom_tables');
+        if (savedCustomTables) {
+          try {
+            const customTables = JSON.parse(savedCustomTables);
+            if (Array.isArray(customTables) && customTables.length > 0) {
+              data = customTables.map((t: any) => ({
+                id: t.id || `t-${t.tableCode?.toLowerCase() || '1'}`,
+                tableCode: (t.tableCode || '').toUpperCase(),
+                displayName: t.displayName || t.tableName || `Table ${t.tableCode}`,
+                capacity: t.capacity || 4,
+                status: 'AVAILABLE',
+                unpaidCount: 0,
+                unpaidTotalPaise: 0,
+              }));
+            }
+          } catch (e) {}
+        }
+      }
+      setTables(data || []);
+      if (data && data.length > 0) {
         setSelectedTableCode((prev) => {
           const exists = data.some((t) => t.tableCode.toUpperCase() === prev?.toUpperCase());
           return exists ? prev : data[0].tableCode;
