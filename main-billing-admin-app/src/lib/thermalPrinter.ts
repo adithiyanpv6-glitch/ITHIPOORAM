@@ -8,19 +8,47 @@ export interface ReceiptItem {
   total: number;
 }
 
+export interface DishSoldItem {
+  name: string;
+  amount: number;
+}
+
 export interface ReceiptData {
   restaurantName?: string;
   restaurantLocation?: string;
   phone?: string;
+  
+  // Document Type / Header
+  reportType?: 'bill' | 'daily_report';
+  title?: string; // 'BILL OF SUPPLY' | 'DAILY REVENUE REPORT'
+  subtitle?: string;
+  
+  // Standard Bill fields
   invoiceNumber?: string;
   orderCode?: string;
   tableCode?: string;
   dateTime?: string;
-  items: ReceiptItem[];
-  subtotal?: number;
-  grandTotal: number;
   paymentMode?: string;
+  items?: ReceiptItem[];
+  subtotal?: number;
+  
+  // Daily Report fields
+  dateRangeLabel?: string;
+  settledChecksCount?: number;
+  cashRevenue?: number;
+  upiRevenue?: number;
+  dishesSold?: DishSoldItem[];
+  
+  // Common
+  grandTotal: number;
   extraLines?: number;
+  footerPrimary?: string;
+  footerSecondary?: string;
+}
+
+function formatRow(left: string, right: string, totalWidth: number = 32): string {
+  const sp = Math.max(1, totalWidth - left.length - right.length);
+  return `${left}${' '.repeat(sp)}${right}`;
 }
 
 // 1. Text-Mode ESC/POS Generator (Fallback & Fast Text)
@@ -49,61 +77,99 @@ export function generateEscPos58mmCommands(data: ReceiptData): Uint8Array {
   // Cancel double mode: GS ! 0x00
   writeBytes(0x1d, 0x21, 0x00);
   writeLine(data.restaurantLocation || 'Vanchiyoor, Trivandrum');
-  writeLine(`Ph: ${data.phone || '+91 94470 00000'}`);
+  if (data.reportType !== 'daily_report') {
+    writeLine(`Ph: ${data.phone || '+91 94470 00000'}`);
+  }
 
   // Dashed line (32 chars)
   writeLine('--------------------------------');
 
-  // Bold "BILL OF SUPPLY"
-  writeBytes(0x1b, 0x45, 0x01); // Bold on
-  writeLine('BILL OF SUPPLY');
-  writeBytes(0x1b, 0x45, 0x00); // Bold off
+  if (data.reportType === 'daily_report') {
+    // --- DAILY REVENUE REPORT LAYOUT (32 COLUMNS) ---
+    writeBytes(0x1b, 0x45, 0x01); // Bold on
+    writeLine(data.title || 'DAILY REVENUE REPORT');
+    writeBytes(0x1b, 0x45, 0x00); // Bold off
 
-  // Metadata: Inv & Date, Table & Mode (32 chars per line)
-  const invStr = `Inv: ${data.invoiceNumber || '1001'}`;
-  const dateStr = data.dateTime || new Date().toLocaleDateString('en-IN');
-  const sp1 = Math.max(1, 32 - invStr.length - dateStr.length);
-  writeLine(`${invStr}${' '.repeat(sp1)}${dateStr}`);
+    writeBytes(0x1b, 0x61, 0x00); // Left align
+    writeLine(formatRow('Date:', data.dateTime || new Date().toLocaleDateString('en-IN'), 32));
+    writeLine(formatRow('Range:', data.dateRangeLabel || 'Today', 32));
+    writeLine(formatRow('Settled Checks:', String(data.settledChecksCount ?? 0), 32));
+    writeLine('--------------------------------');
 
-  const tblStr = `Table: ${data.tableCode || 'T1'}`;
-  const modeStr = `Mode: ${data.paymentMode || 'Cash'}`;
-  const sp2 = Math.max(1, 32 - tblStr.length - modeStr.length);
-  writeLine(`${tblStr}${' '.repeat(sp2)}${modeStr}`);
+    writeLine(formatRow('Cash Revenue:', `Rs.${(data.cashRevenue ?? 0).toFixed(2)}`, 32));
+    writeLine(formatRow('UPI / Online:', `Rs.${(data.upiRevenue ?? 0).toFixed(2)}`, 32));
+    writeLine('--------------------------------');
 
-  writeLine('--------------------------------');
+    writeBytes(0x1b, 0x45, 0x01); // Bold on
+    writeLine(formatRow('TOTAL SALES:', `Rs.${data.grandTotal.toFixed(2)}`, 32));
+    writeBytes(0x1b, 0x45, 0x00); // Bold off
 
-  // Column header for 32 chars: ITEM(18) QTY(5) AMT(9)
-  writeBytes(0x1b, 0x45, 0x01); // Bold on
-  writeLine('ITEM                 QTY     AMT');
-  writeBytes(0x1b, 0x45, 0x00); // Bold off
-  writeLine('--------------------------------');
+    if (data.dishesSold && data.dishesSold.length > 0) {
+      writeLine('--------------------------------');
+      writeBytes(0x1b, 0x45, 0x01);
+      writeLine('Dishes Sold:');
+      writeBytes(0x1b, 0x45, 0x00);
+      data.dishesSold.slice(0, 6).forEach((dish) => {
+        const dName = dish.name.padEnd(20).substring(0, 20);
+        const dAmt = `Rs.${dish.amount.toFixed(2)}`.padStart(11);
+        writeLine(`${dName} ${dAmt}`);
+      });
+    }
 
-  // Items
-  data.items.forEach((item) => {
-    const namePart = item.name.padEnd(18).substring(0, 18);
-    const qtyPart = String(item.qty).padStart(4);
-    const amtPart = item.total.toFixed(2).padStart(9);
-    writeLine(`${namePart} ${qtyPart} ${amtPart}`);
-  });
+    writeLine('--------------------------------');
+    writeBytes(0x1b, 0x61, 0x01); // Center
+    writeLine(data.footerPrimary || 'ITHI POORAM REPORT');
+    writeLine(data.footerSecondary || 'Generated at Vanchiyoor POS');
+  } else {
+    // --- STANDARD CUSTOMER BILL LAYOUT (32 COLUMNS) ---
+    writeBytes(0x1b, 0x45, 0x01); // Bold on
+    writeLine(data.title || 'BILL OF SUPPLY');
+    writeBytes(0x1b, 0x45, 0x00); // Bold off
 
-  writeLine('--------------------------------');
+    // Metadata: Inv & Date, Table & Mode (32 chars per line)
+    const invStr = `Inv: ${data.invoiceNumber || '1001'}`;
+    const dateStr = data.dateTime || new Date().toLocaleDateString('en-IN');
+    writeLine(formatRow(invStr, dateStr, 32));
 
-  // TOTAL in Bold: ESC E 1
-  writeBytes(0x1b, 0x45, 0x01);
-  const totalLabel = 'TOTAL:';
-  const totalVal = `Rs.${data.grandTotal.toFixed(2)}`;
-  const spTotal = Math.max(1, 32 - totalLabel.length - totalVal.length);
-  writeLine(`${totalLabel}${' '.repeat(spTotal)}${totalVal}`);
-  writeBytes(0x1b, 0x45, 0x00); // Bold off
+    const tblStr = `Table: ${data.tableCode || 'T1'}`;
+    const modeStr = `Mode: ${data.paymentMode || 'Cash'}`;
+    writeLine(formatRow(tblStr, modeStr, 32));
 
-  writeLine('--------------------------------');
+    writeLine('--------------------------------');
 
-  // Center footer
-  writeBytes(0x1b, 0x61, 0x01);
-  writeLine('Thank you! Visit again.');
+    // Column header for 32 chars: ITEM(18) QTY(5) AMT(9)
+    writeBytes(0x1b, 0x45, 0x01); // Bold on
+    writeLine('ITEM                 QTY     AMT');
+    writeBytes(0x1b, 0x45, 0x00); // Bold off
+    writeLine('--------------------------------');
 
-  // Ample feed lines past the SEZNIK serrated tear teeth (minimum 7 lines)
-  const extra = Math.max(7, data.extraLines ?? 7);
+    // Items
+    (data.items || []).forEach((item) => {
+      const namePart = item.name.padEnd(18).substring(0, 18);
+      const qtyPart = String(item.qty).padStart(4);
+      const amtPart = item.total.toFixed(2).padStart(9);
+      writeLine(`${namePart} ${qtyPart} ${amtPart}`);
+    });
+
+    writeLine('--------------------------------');
+
+    // TOTAL in Bold: ESC E 1
+    writeBytes(0x1b, 0x45, 0x01);
+    writeLine(formatRow('TOTAL:', `Rs.${data.grandTotal.toFixed(2)}`, 32));
+    writeBytes(0x1b, 0x45, 0x00); // Bold off
+
+    writeLine('--------------------------------');
+
+    // Center footer
+    writeBytes(0x1b, 0x61, 0x01);
+    writeLine(data.footerPrimary || 'Thank you! Visit again.');
+    if (data.footerSecondary) {
+      writeLine(data.footerSecondary);
+    }
+  }
+
+  // Ample feed lines past the SEZNIK serrated tear teeth (minimum 8 lines)
+  const extra = Math.max(8, data.extraLines ?? 8);
   for (let i = 0; i < extra; i++) {
     writeLine();
   }
@@ -132,11 +198,19 @@ export async function generateEscPosRasterBitmapFromPreview(data: ReceiptData): 
 
   // Width is exactly 384 pixels for 58mm printer (48 bytes per row)
   const width = 384;
+  const isReport = data.reportType === 'daily_report';
 
-  // Calculate dynamic canvas height
-  // Header: ~130px, Meta: ~60px, Items: ~30px per item, Total: ~55px, Footer: ~90px, Tear Margin: ~160px
-  const itemRowsCount = Math.max(1, data.items.length);
-  const height = 150 + 65 + 35 + (itemRowsCount * 28) + 60 + 90 + 160;
+  // Calculate dynamic canvas height to avoid clipping or excessive feed
+  let height: number;
+  if (isReport) {
+    const dishesCount = Math.min(6, data.dishesSold?.length || 0);
+    // Logo+Header (~120) + Title (~30) + Meta (~75) + Breakdown (~55) + Total (~40) + Dishes (~25 + count*22) + Footer (~60) + Tear margin (~160)
+    height = 120 + 30 + 75 + 55 + 40 + (dishesCount > 0 ? (28 + dishesCount * 22) : 0) + 60 + 160;
+  } else {
+    const itemRowsCount = Math.max(1, data.items?.length || 1);
+    // Header (~150) + Meta (~65) + Header (~35) + Items (~28*rows) + Total (~60) + Footer (~90) + Tear margin (~160)
+    height = 150 + 65 + 35 + (itemRowsCount * 28) + 60 + 90 + 160;
+  }
 
   const canvas = document.createElement('canvas');
   canvas.width = width;
@@ -167,29 +241,33 @@ export async function generateEscPosRasterBitmapFromPreview(data: ReceiptData): 
       img.src = '/brand-calligraphy-uploaded.png';
     });
 
-    // Draw logo centered (width ~160px, aspect ratio 3:1 -> height ~53px)
     const logoW = 160;
     const logoH = 53;
     const logoX = (width - logoW) / 2;
     ctx.drawImage(logoImg, logoX, currentY, logoW, logoH);
-    currentY += logoH + 8;
+    currentY += logoH + 6;
   } catch (e) {
-    // Fallback brand text if image not reachable
     ctx.font = 'bold 22px sans-serif';
     ctx.textAlign = 'center';
     ctx.fillText(data.restaurantName || 'ഇത്തിപ്പൂരം', width / 2, currentY + 20);
     currentY += 30;
   }
 
-  // Location & Phone
+  // Brand Name & Location
   ctx.textAlign = 'center';
   ctx.font = 'bold 15px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
-  ctx.fillText(data.restaurantLocation || 'Vanchiyoor, Trivandrum', width / 2, currentY);
-  currentY += 18;
+  ctx.fillText(data.restaurantName || 'ITHI POORAM', width / 2, currentY);
+  currentY += 16;
 
-  ctx.font = '14px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
-  ctx.fillText(`Ph: ${data.phone || '+91 94470 00000'}`, width / 2, currentY);
-  currentY += 14;
+  ctx.font = '13px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+  ctx.fillText(data.restaurantLocation || 'Vanchiyoor, Trivandrum', width / 2, currentY);
+  currentY += 15;
+
+  if (!isReport) {
+    ctx.font = '13px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+    ctx.fillText(`Ph: ${data.phone || '+91 94470 00000'}`, width / 2, currentY);
+    currentY += 15;
+  }
 
   // Dashed Line Helper
   const drawDashedDivider = (y: number) => {
@@ -197,8 +275,8 @@ export async function generateEscPosRasterBitmapFromPreview(data: ReceiptData): 
     ctx.setLineDash([5, 3]);
     ctx.lineWidth = 1.5;
     ctx.beginPath();
-    ctx.moveTo(10, y);
-    ctx.lineTo(width - 10, y);
+    ctx.moveTo(12, y);
+    ctx.lineTo(width - 12, y);
     ctx.stroke();
     ctx.restore();
   };
@@ -206,77 +284,178 @@ export async function generateEscPosRasterBitmapFromPreview(data: ReceiptData): 
   drawDashedDivider(currentY);
   currentY += 20;
 
-  // BILL OF SUPPLY
-  ctx.textAlign = 'center';
-  ctx.font = '900 16px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
-  ctx.fillText('BILL OF SUPPLY', width / 2, currentY);
-  currentY += 22;
+  if (isReport) {
+    // ==============================================================
+    // DAILY REVENUE REPORT LAYOUT (Matches on-screen preview 1:1)
+    // ==============================================================
+    ctx.textAlign = 'center';
+    ctx.font = '900 16px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+    ctx.fillText(data.title || 'DAILY REVENUE REPORT', width / 2, currentY);
+    currentY += 22;
 
-  // Metadata (Inv, Date, Table, Mode)
-  ctx.font = '14px monospace';
-  ctx.textAlign = 'left';
-  ctx.fillText(`Inv: ${data.invoiceNumber || '1001'}`, 12, currentY);
-  ctx.textAlign = 'right';
-  ctx.fillText(data.dateTime || new Date().toLocaleDateString('en-IN'), width - 12, currentY);
-  currentY += 18;
-
-  ctx.textAlign = 'left';
-  ctx.fillText(`Table: ${data.tableCode || 'T1'}`, 12, currentY);
-  ctx.textAlign = 'right';
-  ctx.fillText(`Mode: ${data.paymentMode || 'Cash'}`, width - 12, currentY);
-  currentY += 14;
-
-  drawDashedDivider(currentY);
-  currentY += 22;
-
-  // Columns Header: ITEM, QTY, AMT
-  ctx.font = 'bold 14px monospace';
-  ctx.textAlign = 'left';
-  ctx.fillText('ITEM', 12, currentY);
-  ctx.textAlign = 'right';
-  ctx.fillText('QTY', 290, currentY);
-  ctx.fillText('AMT', width - 12, currentY);
-  currentY += 20;
-
-  // Items
-  ctx.font = '14px monospace';
-  data.items.forEach((item) => {
+    // Metadata: Date, Range, Settled Checks
+    ctx.font = '14px monospace';
     ctx.textAlign = 'left';
-    const cleanName = item.name.length > 18 ? item.name.substring(0, 18) + '..' : item.name;
-    ctx.fillText(cleanName, 12, currentY);
-
+    ctx.fillText('Date:', 14, currentY);
     ctx.textAlign = 'right';
-    ctx.fillText(String(item.qty), 290, currentY);
-    ctx.fillText(item.total.toFixed(2), width - 12, currentY);
+    ctx.fillText(data.dateTime || new Date().toLocaleDateString('en-IN'), width - 14, currentY);
+    currentY += 20;
+
+    ctx.textAlign = 'left';
+    ctx.fillText('Range:', 14, currentY);
+    ctx.textAlign = 'right';
+    ctx.fillText(data.dateRangeLabel || 'Today', width - 14, currentY);
+    currentY += 20;
+
+    ctx.textAlign = 'left';
+    ctx.fillText('Settled Checks:', 14, currentY);
+    ctx.textAlign = 'right';
+    ctx.font = 'bold 14px monospace';
+    ctx.fillText(String(data.settledChecksCount ?? 0), width - 14, currentY);
+    currentY += 16;
+
+    drawDashedDivider(currentY);
+    currentY += 20;
+
+    // Revenue Breakdown
+    ctx.font = '14px monospace';
+    ctx.textAlign = 'left';
+    ctx.fillText('Cash Revenue:', 14, currentY);
+    ctx.textAlign = 'right';
+    ctx.font = 'bold 14px monospace';
+    ctx.fillText(`₹ ${(data.cashRevenue ?? 0).toFixed(2)}`, width - 14, currentY);
+    currentY += 20;
+
+    ctx.font = '14px monospace';
+    ctx.textAlign = 'left';
+    ctx.fillText('UPI / Online:', 14, currentY);
+    ctx.textAlign = 'right';
+    ctx.font = 'bold 14px monospace';
+    ctx.fillText(`₹ ${(data.upiRevenue ?? 0).toFixed(2)}`, width - 14, currentY);
+    currentY += 16;
+
+    drawDashedDivider(currentY);
+    currentY += 22;
+
+    // TOTAL SALES
+    ctx.textAlign = 'left';
+    ctx.font = '900 16px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+    ctx.fillText('TOTAL SALES:', 14, currentY);
+    ctx.textAlign = 'right';
+    ctx.font = '900 17px monospace';
+    ctx.fillText(`₹ ${data.grandTotal.toFixed(2)}`, width - 14, currentY);
+    currentY += 16;
+
+    // Recent Dishes Sold
+    if (data.dishesSold && data.dishesSold.length > 0) {
+      drawDashedDivider(currentY);
+      currentY += 20;
+
+      ctx.textAlign = 'left';
+      ctx.font = 'bold 13px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+      ctx.fillText('Dishes Sold:', 14, currentY);
+      currentY += 20;
+
+      ctx.font = '13px monospace';
+      data.dishesSold.slice(0, 6).forEach((dish) => {
+        ctx.textAlign = 'left';
+        const dName = dish.name.length > 18 ? dish.name.substring(0, 18) + '..' : dish.name;
+        ctx.fillText(dName, 14, currentY);
+        ctx.textAlign = 'right';
+        ctx.fillText(`₹ ${dish.amount.toFixed(2)}`, width - 14, currentY);
+        currentY += 20;
+      });
+      currentY -= 4;
+    }
+
+    drawDashedDivider(currentY);
     currentY += 24;
-  });
 
-  drawDashedDivider(currentY);
-  currentY += 25;
+    // Malayalam Report Footer
+    ctx.textAlign = 'center';
+    ctx.font = 'bold 16px "Gayathri", "Manjari", "Noto Sans Malayalam", "Malayalam Sangam MN", sans-serif';
+    ctx.fillText(data.footerPrimary || 'ഇത്തിപ്പൂരം റിപ്പോർട്ട്', width / 2, currentY);
+    currentY += 18;
 
-  // TOTAL
-  ctx.font = '900 20px monospace';
-  ctx.textAlign = 'left';
-  ctx.fillText('TOTAL:', 12, currentY);
-  ctx.textAlign = 'right';
-  ctx.fillText(`Rs.${data.grandTotal.toFixed(2)}`, width - 12, currentY);
-  currentY += 18;
+    ctx.font = '12px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+    ctx.fillText(data.footerSecondary || 'Generated at Vanchiyoor POS Terminal', width / 2, currentY);
+    currentY += 20;
 
-  drawDashedDivider(currentY);
-  currentY += 26;
+  } else {
+    // ==============================================================
+    // STANDARD CUSTOMER BILL LAYOUT (Matches on-screen preview 1:1)
+    // ==============================================================
+    ctx.textAlign = 'center';
+    ctx.font = '900 16px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+    ctx.fillText(data.title || 'BILL OF SUPPLY', width / 2, currentY);
+    currentY += 22;
 
-  // Malayalam Footer: നന്ദി, വീണ്ടും വരിക
-  ctx.textAlign = 'center';
-  ctx.font = 'bold 17px "Gayathri", "Manjari", "Noto Sans Malayalam", sans-serif';
-  ctx.fillText('നന്ദി, വീണ്ടും വരിക', width / 2, currentY);
-  currentY += 18;
+    // Metadata (Inv, Date, Table, Mode)
+    ctx.font = '14px monospace';
+    ctx.textAlign = 'left';
+    ctx.fillText(`Inv: ${data.invoiceNumber || '1001'}`, 14, currentY);
+    ctx.textAlign = 'right';
+    ctx.fillText(data.dateTime || new Date().toLocaleDateString('en-IN'), width - 14, currentY);
+    currentY += 18;
 
-  ctx.font = '13px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
-  ctx.fillText('Thank you! Visit again.', width / 2, currentY);
-  currentY += 20;
+    ctx.textAlign = 'left';
+    ctx.fillText(`Table: ${data.tableCode || 'T1'}`, 14, currentY);
+    ctx.textAlign = 'right';
+    ctx.fillText(`Mode: ${data.paymentMode || 'Cash'}`, width - 14, currentY);
+    currentY += 14;
 
-  // The rest of the canvas up to `height` provides the ~140px white margin so
-  // the bill feeds completely past the SEZNIK lid tear bar before cutting!
+    drawDashedDivider(currentY);
+    currentY += 22;
+
+    // Columns Header: ITEM, QTY, AMT
+    ctx.font = 'bold 14px monospace';
+    ctx.textAlign = 'left';
+    ctx.fillText('ITEM', 14, currentY);
+    ctx.textAlign = 'right';
+    ctx.fillText('QTY', 285, currentY);
+    ctx.fillText('AMT', width - 14, currentY);
+    currentY += 20;
+
+    // Items
+    ctx.font = '14px monospace';
+    (data.items || []).forEach((item) => {
+      ctx.textAlign = 'left';
+      const cleanName = item.name.length > 18 ? item.name.substring(0, 18) + '..' : item.name;
+      ctx.fillText(cleanName, 14, currentY);
+
+      ctx.textAlign = 'right';
+      ctx.fillText(String(item.qty), 285, currentY);
+      ctx.fillText(item.total.toFixed(2), width - 14, currentY);
+      currentY += 24;
+    });
+
+    drawDashedDivider(currentY);
+    currentY += 25;
+
+    // TOTAL
+    ctx.font = '900 20px monospace';
+    ctx.textAlign = 'left';
+    ctx.fillText('TOTAL:', 14, currentY);
+    ctx.textAlign = 'right';
+    ctx.fillText(`Rs.${data.grandTotal.toFixed(2)}`, width - 14, currentY);
+    currentY += 18;
+
+    drawDashedDivider(currentY);
+    currentY += 26;
+
+    // Malayalam Customer Greeting Footer: നന്ദി, വീണ്ടും വരിക
+    ctx.textAlign = 'center';
+    ctx.font = 'bold 17px "Gayathri", "Manjari", "Noto Sans Malayalam", "Malayalam Sangam MN", sans-serif';
+    ctx.fillText(data.footerPrimary || 'നന്ദി, വീണ്ടും വരിക', width / 2, currentY);
+    currentY += 18;
+
+    ctx.font = '13px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+    ctx.fillText(data.footerSecondary || 'Thank you! Visit again.', width / 2, currentY);
+    currentY += 20;
+  }
+
+  // The rest of the canvas up to `height` provides the ~140-160px white margin so
+  // the paper feeds completely past the SEZNIK lid tear bar before cutting!
 
   // Convert canvas pixel data to ESC/POS Raster Bit Image (GS v 0)
   const imageData = ctx.getImageData(0, 0, width, height);
