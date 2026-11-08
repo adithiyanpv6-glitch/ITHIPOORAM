@@ -4,6 +4,7 @@ import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { 
+  ChefHat, 
   Home, 
   UtensilsCrossed, 
   BarChart3, 
@@ -142,6 +143,18 @@ export default function MorePage() {
               <span>Reports</span>
             </div>
             <ChevronRight className="w-3.5 h-3.5 text-zinc-600" />
+          </Link>
+
+          {/* Kitchen Display (KDS) */}
+          <Link
+            href="/kitchen"
+            className="flex items-center justify-between px-3.5 py-3 rounded-2xl text-zinc-400 hover:bg-zinc-900 hover:text-white font-bold text-sm transition"
+          >
+            <div className="flex items-center space-x-3">
+              <ChefHat className="w-4 h-4 text-orange-400" />
+              <span>Kitchen (KDS)</span>
+            </div>
+            <span className="w-2 h-2 rounded-full bg-orange-500 animate-ping" />
           </Link>
 
           <Link

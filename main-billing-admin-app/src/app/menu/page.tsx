@@ -49,9 +49,12 @@ export default function MenuItemsPage() {
   const loadMenu = async () => {
     try {
       setLoading(true);
-      const res = await apiRequest('/menu');
-      if (res && Array.isArray(res.categories)) {
-        setCategories(res.categories);
+      const res = await fetch('/api/menu', { cache: 'no-store' });
+      if (res.ok) {
+        const cats = await res.json();
+        if (Array.isArray(cats)) {
+          setCategories(cats);
+        }
       }
     } catch (e) {
       console.error('Failed to load menu items:', e);
@@ -128,28 +131,20 @@ export default function MenuItemsPage() {
     };
 
     try {
-      // Append to category or create category
-      const targetCatName = newDish.category;
-      setCategories((prev) => {
-        const catIdx = prev.findIndex((c) => c.name.toLowerCase() === targetCatName.toLowerCase());
-        if (catIdx >= 0) {
-          const updated = [...prev];
-          updated[catIdx] = {
-            ...updated[catIdx],
-            items: [...(updated[catIdx].items || []), newDish],
-          };
-          return updated;
-        } else {
-          return [
-            ...prev,
-            {
-              id: `cat-${Date.now()}`,
-              name: targetCatName,
-              items: [newDish],
-            },
-          ];
-        }
+      await fetch('/api/menu', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: newDish.name,
+          malayalamName: newDish.malayalamName,
+          category: newDish.category,
+          pricePaise: newDish.pricePaise,
+          currentStock: newDish.quantity,
+          station: 'Main Kitchen',
+        }),
       });
+
+      await loadMenu();
 
       // Reset fields
       setItemName('');
@@ -170,20 +165,20 @@ export default function MenuItemsPage() {
     const priceNum = parseFloat(editPrice) || 0;
     const stockNum = parseInt(editStock, 10);
 
-    setCategories((prev) =>
-      prev.map((cat) => ({
-        ...cat,
-        items: (cat.items || []).map((it: any) =>
-          it.id === editDish.id
-            ? {
-                ...it,
-                pricePaise: Math.round(priceNum * 100),
-                quantity: isNaN(stockNum) ? it.quantity : stockNum,
-              }
-            : it
-        ),
-      }))
-    );
+    try {
+      await fetch('/api/menu', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          itemId: editDish.id,
+          pricePaise: Math.round(priceNum * 100),
+          currentStock: isNaN(stockNum) ? undefined : stockNum,
+        }),
+      });
+      await loadMenu();
+    } catch (e) {
+      console.error('Failed to update dish:', e);
+    }
     setEditDish(null);
   };
 
