@@ -1,3 +1,5 @@
+import fs from 'fs';
+import path from 'path';
 // Central Restaurant Database Engine for Ithi Pooram
 // Provides unified cross-app state for Billing POS, Kitchen Display, Customer Ordering, and Admin Analytics.
 
@@ -37,7 +39,7 @@ export interface RestaurantOrder {
   cgstPaise: number;
   sgstPaise: number;
   grandTotalPaise: number;
-  fulfillmentStatus: 'NEW' | 'ACCEPTED' | 'PREPARING' | 'READY' | 'SERVED' | 'CANCELLED';
+  fulfillmentStatus: 'PENDING_CONFIRMATION' | 'NEW' | 'ACCEPTED' | 'PREPARING' | 'READY' | 'SERVED' | 'CANCELLED';
   paymentStatus: 'UNPAID' | 'PAID' | 'REFUNDED';
   paymentMode?: 'CASH' | 'UPI' | 'CARD' | 'SPLIT_PAYMENT';
   paymentRef?: string;
@@ -144,6 +146,9 @@ declare global {
     loginSessions: StaffLoginSession[];
     staffActivityLogs: StaffActivityLog[];
     dailyMenuHistory?: any[];
+    currentBusinessDate?: string;
+    dailyOrderSequence?: number;
+    dailyInvoiceSequence?: number;
     historicalSales: Array<{
       invoiceNumber: string;
       orderCode: string;
@@ -258,7 +263,71 @@ if (!global.__ITHIPOORAM_DB__) {
   }
 }
 
+
+const DB_FILE_PATH = path.join(process.cwd(), 'data', 'restaurant_store.json');
+
+export function persistDb() {
+  try {
+    const dir = path.dirname(DB_FILE_PATH);
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true });
+    }
+    fs.writeFileSync(DB_FILE_PATH, JSON.stringify(db, null, 2), 'utf8');
+  } catch (err) {
+    console.error('[Database Engine] Failed to persist state to disk:', err);
+  }
+}
+
+export function loadDbFromDisk() {
+  try {
+    if (fs.existsSync(DB_FILE_PATH)) {
+      const raw = fs.readFileSync(DB_FILE_PATH, 'utf8');
+      const loaded = JSON.parse(raw);
+      if (loaded && Array.isArray(loaded.tables)) {
+        db.tables = loaded.tables;
+        db.orders = loaded.orders || [];
+        db.kitchenTickets = loaded.kitchenTickets || [];
+        db.menuCategories = loaded.menuCategories || [];
+        db.staffUsers = loaded.staffUsers || [];
+        db.loginSessions = loaded.loginSessions || [];
+        db.staffActivityLogs = loaded.staffActivityLogs || [];
+        if (loaded.historicalSales) db.historicalSales = loaded.historicalSales;
+        db.currentBusinessDate = loaded.currentBusinessDate;
+        db.dailyOrderSequence = loaded.dailyOrderSequence || 0;
+        db.dailyInvoiceSequence = loaded.dailyInvoiceSequence || 0;
+        console.log('[Database Engine] Successfully restored restaurant database from disk:', DB_FILE_PATH);
+      }
+    }
+  } catch (err) {
+    console.warn('[Database Engine] Could not load from disk, initialized empty:', err);
+  }
+}
+
+export function checkAndPerformDailyReset() {
+  const todayStr = new Date().toISOString().slice(0, 10);
+  if (!db.currentBusinessDate) {
+    db.currentBusinessDate = todayStr;
+    db.dailyOrderSequence = 0;
+    db.dailyInvoiceSequence = 0;
+    persistDb();
+  } else if (db.currentBusinessDate !== todayStr) {
+    console.log(`[Day Reset] Advancing business date from ${db.currentBusinessDate} to ${todayStr}`);
+    db.currentBusinessDate = todayStr;
+    db.dailyOrderSequence = 0;
+    db.dailyInvoiceSequence = 0;
+    // Clear active running tables
+    db.tables.forEach(t => {
+      t.status = 'AVAILABLE';
+      t.unpaidCount = 0;
+      t.unpaidTotalPaise = 0;
+    });
+    persistDb();
+  }
+}
+
 export const db = global.__ITHIPOORAM_DB__;
+loadDbFromDisk();
+checkAndPerformDailyReset();
 
 // Helper to recalculate table unpaid totals
 export function refreshTableSummaries() {
@@ -276,4 +345,5 @@ export function refreshTableSummaries() {
       table.status = 'AVAILABLE';
     }
   }
+  persistDb();
 }

@@ -5,7 +5,7 @@ import { pushLiveUpdateToGoogleWorkspace } from '@/lib/googleWorkspaceSync';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+  'Access-Control-Allow-Methods': 'GET, POST, PATCH, OPTIONS',
   'Access-Control-Allow-Headers': 'Content-Type, Authorization',
 };
 
@@ -171,6 +171,9 @@ export async function POST(request: Request) {
     const subtotalPaise = formattedItems.reduce((acc, it) => acc + it.lineTotalPaise, 0);
     const grandTotalPaise = subtotalPaise; // Net final price (GST included by Admin)
 
+    const isQrOrder = body.source === 'CUSTOMER_QR' || !body.source || body.source === 'QR';
+    const initialStatus = isQrOrder ? 'PENDING_CONFIRMATION' : 'ACCEPTED';
+
     const newOrder: RestaurantOrder = {
       id: `ord-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
       customerCode,
@@ -183,43 +186,45 @@ export async function POST(request: Request) {
       cgstPaise: 0,
       sgstPaise: 0,
       grandTotalPaise,
-      fulfillmentStatus: 'NEW',
+      fulfillmentStatus: initialStatus,
       paymentStatus: 'UNPAID',
       createdAt: new Date().toISOString(),
     };
 
     db.orders.unshift(newOrder);
 
-    // Group items into Kitchen Tickets by Station
-    const stationGroups: Record<string, typeof formattedItems> = {};
-    for (const it of formattedItems) {
-      if (!stationGroups[it.station]) stationGroups[it.station] = [];
-      stationGroups[it.station].push(it);
-    }
+    // Only generate kitchen tickets immediately if not pending confirmation
+    if (initialStatus !== 'PENDING_CONFIRMATION') {
+      const stationGroups: Record<string, typeof formattedItems> = {};
+      for (const it of formattedItems) {
+        if (!stationGroups[it.station]) stationGroups[it.station] = [];
+        stationGroups[it.station].push(it);
+      }
 
-    for (const [stn, stnItems] of Object.entries(stationGroups)) {
-      const stationName = stn as 'MAIN_KITCHEN' | 'SEAFOOD_FRY' | 'BEVERAGE_COUNTER';
-      const label = stationName === 'SEAFOOD_FRY' ? 'Tawa & Fry' : stationName === 'BEVERAGE_COUNTER' ? 'Beverages & Sweets' : 'Main Meals & Curries';
+      for (const [stn, stnItems] of Object.entries(stationGroups)) {
+        const stationName = stn as 'MAIN_KITCHEN' | 'SEAFOOD_FRY' | 'BEVERAGE_COUNTER';
+        const label = stationName === 'SEAFOOD_FRY' ? 'Tawa & Fry' : stationName === 'BEVERAGE_COUNTER' ? 'Beverages & Sweets' : 'Main Meals & Curries';
 
-      const ticket: KitchenTicket = {
-        id: `kt-${Date.now()}-${Math.random().toString(36).substring(2, 5)}`,
-        orderId: newOrder.id,
-        customerCode: newOrder.customerCode,
-        tableCode: newOrder.tableCode,
-        tableName: newOrder.tableName,
-        station: stationName,
-        stationLabel: label,
-        status: 'NEW',
-        createdAtMs: Date.now(),
-        tableNotes: notes,
-        items: stnItems.map((it) => ({
-          id: it.id,
-          name: it.itemName,
-          qty: it.quantity,
-          notes: it.notes,
-        })),
-      };
-      db.kitchenTickets.unshift(ticket);
+        const ticket: KitchenTicket = {
+          id: `kt-${Date.now()}-${Math.random().toString(36).substring(2, 5)}`,
+          orderId: newOrder.id,
+          customerCode: newOrder.customerCode,
+          tableCode: newOrder.tableCode,
+          tableName: newOrder.tableName,
+          station: stationName,
+          stationLabel: label,
+          status: 'NEW',
+          createdAtMs: Date.now(),
+          tableNotes: notes,
+          items: stnItems.map((it) => ({
+            id: it.id,
+            name: it.itemName,
+            qty: it.quantity,
+            notes: it.notes,
+          })),
+        };
+        db.kitchenTickets.unshift(ticket);
+      }
     }
 
     refreshTableSummaries();
@@ -243,5 +248,92 @@ export async function POST(request: Request) {
     return NextResponse.json({ success: true, order: newOrder, isAddOn: false }, { status: 201, headers: corsHeaders });
   } catch (err: any) {
     return NextResponse.json({ error: err.message || 'Failed to place order' }, { status: 500, headers: corsHeaders });
+  }
+}
+
+export async function PATCH(request: Request) {
+  try {
+    const body = await request.json();
+    const { orderId, action, cashierName } = body;
+
+    const order = db.orders.find((o) => o.id === orderId);
+    if (!order) {
+      return NextResponse.json({ error: 'Order not found' }, { status: 404, headers: corsHeaders });
+    }
+
+    if (action === 'CONFIRM') {
+      order.fulfillmentStatus = 'ACCEPTED';
+      order.cashierName = cashierName || 'Cashier Counter';
+
+      // Now create kitchen tickets for the KDS
+      const stationGroups: Record<string, typeof order.items> = {};
+      for (const it of order.items) {
+        if (!stationGroups[it.station]) stationGroups[it.station] = [];
+        stationGroups[it.station].push(it);
+      }
+
+      for (const [stn, stnItems] of Object.entries(stationGroups)) {
+        const stationName = stn as 'MAIN_KITCHEN' | 'SEAFOOD_FRY' | 'BEVERAGE_COUNTER';
+        const label = stationName === 'SEAFOOD_FRY' ? 'Tawa & Fry' : stationName === 'BEVERAGE_COUNTER' ? 'Beverages & Sweets' : 'Main Meals & Curries';
+
+        const ticket: KitchenTicket = {
+          id: `kt-${Date.now()}-${Math.random().toString(36).substring(2, 5)}`,
+          orderId: order.id,
+          customerCode: order.customerCode,
+          tableCode: order.tableCode,
+          tableName: order.tableName,
+          station: stationName,
+          stationLabel: label,
+          status: 'NEW',
+          createdAtMs: Date.now(),
+          items: stnItems.map((it) => ({
+            id: it.id,
+            name: it.itemName,
+            qty: it.quantity,
+            notes: it.notes,
+          })),
+        };
+        db.kitchenTickets.unshift(ticket);
+      }
+
+      refreshTableSummaries();
+      db.auditLogs.unshift({
+        id: `aud-${Date.now()}`,
+        timestamp: new Date().toISOString(),
+        actionType: 'QR_ORDER_CONFIRMED',
+        module: 'ORDER',
+        usernameSnapshot: cashierName || 'Cashier',
+        orderCode: order.customerCode,
+        tableCode: order.tableCode,
+        reason: 'Customer QR order confirmed at table and fired to KDS',
+        success: true,
+      });
+
+      return NextResponse.json({ success: true, order }, { headers: corsHeaders });
+    }
+
+    if (action === 'REJECT') {
+      order.fulfillmentStatus = 'CANCELLED';
+      order.paymentStatus = 'REFUNDED';
+      refreshTableSummaries();
+
+      db.auditLogs.unshift({
+        id: `aud-${Date.now()}`,
+        timestamp: new Date().toISOString(),
+        actionType: 'QR_ORDER_REJECTED_FAKE',
+        module: 'ORDER',
+        usernameSnapshot: cashierName || 'Cashier',
+        orderCode: order.customerCode,
+        tableCode: order.tableCode,
+        reason: 'Order rejected by cashier (fake/unoccupied table prevention)',
+        success: true,
+      });
+
+      return NextResponse.json({ success: true, order, message: 'Order rejected successfully' }, { headers: corsHeaders });
+    }
+
+    return NextResponse.json({ error: 'Invalid action' }, { status: 400, headers: corsHeaders });
+  } catch (err: any) {
+    return NextResponse.json({ error: err.message || 'Failed to update order' }, { status: 500, headers: corsHeaders });
   }
 }
