@@ -96,6 +96,42 @@ export default function MorePage() {
     { id: 'rep-10', date: '30 Oct 2026', shift: 'Night Z-Report', totalSales: 25100, orders: 45, cash: 13500, upi: 11600, file: 'Z_Report_2026_10_30.xlsx' },
   ]);
 
+  // Daily Reports State (5 Essential Daily Reports)
+  const [activeReportSubTab, setActiveReportSubTab] = useState<'sales' | 'menu' | 'tables' | 'staff' | 'billing'>('sales');
+  const [dailyReports, setDailyReports] = useState<any | null>(null);
+  const [loadingDailyReports, setLoadingDailyReports] = useState(false);
+
+  const fetchDailyReports = async () => {
+    try {
+      setLoadingDailyReports(true);
+      const res = await fetch('/api/admin/daily-reports');
+      if (res.ok) {
+        const d = await res.json();
+        setDailyReports(d.reports);
+      }
+    } catch (e) {
+      console.error('Failed to load daily reports:', e);
+    } finally {
+      setLoadingDailyReports(false);
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab === 'reports') {
+      fetchDailyReports();
+    }
+  }, [activeTab]);
+
+  const handleDownloadFullDailyWorkbook = () => {
+    const today = new Date().toISOString().slice(0, 10);
+    const link = document.createElement('a');
+    link.href = `/api/admin/daily-reports?format=excel&date=${today}`;
+    link.download = `IthiPooram_Daily_Reports_${today}.xls`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   useEffect(() => {
     const user = getCurrentUser();
     if (!user) {
@@ -236,12 +272,13 @@ export default function MorePage() {
 
       if (res.ok) {
         setResetSuccess(true);
+        setStaffList([]);
         if (typeof window !== 'undefined') {
           localStorage.clear();
         }
         setTimeout(() => {
           router.replace('/login');
-        }, 2000);
+        }, 1500);
       } else {
         const d = await res.json();
         setResetError(d.error || 'Factory reset failed');
@@ -879,42 +916,307 @@ export default function MorePage() {
             )}
 
             {/* ========================================================== */}
-            {/* 3. REPORTS & ANALYTICS TAB                                 */}
+            {/* 3. REPORTS & ANALYTICS TAB (5 ESSENTIAL DAILY REPORTS)     */}
             {/* ========================================================== */}
             {activeTab === 'reports' && (
-              <div className="max-w-3xl space-y-6">
-                <div className="bg-white rounded-3xl p-6 border border-zinc-200 shadow-xs space-y-4">
-                  <div className="flex items-center justify-between pb-3 border-b border-zinc-100">
+              <div className="max-w-5xl space-y-6">
+                <div className="bg-white rounded-3xl p-6 border border-zinc-200 shadow-xs space-y-5">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-zinc-100">
                     <div>
-                      <h3 className="text-base font-black text-black">Daily Audits &amp; Business Reports</h3>
-                      <p className="text-xs text-zinc-500">Financial audits, cash vs UPI breakdown, dish requisition &amp; Z-reports</p>
+                      <h3 className="text-base sm:text-lg font-black text-black">Daily Business Audits &amp; Compliance Reports</h3>
+                      <p className="text-xs text-zinc-500 mt-0.5">
+                        Saved automatically datewise into <span className="font-mono text-black font-bold">{phoneStoragePath}</span>
+                      </p>
                     </div>
-                    <Link
-                      href="/reports"
-                      className="px-4 py-2 rounded-2xl bg-black text-white font-black text-xs hover:bg-zinc-800 transition inline-flex items-center space-x-1"
+
+                    <button
+                      onClick={handleDownloadFullDailyWorkbook}
+                      className="px-4 py-2.5 rounded-2xl bg-black hover:bg-zinc-800 text-white font-black text-xs flex items-center space-x-2 transition shadow-xs cursor-pointer shrink-0"
                     >
-                      <span>Open Full Reports</span>
-                      <ChevronRight className="w-3.5 h-3.5" />
-                    </Link>
+                      <FileSpreadsheet className="w-4 h-4 text-emerald-400" />
+                      <span>Export Today's 5-in-1 Daily Folder (.xls)</span>
+                    </button>
                   </div>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                    <div className="p-4 bg-zinc-50 rounded-2xl border border-zinc-200">
-                      <span className="text-[10px] font-extrabold uppercase text-zinc-400 block">End of Shift</span>
-                      <span className="text-base font-black text-black">Z-Report Ready</span>
-                      <p className="text-[11px] text-zinc-500 mt-1">Auto reconciles cash drawer &amp; UPI payouts.</p>
-                    </div>
-                    <div className="p-4 bg-zinc-50 rounded-2xl border border-zinc-200">
-                      <span className="text-[10px] font-extrabold uppercase text-zinc-400 block">Item Breakdown</span>
-                      <span className="text-base font-black text-black">Kitchen Requisition</span>
-                      <p className="text-[11px] text-zinc-500 mt-1">Tracks Porotta, Biryani, Fish Fry sales.</p>
-                    </div>
-                    <div className="p-4 bg-zinc-50 rounded-2xl border border-zinc-200">
-                      <span className="text-[10px] font-extrabold uppercase text-zinc-400 block">Tax / GST Summary</span>
-                      <span className="text-base font-black text-black">Multi-Sheet Excel</span>
-                      <p className="text-[11px] text-zinc-500 mt-1">Stored daily inside phone storage.</p>
-                    </div>
+                  {/* 5 Daily Reports Navigation Pills */}
+                  <div className="flex items-center space-x-1.5 overflow-x-auto pb-1 border-b border-zinc-100">
+                    <button
+                      onClick={() => setActiveReportSubTab('sales')}
+                      className={`px-3.5 py-2 rounded-xl text-xs font-black transition cursor-pointer shrink-0 ${
+                        activeReportSubTab === 'sales'
+                          ? 'bg-black text-white shadow-xs'
+                          : 'bg-zinc-100 text-zinc-700 hover:bg-zinc-200'
+                      }`}
+                    >
+                      1. Total Sales of the Day
+                    </button>
+                    <button
+                      onClick={() => setActiveReportSubTab('menu')}
+                      className={`px-3.5 py-2 rounded-xl text-xs font-black transition cursor-pointer shrink-0 ${
+                        activeReportSubTab === 'menu'
+                          ? 'bg-black text-white shadow-xs'
+                          : 'bg-zinc-100 text-zinc-700 hover:bg-zinc-200'
+                      }`}
+                    >
+                      2. Menu &amp; Remaining Stock
+                    </button>
+                    <button
+                      onClick={() => setActiveReportSubTab('tables')}
+                      className={`px-3.5 py-2 rounded-xl text-xs font-black transition cursor-pointer shrink-0 ${
+                        activeReportSubTab === 'tables'
+                          ? 'bg-black text-white shadow-xs'
+                          : 'bg-zinc-100 text-zinc-700 hover:bg-zinc-200'
+                      }`}
+                    >
+                      3. Table-wise Revenue
+                    </button>
+                    <button
+                      onClick={() => setActiveReportSubTab('staff')}
+                      className={`px-3.5 py-2 rounded-xl text-xs font-black transition cursor-pointer shrink-0 ${
+                        activeReportSubTab === 'staff'
+                          ? 'bg-black text-white shadow-xs'
+                          : 'bg-zinc-100 text-zinc-700 hover:bg-zinc-200'
+                      }`}
+                    >
+                      4. Staff Login Audit
+                    </button>
+                    <button
+                      onClick={() => setActiveReportSubTab('billing')}
+                      className={`px-3.5 py-2 rounded-xl text-xs font-black transition cursor-pointer shrink-0 ${
+                        activeReportSubTab === 'billing'
+                          ? 'bg-black text-white shadow-xs'
+                          : 'bg-zinc-100 text-zinc-700 hover:bg-zinc-200'
+                      }`}
+                    >
+                      5. Billing Authorization
+                    </button>
                   </div>
+
+                  {/* SUB-REPORT 1: TOTAL SALES OF THE DAY */}
+                  {activeReportSubTab === 'sales' && (
+                    <div className="space-y-4">
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                        <div className="p-4 bg-zinc-50 rounded-2xl border border-zinc-200">
+                          <span className="text-[10px] font-extrabold uppercase text-zinc-400 block">Gross Sales</span>
+                          <span className="text-lg font-black text-black">
+                            ₹{(dailyReports?.totalSales?.grossSalesRupees || 0).toLocaleString('en-IN')}
+                          </span>
+                        </div>
+                        <div className="p-4 bg-zinc-50 rounded-2xl border border-zinc-200">
+                          <span className="text-[10px] font-extrabold uppercase text-zinc-400 block">Bills Settled</span>
+                          <span className="text-lg font-black text-black">
+                            {dailyReports?.totalSales?.totalBillsSettled || 0}
+                          </span>
+                        </div>
+                        <div className="p-4 bg-zinc-50 rounded-2xl border border-zinc-200">
+                          <span className="text-[10px] font-extrabold uppercase text-zinc-400 block">Cash Collected</span>
+                          <span className="text-lg font-black text-emerald-700">
+                            ₹{(dailyReports?.totalSales?.cashRupees || 0).toLocaleString('en-IN')}
+                          </span>
+                        </div>
+                        <div className="p-4 bg-zinc-50 rounded-2xl border border-zinc-200">
+                          <span className="text-[10px] font-extrabold uppercase text-zinc-400 block">UPI Transfers</span>
+                          <span className="text-lg font-black text-blue-700">
+                            ₹{(dailyReports?.totalSales?.upiRupees || 0).toLocaleString('en-IN')}
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="p-4 bg-zinc-50 rounded-2xl border border-zinc-200 space-y-2 text-xs font-semibold">
+                        <div className="flex justify-between">
+                          <span className="text-zinc-600">Average Order Value (AOV):</span>
+                          <span className="font-mono font-bold text-black">₹{dailyReports?.totalSales?.aovRupees || 0}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-zinc-600">CGST (2.5% Tax):</span>
+                          <span className="font-mono font-bold text-black">₹{dailyReports?.totalSales?.cgstRupees || 0}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-zinc-600">SGST (2.5% Tax):</span>
+                          <span className="font-mono font-bold text-black">₹{dailyReports?.totalSales?.sgstRupees || 0}</span>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* SUB-REPORT 2: MENU OF THE DAY & REMAINING STOCK */}
+                  {activeReportSubTab === 'menu' && (
+                    <div className="space-y-3">
+                      <p className="text-xs text-zinc-500 font-semibold">
+                        Quantity sold today, active prices, and remaining available kitchen stock.
+                      </p>
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-left text-xs text-zinc-700">
+                          <thead className="bg-zinc-50 text-[10px] font-extrabold uppercase tracking-wider text-zinc-500 border-y border-zinc-200">
+                            <tr>
+                              <th className="py-2.5 px-3">Dish Name</th>
+                              <th className="py-2.5 px-3">Category</th>
+                              <th className="py-2.5 px-3 text-right">Price</th>
+                              <th className="py-2.5 px-3 text-right">Sold Today</th>
+                              <th className="py-2.5 px-3 text-right">Remaining Stock</th>
+                              <th className="py-2.5 px-3 text-right">Total Revenue</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-zinc-100">
+                            {(!dailyReports?.menuAndRemainingStock || dailyReports.menuAndRemainingStock.length === 0) ? (
+                              <tr>
+                                <td colSpan={6} className="py-6 text-center text-zinc-400 font-semibold">
+                                  No dishes logged for today yet.
+                                </td>
+                              </tr>
+                            ) : (
+                              dailyReports.menuAndRemainingStock.map((it: any, idx: number) => (
+                                <tr key={it.name || idx} className="hover:bg-zinc-50/70">
+                                  <td className="py-2.5 px-3 font-bold text-zinc-900">
+                                    {it.name}
+                                    {it.malayalamName && <span className="block text-[10px] text-zinc-400">{it.malayalamName}</span>}
+                                  </td>
+                                  <td className="py-2.5 px-3 text-zinc-500">{it.category}</td>
+                                  <td className="py-2.5 px-3 font-mono text-right font-bold">₹{it.priceRupees}</td>
+                                  <td className="py-2.5 px-3 font-mono text-right font-black text-black">{it.soldQty}</td>
+                                  <td className="py-2.5 px-3 font-mono text-right font-bold text-emerald-700">{it.currentStock}</td>
+                                  <td className="py-2.5 px-3 font-mono text-right font-black text-black">₹{it.revenueRupees}</td>
+                                </tr>
+                              ))
+                            )}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* SUB-REPORT 3: DAILY TABLE-WISE ORDER & REVENUE */}
+                  {activeReportSubTab === 'tables' && (
+                    <div className="space-y-3">
+                      <p className="text-xs text-zinc-500 font-semibold">
+                        Total dining checks served and revenue collected per table today.
+                      </p>
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-left text-xs text-zinc-700">
+                          <thead className="bg-zinc-50 text-[10px] font-extrabold uppercase tracking-wider text-zinc-500 border-y border-zinc-200">
+                            <tr>
+                              <th className="py-2.5 px-3">Table Code</th>
+                              <th className="py-2.5 px-3">Dining Area / Name</th>
+                              <th className="py-2.5 px-3 text-right">Orders Served</th>
+                              <th className="py-2.5 px-3 text-right">Total Revenue</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-zinc-100">
+                            {(!dailyReports?.tablewiseRevenue || dailyReports.tablewiseRevenue.length === 0) ? (
+                              <tr>
+                                <td colSpan={4} className="py-6 text-center text-zinc-400 font-semibold">
+                                  No dining tables settled today yet.
+                                </td>
+                              </tr>
+                            ) : (
+                              dailyReports.tablewiseRevenue.map((t: any) => (
+                                <tr key={t.tableCode} className="hover:bg-zinc-50/70">
+                                  <td className="py-2.5 px-3 font-mono font-black text-black">{t.tableCode}</td>
+                                  <td className="py-2.5 px-3 font-semibold text-zinc-700">{t.displayName}</td>
+                                  <td className="py-2.5 px-3 font-mono text-right font-bold">{t.ordersCount}</td>
+                                  <td className="py-2.5 px-3 font-mono text-right font-black text-black">₹{t.totalRevenueRupees}</td>
+                                </tr>
+                              ))
+                            )}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* SUB-REPORT 4: STAFF LOGIN AUDIT */}
+                  {activeReportSubTab === 'staff' && (
+                    <div className="space-y-3">
+                      <p className="text-xs text-zinc-500 font-semibold">
+                        Staff shift logins, operational stations, and session active states.
+                      </p>
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-left text-xs text-zinc-700">
+                          <thead className="bg-zinc-50 text-[10px] font-extrabold uppercase tracking-wider text-zinc-500 border-y border-zinc-200">
+                            <tr>
+                              <th className="py-2.5 px-3">Staff Member</th>
+                              <th className="py-2.5 px-3">Role</th>
+                              <th className="py-2.5 px-3">Station</th>
+                              <th className="py-2.5 px-3">Login Time</th>
+                              <th className="py-2.5 px-3">Status</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-zinc-100">
+                            {(!dailyReports?.staffLoginAudit || dailyReports.staffLoginAudit.length === 0) ? (
+                              <tr>
+                                <td colSpan={5} className="py-6 text-center text-zinc-400 font-semibold">
+                                  No staff login sessions recorded yet today.
+                                </td>
+                              </tr>
+                            ) : (
+                              dailyReports.staffLoginAudit.map((s: any, idx: number) => (
+                                <tr key={s.sessionId || idx} className="hover:bg-zinc-50/70">
+                                  <td className="py-2.5 px-3 font-bold text-black">{s.staffName}</td>
+                                  <td className="py-2.5 px-3 font-mono text-xs">{s.role}</td>
+                                  <td className="py-2.5 px-3 text-zinc-600">{s.station}</td>
+                                  <td className="py-2.5 px-3 font-mono">{s.loginTime || s.loginDate}</td>
+                                  <td className="py-2.5 px-3">
+                                    <span className="inline-flex items-center space-x-1 text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full">
+                                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                                      <span>{s.status || 'Active'}</span>
+                                    </span>
+                                  </td>
+                                </tr>
+                              ))
+                            )}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* SUB-REPORT 5: BILLING AUTHORIZATION & PRINT REPORT */}
+                  {activeReportSubTab === 'billing' && (
+                    <div className="space-y-3">
+                      <p className="text-xs text-zinc-500 font-semibold">
+                        Verification of which registered staff member authorized and printed each bill.
+                      </p>
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-left text-xs text-zinc-700">
+                          <thead className="bg-zinc-50 text-[10px] font-extrabold uppercase tracking-wider text-zinc-500 border-y border-zinc-200">
+                            <tr>
+                              <th className="py-2.5 px-3">Bill Number</th>
+                              <th className="py-2.5 px-3">Table</th>
+                              <th className="py-2.5 px-3 text-right">Amount</th>
+                              <th className="py-2.5 px-3">Payment Mode</th>
+                              <th className="py-2.5 px-3">Authorized &amp; Printed By</th>
+                              <th className="py-2.5 px-3">Timestamp</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-zinc-100">
+                            {(!dailyReports?.billingAuthorization || dailyReports.billingAuthorization.length === 0) ? (
+                              <tr>
+                                <td colSpan={6} className="py-6 text-center text-zinc-400 font-semibold">
+                                  No bills settled today yet.
+                                </td>
+                              </tr>
+                            ) : (
+                              dailyReports.billingAuthorization.map((b: any, idx: number) => (
+                                <tr key={b.billNumber || idx} className="hover:bg-zinc-50/70">
+                                  <td className="py-2.5 px-3 font-mono font-bold text-black">{b.billNumber}</td>
+                                  <td className="py-2.5 px-3 font-mono font-bold text-zinc-800">{b.tableCode}</td>
+                                  <td className="py-2.5 px-3 font-mono text-right font-black text-black">₹{b.grandTotalRupees}</td>
+                                  <td className="py-2.5 px-3 font-semibold text-zinc-700">{b.paymentMode}</td>
+                                  <td className="py-2.5 px-3 font-bold text-indigo-900 bg-indigo-50/50 rounded-lg">
+                                    {b.authorizedByStaffName}
+                                  </td>
+                                  <td className="py-2.5 px-3 font-mono text-[11px] text-zinc-500">
+                                    {new Date(b.printedAt).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}
+                                  </td>
+                                </tr>
+                              ))
+                            )}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  )}
+
                 </div>
               </div>
             )}
@@ -1030,7 +1332,7 @@ export default function MorePage() {
                     <div>
                       <h3 className="text-lg font-black text-red-950">Factory Reset / Shop Handover Wipe</h3>
                       <p className="text-xs text-red-800 font-semibold mt-1 leading-relaxed">
-                        This action is intended when you hand over this software to the restaurant store. It wipes all test orders, test sales revenue, active bills, and resets all tables to 0 so the restaurant owner receives a 100% brand new, virgin POS ledger.
+                        This action is intended for handover to the shop. It wipes the entire staff database (no staffs), clears all test sales and orders, and resets all menu and tables to 0 so the restaurant owner starts with a brand new app showing full zeros everywhere.
                       </p>
                     </div>
                   </div>

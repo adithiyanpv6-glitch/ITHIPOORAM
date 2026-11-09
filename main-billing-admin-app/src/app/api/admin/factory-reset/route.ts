@@ -16,7 +16,7 @@ export async function OPTIONS() {
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { adminPin, resetMode } = body;
+    const { adminPin } = body;
 
     // Strict Admin Security Verification
     if (!adminPin || adminPin !== '5566') {
@@ -26,40 +26,37 @@ export async function POST(request: Request) {
       );
     }
 
-    // 1. Wipe all test sales and customer transactions
+    // Complete Clean Zero-State Wipe (all tables, menu, staff, orders, sessions set to 0)
     db.orders = [];
     db.kitchenTickets = [];
     db.auditLogs = [];
-
-    // 2. Reset active tables to clean AVAILABLE state
-    if (resetMode === 'FULL_WIPE') {
-      db.tables = [];
-      db.menuCategories = [];
-    } else {
-      // Standard handover reset: clean tables, 0 orders
-      db.tables = db.tables.map((t, idx) => ({
-        ...t,
-        status: 'AVAILABLE',
-        unpaidCount: 0,
-        unpaidTotalPaise: 0,
-      }));
-    }
+    db.tables = [];
+    db.menuCategories = [];
+    db.staffUsers = [];
+    db.loginSessions = [];
+    db.staffActivityLogs = [];
+    db.dailyMenuHistory = [];
+    db.historicalSales = [];
 
     refreshTableSummaries();
 
-    // 3. Persist clean zero-state ledger to disk
+    // Persist absolute zero-state ledger to disk
     try {
       const storeFile = path.join(process.cwd(), 'tmp', 'restaurant_store.json');
       fs.writeFileSync(
         storeFile,
         JSON.stringify(
           {
-            tables: db.tables,
-            orders: db.orders,
-            kitchenTickets: db.kitchenTickets,
-            menuCategories: db.menuCategories,
-            auditLogs: db.auditLogs,
-            staffUsers: db.staffUsers,
+            tables: [],
+            orders: [],
+            kitchenTickets: [],
+            menuCategories: [],
+            staffUsers: [],
+            loginSessions: [],
+            staffActivityLogs: [],
+            auditLogs: [],
+            dailyMenuHistory: [],
+            historicalSales: [],
           },
           null,
           2
@@ -73,16 +70,22 @@ export async function POST(request: Request) {
     return NextResponse.json(
       {
         success: true,
-        message: 'Factory reset completed successfully. The application is now at a fresh, clean zero-state ready for restaurant handover.',
+        message: 'Factory reset completed. All staff, menu, tables, and orders wiped to 0. System is in pristine initial state.',
         kpis: {
           grossSalesPaise: 0,
           paidOrdersCount: 0,
           runningOrdersCount: 0,
+          staffCount: 0,
+          tablesCount: 0,
+          menuCount: 0,
         },
       },
       { headers: corsHeaders }
     );
   } catch (err: any) {
-    return NextResponse.json({ error: err.message || 'Factory reset failed' }, { status: 500, headers: corsHeaders });
+    return NextResponse.json(
+      { error: 'Factory reset failed: ' + (err.message || 'Server error') },
+      { status: 500, headers: corsHeaders }
+    );
   }
 }

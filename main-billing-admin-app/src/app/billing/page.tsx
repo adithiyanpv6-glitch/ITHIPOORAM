@@ -56,11 +56,18 @@ export default function BillingTerminalPage() {
   const [splitCashPaise, setSplitCashPaise] = useState<number>(0);
   const [splitUpiPaise, setSplitUpiPaise] = useState<number>(0);
 
-  // PIN re-auth modal
+  // PIN re-auth modal & Staff Authorization
   const [isPinModalOpen, setIsPinModalOpen] = useState(false);
   const [enteredPin, setEnteredPin] = useState('');
   const [pinError, setPinError] = useState<string | null>(null);
   const [isSubmittingPayment, setIsSubmittingPayment] = useState(false);
+  const [selectedStaffName, setSelectedStaffName] = useState<string>('Counter Cashier');
+  const [staffOptions, setStaffOptions] = useState<Array<{ name: string; role: string }>>([
+    { name: 'Counter Cashier', role: 'CASHIER' },
+    { name: 'Floor Manager', role: 'MANAGER' },
+    { name: 'Main Admin', role: 'MAIN_ADMIN' },
+    { name: 'Dining Waiter', role: 'WAITER' },
+  ]);
 
   // Receipt Print modal
   const [printedInvoice, setPrintedInvoice] = useState<any | null>(null);
@@ -232,6 +239,7 @@ export default function BillingTerminalPage() {
         paymentMode,
         referenceNumber: referenceNumber ? referenceNumber.trim() : undefined,
         cashierPin: enteredPin,
+        cashierName: selectedStaffName,
       };
 
       if (paymentMode === 'SPLIT_PAYMENT') {
@@ -705,9 +713,33 @@ export default function BillingTerminalPage() {
             </div>
             <h3 className="text-base font-bold text-slatepos-950">Cashier Authorization</h3>
             <p className="text-xs text-slatepos-500 mt-0.5">
-              Enter your personal PIN to authorize settlement for{' '}
+              Select authorized staff and enter PIN for{' '}
               <strong className="text-slatepos-900 font-mono">{selectedOrder?.customerCode}</strong>.
             </p>
+
+            {/* Registered Staff Authorization Picker */}
+            <div className="mt-3 text-left">
+              <label className="block text-[10px] font-black text-slatepos-700 uppercase tracking-wider mb-1.5">
+                Authorizing &amp; Printing Staff:
+              </label>
+              <div className="grid grid-cols-2 gap-1.5">
+                {staffOptions.map((st) => (
+                  <button
+                    key={st.name}
+                    type="button"
+                    onClick={() => setSelectedStaffName(st.name)}
+                    className={`p-2 rounded-xl text-xs font-bold text-center border transition cursor-pointer ${
+                      selectedStaffName === st.name
+                        ? 'bg-slatepos-900 text-white border-slatepos-900 shadow-xs'
+                        : 'bg-parchment-50 border-parchment-200 text-slatepos-700 hover:bg-parchment-100'
+                    }`}
+                  >
+                    <span className="block truncate">{st.name}</span>
+                    <span className="text-[9px] opacity-75 font-mono">{st.role}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
 
             {pinError && (
               <div className="mt-3 p-2.5 rounded-xl bg-red-50 border border-red-200 text-xs text-red-700">

@@ -247,17 +247,6 @@ export default function MenuItemsPage() {
             <span>Items</span>
           </Link>
 
-          <Link
-            href="/reports"
-            className="flex items-center justify-between px-3.5 py-3 rounded-2xl text-zinc-400 hover:bg-zinc-900 hover:text-white font-bold text-sm transition"
-          >
-            <div className="flex items-center space-x-3">
-              <BarChart3 className="w-4 h-4" />
-              <span>Reports</span>
-            </div>
-            <ChevronRight className="w-3.5 h-3.5 text-zinc-600" />
-          </Link>
-
           {/* Kitchen Display (KDS) */}
           <Link
             href="/kitchen"
@@ -352,10 +341,6 @@ export default function MenuItemsPage() {
           <Link href="/menu" onClick={() => setIsMobileMenuOpen(false)} className="flex items-center space-x-3 px-3 py-2.5 rounded-xl bg-white text-black font-black text-sm">
             <UtensilsCrossed className="w-4 h-4" />
             <span>Items</span>
-          </Link>
-          <Link href="/reports" onClick={() => setIsMobileMenuOpen(false)} className="flex items-center space-x-3 px-3 py-2.5 rounded-xl text-zinc-300 font-bold text-sm">
-            <BarChart3 className="w-4 h-4" />
-            <span>Reports</span>
           </Link>
           <Link href="/kitchen" onClick={() => setIsMobileMenuOpen(false)} className="flex items-center space-x-3 px-3 py-2.5 rounded-xl text-zinc-300 font-bold text-sm">
             <ChefHat className="w-4 h-4 text-orange-400" />

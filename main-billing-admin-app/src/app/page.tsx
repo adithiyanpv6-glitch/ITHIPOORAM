@@ -415,19 +415,7 @@ export default function RootHomePage() {
             <span>Items</span>
           </Link>
 
-          {/* 4. Reports */}
-          <Link
-            href="/reports"
-            className="flex items-center justify-between px-3.5 py-3 rounded-2xl text-zinc-400 hover:bg-zinc-900 hover:text-white font-bold text-sm transition"
-          >
-            <div className="flex items-center space-x-3">
-              <BarChart3 className="w-4 h-4" />
-              <span>Reports</span>
-            </div>
-            <ChevronRight className="w-3.5 h-3.5 text-zinc-600" />
-          </Link>
-
-          {/* 5. Kitchen Display (KDS) */}
+          {/* Kitchen Display (KDS) */}
           <Link
             href="/kitchen"
             className="flex items-center justify-between px-3.5 py-3 rounded-2xl text-zinc-400 hover:bg-zinc-900 hover:text-white font-bold text-sm transition"
@@ -546,12 +534,12 @@ export default function RootHomePage() {
             <span>Items</span>
           </Link>
           <Link
-            href="/reports"
+            href="/kitchen"
             onClick={() => setIsMobileMenuOpen(false)}
             className="flex items-center space-x-3 px-3 py-2.5 rounded-xl text-zinc-300 hover:bg-zinc-900 font-bold text-sm"
           >
-            <BarChart3 className="w-4 h-4" />
-            <span>Reports</span>
+            <ChefHat className="w-4 h-4 text-orange-400" />
+            <span>Kitchen (KDS)</span>
           </Link>
           <Link
             href="/users"

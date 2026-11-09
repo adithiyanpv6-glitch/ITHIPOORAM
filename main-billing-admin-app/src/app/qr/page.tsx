@@ -65,14 +65,18 @@ export default function TablesManagementPage() {
   const [selectedTableForQr, setSelectedTableForQr] = useState<any | null>(null);
   const [generatedQrDataUrl, setGeneratedQrDataUrl] = useState<string>('');
 
-  // Customer Base URL for Table QRs
-  const [customerBaseUrl, setCustomerBaseUrl] = useState<string>('');
+  // Customer Base URL for Table QRs (Public HTTPS for Non-WiFi 4G/5G mobile customers)
+  const [customerBaseUrl, setCustomerBaseUrl] = useState<string>('https://admin-app-ithipooram.vercel.app');
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      const origin = window.location.origin;
-      // If deployed or local, customer url routes to root or dedicated customer app
-      setCustomerBaseUrl(origin);
+      const saved = localStorage.getItem('ithipooram_customer_qr_base_url');
+      if (saved) {
+        setCustomerBaseUrl(saved);
+      } else {
+        const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+        setCustomerBaseUrl(isLocal ? 'https://admin-app-ithipooram.vercel.app' : window.location.origin);
+      }
     }
   }, []);
 
@@ -426,17 +430,6 @@ export default function TablesManagementPage() {
             <span>Items</span>
           </Link>
 
-          <Link
-            href="/reports"
-            className="flex items-center justify-between px-3.5 py-3 rounded-2xl text-zinc-400 hover:bg-zinc-900 hover:text-white font-bold text-sm transition"
-          >
-            <div className="flex items-center space-x-3">
-              <BarChart3 className="w-4 h-4" />
-              <span>Reports</span>
-            </div>
-            <ChevronRight className="w-3.5 h-3.5 text-zinc-600" />
-          </Link>
-
           {/* Kitchen Display (KDS) */}
           <Link
             href="/kitchen"
@@ -498,7 +491,6 @@ export default function TablesManagementPage() {
           <Link href="/qr" className="block py-2 text-white font-black">Table</Link>
           <Link href="/billing" className="block py-2 text-zinc-300">Billing</Link>
           <Link href="/menu" className="block py-2 text-zinc-300">Items</Link>
-          <Link href="/reports" className="block py-2 text-zinc-300">Reports</Link>
           <Link href="/kitchen" className="block py-2 text-orange-400">Kitchen (KDS)</Link>
           <Link href="/users" className="block py-2 text-zinc-300">More</Link>
         </div>
@@ -549,6 +541,46 @@ export default function TablesManagementPage() {
               }`}
             >
               Empty ({emptyCount})
+            </button>
+          </div>
+        </div>
+
+        {/* Customer QR Public URL & Cloudflare Tunnel Settings (Works on Non-WiFi Networks) */}
+        <div className="bg-white rounded-3xl p-4 sm:p-5 border border-zinc-200 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="flex items-center space-x-3">
+            <div className="w-10 h-10 rounded-2xl bg-black text-white flex items-center justify-center shrink-0">
+              <QrCode className="w-5 h-5 text-amber-400" />
+            </div>
+            <div>
+              <div className="flex items-center space-x-2">
+                <h3 className="text-xs sm:text-sm font-black text-black">Customer QR Public URL (Non-WiFi 4G/5G Network Ready)</h3>
+                <span className="inline-flex items-center space-x-1 text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                  <span>Public HTTPS Active</span>
+                </span>
+              </div>
+              <p className="text-[11px] text-zinc-500 mt-0.5 font-mono truncate max-w-lg">
+                Generated table QRs point to: <strong className="text-black">{customerBaseUrl}</strong>
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center space-x-2 shrink-0">
+            <button
+              onClick={() => {
+                const custom = prompt('Enter your Cloudflare Tunnel URL or Public Domain for QR Menu:', customerBaseUrl);
+                if (custom && custom.trim()) {
+                  const cleaned = custom.trim().replace(/\/$/, '');
+                  setCustomerBaseUrl(cleaned);
+                  if (typeof window !== 'undefined') {
+                    localStorage.setItem('ithipooram_customer_qr_base_url', cleaned);
+                  }
+                  alert(`✓ Customer QR URL updated to:\n${cleaned}\n\nAll generated table QRs will now use this URL.`);
+                }
+              }}
+              className="px-3.5 py-2 rounded-xl bg-zinc-100 hover:bg-black hover:text-white text-zinc-800 text-xs font-black transition cursor-pointer"
+            >
+              Configure Tunnel / Domain
             </button>
           </div>
         </div>
