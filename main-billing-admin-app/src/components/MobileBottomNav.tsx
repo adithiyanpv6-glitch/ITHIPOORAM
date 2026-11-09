@@ -8,7 +8,7 @@ import {
   Grid3X3, 
   Receipt, 
   UtensilsCrossed, 
-  BarChart3, 
+  ChefHat, 
   MoreHorizontal,
   Download,
   X
@@ -47,17 +47,20 @@ export default function MobileBottomNav() {
     setDeferredPrompt(null);
   };
 
+  // Do not render bottom nav on customer ordering or login pages
   if (pathname === '/login' || pathname.startsWith('/order') || pathname.startsWith('/t/')) {
     return null;
   }
 
+  // Exact 6-item mobile bottom navigation bar requested:
+  // Home, Tables, Billing, Items, Kitchen (KDS), More
   const navItems = [
     { label: 'Home', href: '/', icon: Home, match: pathname === '/' },
     { label: 'Tables', href: '/qr', icon: Grid3X3, match: pathname.startsWith('/qr') },
     { label: 'Billing', href: '/billing', icon: Receipt, match: pathname.startsWith('/billing') },
     { label: 'Items', href: '/menu', icon: UtensilsCrossed, match: pathname.startsWith('/menu') },
-    { label: 'Reports', href: '/reports', icon: BarChart3, match: pathname.startsWith('/reports') },
-    { label: 'More', href: '/users', icon: MoreHorizontal, match: pathname.startsWith('/users') },
+    { label: 'Kitchen', href: '/kitchen', icon: ChefHat, match: pathname.startsWith('/kitchen'), badge: true },
+    { label: 'More', href: '/users', icon: MoreHorizontal, match: pathname.startsWith('/users') || pathname.startsWith('/reports') },
   ];
 
   return (
@@ -80,7 +83,7 @@ export default function MobileBottomNav() {
           <div className="flex items-center space-x-1.5">
             <button
               onClick={handleInstallClick}
-              className="px-3 py-1.5 rounded-xl bg-white hover:bg-zinc-200 text-black text-xs font-black flex items-center space-x-1 shadow-xs active:scale-95 transition"
+              className="px-3 py-1.5 rounded-xl bg-white hover:bg-zinc-200 text-black text-xs font-black flex items-center space-x-1 shadow-xs active:scale-95 transition cursor-pointer"
             >
               <Download className="w-3 h-3" />
               <span>Install</span>
@@ -107,14 +110,17 @@ export default function MobileBottomNav() {
             <Link
               key={item.href}
               href={item.href}
-              className={`flex flex-col items-center justify-center py-1.5 px-2 rounded-xl transition-all duration-150 min-w-[52px] ${
+              className={`flex flex-col items-center justify-center py-1.5 px-2 rounded-xl transition-all duration-150 min-w-[50px] relative ${
                 active 
                   ? 'text-white font-black scale-105' 
                   : 'text-zinc-500 hover:text-zinc-300 font-semibold'
               }`}
             >
-              <div className={`p-1 rounded-xl transition ${active ? 'bg-white text-black shadow-md' : 'bg-transparent'}`}>
+              <div className={`p-1 rounded-xl transition relative ${active ? 'bg-white text-black shadow-md' : 'bg-transparent'}`}>
                 <Icon className="w-4 h-4" />
+                {item.badge && (
+                  <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-orange-500 animate-ping" />
+                )}
               </div>
               <span className={`text-[10px] mt-0.5 tracking-tight ${active ? 'text-white font-extrabold' : 'text-zinc-400'}`}>
                 {item.label}

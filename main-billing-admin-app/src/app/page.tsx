@@ -24,7 +24,10 @@ import {
   FileSpreadsheet,
   AlertCircle,
   Calendar,
-  Receipt
+  Receipt,
+  ShoppingBag,
+  Minus,
+  Search
 } from 'lucide-react';
 import { apiRequest, getCurrentUser } from '../lib/api';
 
@@ -49,6 +52,42 @@ export default function RootHomePage() {
   const [isDayCloseModalOpen, setIsDayCloseModalOpen] = useState(false);
   const [dayCloseLoading, setDayCloseLoading] = useState(false);
   const [dayCloseSummary, setDayCloseSummary] = useState<any | null>(null);
+
+  // Waiter Manual Order Desk Modal State (for dine-in guests without smartphone/QR)
+  const [isWaiterOrderModalOpen, setIsWaiterOrderModalOpen] = useState(false);
+  const [waiterSelectedTable, setWaiterSelectedTable] = useState<string>('');
+  const [waiterSearchQuery, setWaiterSearchQuery] = useState<string>('');
+  const [waiterCart, setWaiterCart] = useState<Array<{ id: string; name: string; malayalamName?: string; pricePaise: number; qty: number }>>([]);
+  const [menuCategories, setMenuCategories] = useState<any[]>([]);
+  const [waiterSubmitting, setWaiterSubmitting] = useState(false);
+  const [waiterNotice, setWaiterNotice] = useState<string | null>(null);
+
+  const allDishes = useMemo(() => {
+    if (!menuCategories || !Array.isArray(menuCategories)) return [];
+    const list: any[] = [];
+    for (const cat of menuCategories) {
+      if (Array.isArray(cat.items)) {
+        for (const item of cat.items) {
+          list.push({ ...item, categoryName: cat.name });
+        }
+      }
+    }
+    return list;
+  }, [menuCategories]);
+
+  const filteredDishes = useMemo(() => {
+    if (!waiterSearchQuery.trim()) return allDishes;
+    const q = waiterSearchQuery.toLowerCase();
+    return allDishes.filter((d: any) => 
+      (d.name && d.name.toLowerCase().includes(q)) || 
+      (d.malayalamName && d.malayalamName.toLowerCase().includes(q)) ||
+      (d.categoryName && d.categoryName.toLowerCase().includes(q))
+    );
+  }, [allDishes, waiterSearchQuery]);
+
+  const waiterCartTotalPaise = useMemo(() => {
+    return waiterCart.reduce((acc, it) => acc + (it.pricePaise * it.qty), 0);
+  }, [waiterCart]);
 
   // Auth Guard
   useEffect(() => {
@@ -107,6 +146,16 @@ export default function RootHomePage() {
           }
         }
       } catch (e) {}
+      // Fetch active menu items for Waiter Order Desk
+      try {
+        const menuRes = await fetch('/api/menu');
+        if (menuRes.ok) {
+          const mData = await menuRes.json();
+          if (Array.isArray(mData)) {
+            setMenuCategories(mData);
+          }
+        }
+      } catch (e) {}
     } catch (err) {
       console.error('Failed to load dashboard data:', err);
     } finally {
@@ -119,6 +168,81 @@ export default function RootHomePage() {
     const interval = setInterval(loadDashboardData, 4000);
     return () => clearInterval(interval);
   }, []);
+
+  // Waiter Order Handlers
+  const handleOpenWaiterOrderModal = () => {
+    if (tables.length > 0 && !waiterSelectedTable) {
+      setWaiterSelectedTable(tables[0].tableCode || 'T1');
+    }
+    setWaiterNotice(null);
+    setIsWaiterOrderModalOpen(true);
+  };
+
+  const handleWaiterAddItem = (item: any) => {
+    setWaiterCart((prev) => {
+      const existing = prev.find((i) => i.id === item.id);
+      if (existing) {
+        return prev.map((i) => (i.id === item.id ? { ...i, qty: i.qty + 1 } : i));
+      }
+      return [...prev, { id: item.id, name: item.name, malayalamName: item.malayalamName, pricePaise: item.pricePaise || 12000, qty: 1 }];
+    });
+  };
+
+  const handleWaiterRemoveItem = (itemId: string) => {
+    setWaiterCart((prev) => {
+      const existing = prev.find((i) => i.id === itemId);
+      if (existing && existing.qty > 1) {
+        return prev.map((i) => (i.id === itemId ? { ...i, qty: i.qty - 1 } : i));
+      }
+      return prev.filter((i) => i.id !== itemId);
+    });
+  };
+
+  const handleSubmitWaiterOrder = async () => {
+    if (!waiterSelectedTable) {
+      alert('Please select a registered table.');
+      return;
+    }
+    if (waiterCart.length === 0) {
+      alert('Please select at least one dish for the order.');
+      return;
+    }
+
+    try {
+      setWaiterSubmitting(true);
+      const res = await fetch('/api/orders', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          tableCode: waiterSelectedTable.toUpperCase(),
+          items: waiterCart.map((i) => ({
+            id: i.id,
+            name: i.name,
+            malayalamName: i.malayalamName,
+            pricePaise: i.pricePaise,
+            quantity: i.qty,
+          })),
+          notes: 'Waiter Counter Order',
+        }),
+      });
+
+      if (res.ok) {
+        setWaiterNotice(`✓ Order placed for Table ${waiterSelectedTable}! Sent to Kitchen (KDS) & Billing.`);
+        setWaiterCart([]);
+        await loadDashboardData();
+        setTimeout(() => {
+          setIsWaiterOrderModalOpen(false);
+          setWaiterNotice(null);
+        }, 1200);
+      } else {
+        alert('Failed to place order.');
+      }
+    } catch (e: any) {
+      alert('Error placing order: ' + e.message);
+    } finally {
+      setWaiterSubmitting(false);
+    }
+  };
 
   const handleSignOut = () => {
     if (typeof window !== 'undefined') {
@@ -328,14 +452,14 @@ export default function RootHomePage() {
           </Link>
         </nav>
 
-        {/* Bottom Actions: + Add Order Button (Symbol & [POS] removed as requested) & Restaurant Profile */}
+        {/* Bottom Actions: + Add Order Button & Restaurant Profile */}
         <div className="p-4 border-t border-zinc-800/80 space-y-3">
-          <Link
-            href="/billing"
-            className="w-full flex items-center justify-center py-3 px-4 rounded-2xl border border-zinc-700 bg-zinc-900 hover:bg-zinc-800 text-white font-extrabold text-xs shadow-sm transition active:scale-98"
+          <button
+            onClick={handleOpenWaiterOrderModal}
+            className="w-full flex items-center justify-center py-3 px-4 rounded-2xl border border-zinc-700 bg-zinc-900 hover:bg-zinc-800 text-white font-extrabold text-xs shadow-sm transition active:scale-98 cursor-pointer"
           >
             <span>+ Add Order</span>
-          </Link>
+          </button>
 
           <div className="flex items-center justify-between p-2.5 rounded-2xl bg-zinc-900/60 border border-zinc-800">
             <div className="flex items-center space-x-2.5">
@@ -377,12 +501,12 @@ export default function RootHomePage() {
         </div>
 
         <div className="flex items-center space-x-2">
-          <Link
-            href="/billing"
-            className="px-3.5 py-1.5 rounded-xl bg-white text-black font-black text-xs"
+          <button
+            onClick={handleOpenWaiterOrderModal}
+            className="px-3.5 py-1.5 rounded-xl bg-white text-black font-black text-xs cursor-pointer shadow-xs active:scale-95"
           >
             <span>+ Add Order</span>
-          </Link>
+          </button>
         </div>
       </header>
 
@@ -445,36 +569,30 @@ export default function RootHomePage() {
       {/* ============================================================== */}
       <main className="flex-1 p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto w-full space-y-6 overflow-y-auto">
         
-        {/* Top Header Label with prominent Day & Date */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-zinc-200/80">
+        {/* Top Header Label with Large Home and English Date & Day */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-3 border-b border-zinc-200/80">
           <div>
             <div className="flex flex-wrap items-center gap-3">
-              <h1 className="text-2xl sm:text-3xl font-black text-black tracking-tight">Home</h1>
-              {/* Prominent Day & Date Badge */}
+              <h1 className="text-3xl sm:text-4xl font-black text-black tracking-tight">Home</h1>
+              {/* Prominent Day & Date Badge in English Only */}
               <div className="flex items-center space-x-2 text-xs font-extrabold text-zinc-800 bg-white px-3.5 py-1.5 rounded-2xl border border-zinc-300/80 shadow-xs">
                 <Calendar className="w-4 h-4 text-black shrink-0" />
                 <span>
-                  {new Date().toLocaleDateString('en-IN', {
+                  {new Date().toLocaleDateString('en-US', {
                     weekday: 'long',
-                    day: '2-digit',
+                    day: 'numeric',
                     month: 'long',
                     year: 'numeric',
                   })}
                 </span>
-                <span className="text-[11px] text-zinc-500 font-semibold font-malayalam border-l border-zinc-300 pl-2">
-                  {new Date().toLocaleDateString('ml-IN', { weekday: 'long' })}
-                </span>
               </div>
             </div>
-            <p className="text-xs font-semibold text-zinc-500 mt-1">
-              ഇത്തിപ്പൂരം (Ithi Pooram) — Live Counter POS &amp; Dining Table Management
-            </p>
           </div>
 
           <div className="flex items-center space-x-2.5">
             <Link
               href="/kitchen"
-              className="px-3.5 py-2 rounded-xl bg-orange-50 hover:bg-orange-100 text-orange-900 border border-orange-200 text-xs font-black flex items-center space-x-1.5 transition shadow-xs"
+              className="px-3.5 py-2.5 rounded-xl bg-orange-50 hover:bg-orange-100 text-orange-900 border border-orange-200 text-xs font-black flex items-center space-x-1.5 transition shadow-xs"
               title="Open Kitchen Display System"
             >
               <ChefHat className="w-3.5 h-3.5 text-orange-600" />
@@ -486,11 +604,11 @@ export default function RootHomePage() {
                 setDayCloseSummary(null);
                 setIsDayCloseModalOpen(true);
               }}
-              className="px-3.5 py-2 rounded-xl bg-zinc-900 hover:bg-black text-white text-xs font-black flex items-center space-x-1.5 transition shadow-xs cursor-pointer"
+              className="px-4 py-2.5 rounded-xl bg-black hover:bg-zinc-800 text-white text-xs font-black flex items-center space-x-2 transition shadow-md cursor-pointer active:scale-98"
               title="Close business day and export Excel document"
             >
-              <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-400" />
-              <span className="hidden sm:inline">Close Day (Z-Report)</span>
+              <FileSpreadsheet className="w-4 h-4 text-emerald-400" />
+              <span>Close Day (End of Shift / Z-Report)</span>
             </button>
 
             <button
@@ -639,68 +757,71 @@ export default function RootHomePage() {
               </div>
             </div>
 
-            {/* SVG Visual Smooth Curve Graph (Premium Black & Grey Aesthetic) */}
-            <div className="relative h-64 sm:h-72 w-full pt-4">
-              <div className="absolute inset-0 flex flex-col justify-between pointer-events-none">
-                <div className="flex items-center text-[10px] font-mono font-bold text-zinc-400">
-                  <span className="w-12">₹ 2.0k</span>
-                  <div className="flex-1 border-b border-dashed border-zinc-100" />
+            {/* SVG Visual Smooth Curve Graph (Fixed inside box with internal X-axis markings) */}
+            <div className="flex flex-col h-64 sm:h-72 w-full pt-4 pb-2 justify-between">
+              <div className="relative flex-1 w-full">
+                {/* Horizontal dashed guide lines */}
+                <div className="absolute inset-0 flex flex-col justify-between pointer-events-none pb-2">
+                  <div className="flex items-center text-[10px] font-mono font-bold text-zinc-400">
+                    <span className="w-12">₹ 2.0k</span>
+                    <div className="flex-1 border-b border-dashed border-zinc-100" />
+                  </div>
+                  <div className="flex items-center text-[10px] font-mono font-bold text-zinc-400">
+                    <span className="w-12">₹ 1.5k</span>
+                    <div className="flex-1 border-b border-dashed border-zinc-100" />
+                  </div>
+                  <div className="flex items-center text-[10px] font-mono font-bold text-zinc-400">
+                    <span className="w-12">₹ 1.0k</span>
+                    <div className="flex-1 border-b border-dashed border-zinc-100" />
+                  </div>
+                  <div className="flex items-center text-[10px] font-mono font-bold text-zinc-400">
+                    <span className="w-12">₹ 500</span>
+                    <div className="flex-1 border-b border-dashed border-zinc-100" />
+                  </div>
+                  <div className="flex items-center text-[10px] font-mono font-bold text-zinc-400">
+                    <span className="w-12">₹ 0</span>
+                    <div className="flex-1 border-b border-zinc-200" />
+                  </div>
                 </div>
-                <div className="flex items-center text-[10px] font-mono font-bold text-zinc-400">
-                  <span className="w-12">₹ 1.5k</span>
-                  <div className="flex-1 border-b border-dashed border-zinc-100" />
-                </div>
-                <div className="flex items-center text-[10px] font-mono font-bold text-zinc-400">
-                  <span className="w-12">₹ 1.0k</span>
-                  <div className="flex-1 border-b border-dashed border-zinc-100" />
-                </div>
-                <div className="flex items-center text-[10px] font-mono font-bold text-zinc-400">
-                  <span className="w-12">₹ 500</span>
-                  <div className="flex-1 border-b border-dashed border-zinc-100" />
-                </div>
-                <div className="flex items-center text-[10px] font-mono font-bold text-zinc-400">
-                  <span className="w-12">₹ 0</span>
-                  <div className="flex-1 border-b border-zinc-200" />
+
+                {/* Dynamic SVG Area & Smooth Curve Line */}
+                <div className="ml-12 h-full relative">
+                  <svg className="w-full h-full" preserveAspectRatio="none" viewBox="0 0 500 180">
+                    <defs>
+                      <linearGradient id="curveGradient" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="#1E293B" stopOpacity="0.25" />
+                        <stop offset="100%" stopColor="#1E293B" stopOpacity="0.0" />
+                      </linearGradient>
+                    </defs>
+
+                    {/* Shaded Area Under Curve */}
+                    <path
+                      d="M 50,160 C 180,160 250,30 450,15 L 450,175 L 50,175 Z"
+                      fill="url(#curveGradient)"
+                    />
+
+                    {/* High-Contrast Premium Black/Slate Curve */}
+                    <path
+                      d="M 50,160 C 180,160 250,30 450,15"
+                      fill="none"
+                      stroke="#0F172A"
+                      strokeWidth="3.5"
+                      strokeLinecap="round"
+                    />
+
+                    {/* Start Data Point */}
+                    <circle cx="50" cy="160" r="4.5" fill="#0F172A" stroke="#FFFFFF" strokeWidth="2.5" />
+                    {/* Peak Data Point */}
+                    <circle cx="450" cy="15" r="5" fill="#0F172A" stroke="#FFFFFF" strokeWidth="3" />
+                  </svg>
                 </div>
               </div>
 
-              {/* Dynamic SVG Area & Smooth Curve Line */}
-              <div className="ml-12 h-full relative">
-                <svg className="w-full h-full overflow-visible" preserveAspectRatio="none" viewBox="0 0 500 200">
-                  <defs>
-                    <linearGradient id="curveGradient" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor="#1E293B" stopOpacity="0.25" />
-                      <stop offset="100%" stopColor="#1E293B" stopOpacity="0.0" />
-                    </linearGradient>
-                  </defs>
-
-                  {/* Shaded Area Under Curve */}
-                  <path
-                    d="M 50,180 C 180,180 250,40 450,20 L 450,200 L 50,200 Z"
-                    fill="url(#curveGradient)"
-                  />
-
-                  {/* High-Contrast Premium Black/Slate Curve */}
-                  <path
-                    d="M 50,180 C 180,180 250,40 450,20"
-                    fill="none"
-                    stroke="#0F172A"
-                    strokeWidth="3.5"
-                    strokeLinecap="round"
-                  />
-
-                  {/* Start Data Point */}
-                  <circle cx="50" cy="180" r="5" fill="#0F172A" stroke="#FFFFFF" strokeWidth="2.5" />
-                  {/* Peak Data Point */}
-                  <circle cx="450" cy="20" r="5.5" fill="#0F172A" stroke="#FFFFFF" strokeWidth="3" />
-                </svg>
-
-                {/* X-Axis Date Range Labels */}
-                <div className="flex justify-between text-[11px] font-mono font-bold text-zinc-500 pt-3">
-                  <span>Start of Shift (03:00 AM)</span>
-                  <span>Peak Hours</span>
-                  <span>Current Active Live</span>
-                </div>
+              {/* X-Axis Date Range Labels - cleanly contained inside the box */}
+              <div className="flex justify-between text-[11px] font-mono font-bold text-zinc-500 pl-12 pt-2 border-t border-zinc-100 shrink-0">
+                <span>Start Shift (03:00 AM)</span>
+                <span>Peak Hours</span>
+                <span>Live Active</span>
               </div>
             </div>
 
@@ -780,12 +901,12 @@ export default function RootHomePage() {
               </p>
             </div>
 
-            <Link
-              href="/billing"
-              className="inline-flex items-center justify-center py-2 px-4 rounded-xl border border-zinc-300 hover:border-black text-black font-extrabold text-xs transition"
+            <button
+              onClick={handleOpenWaiterOrderModal}
+              className="inline-flex items-center justify-center py-2 px-4 rounded-xl border border-zinc-300 hover:border-black text-black font-extrabold text-xs transition cursor-pointer"
             >
               <span>+ Add Order</span>
-            </Link>
+            </button>
           </div>
 
           {/* Running Orders Table or Empty State */}
@@ -800,12 +921,12 @@ export default function RootHomePage() {
                   Orders placed by customers via table QR or entered from the POS terminal will appear here in real-time.
                 </p>
               </div>
-              <Link
-                href="/billing"
+              <button
+                onClick={handleOpenWaiterOrderModal}
                 className="px-5 py-2.5 rounded-2xl border-2 border-black hover:bg-black hover:text-white text-black font-black text-xs transition cursor-pointer"
               >
                 + Add Order
-              </Link>
+              </button>
             </div>
           ) : (
             <div className="overflow-x-auto">
@@ -972,6 +1093,231 @@ export default function RootHomePage() {
                 </button>
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Waiter Manual Order Desk Modal (For Dine-in Guests without QR Code) */}
+      {isWaiterOrderModalOpen && (
+        <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-xs flex items-center justify-center p-3 sm:p-5 overflow-y-auto">
+          <div className="bg-white rounded-3xl max-w-2xl w-full p-5 sm:p-6 shadow-2xl border border-zinc-200 flex flex-col max-h-[92dvh] overflow-hidden my-auto animate-in fade-in zoom-in-95 duration-150">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between pb-3.5 border-b border-zinc-100 shrink-0">
+              <div className="flex items-center space-x-2.5">
+                <div className="w-9 h-9 rounded-xl bg-black text-white flex items-center justify-center shadow-xs">
+                  <ChefHat className="w-5 h-5 text-amber-400" />
+                </div>
+                <div>
+                  <h3 className="text-base font-black text-black">Waiter Manual Order Desk</h3>
+                  <p className="text-[11px] font-semibold text-zinc-500">
+                    Take orders directly for guests who do not use smartphone QR code
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setIsWaiterOrderModalOpen(false)}
+                className="w-8 h-8 rounded-full bg-zinc-100 hover:bg-zinc-200 text-zinc-500 hover:text-black flex items-center justify-center transition cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Modal Body: Scrollable */}
+            <div className="flex-1 overflow-y-auto py-3 space-y-4 pr-1">
+              {/* Notice Banner */}
+              {waiterNotice && (
+                <div className="p-3 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-bold flex items-center space-x-2">
+                  <Check className="w-4 h-4 shrink-0 text-emerald-600" />
+                  <span>{waiterNotice}</span>
+                </div>
+              )}
+
+              {/* 1. Select Registered Table */}
+              <div>
+                <label className="block text-xs font-black text-zinc-900 uppercase tracking-wider mb-2">
+                  1. Select Registered Table (ലഭ്യമായ ടേബിളുകൾ)
+                </label>
+                <div className="flex flex-wrap gap-2">
+                  {(tables && tables.length > 0 ? tables : [
+                    { id: 't1', tableCode: 'T1', displayName: 'Table 1' },
+                    { id: 't2', tableCode: 'T2', displayName: 'Table 2' },
+                    { id: 't3', tableCode: 'T3', displayName: 'Table 3' },
+                    { id: 't4', tableCode: 'T4', displayName: 'Table 4' },
+                    { id: 't5', tableCode: 'T5', displayName: 'Table 5' },
+                    { id: 't6', tableCode: 'T6', displayName: 'Table 6' },
+                  ]).map((t: any) => {
+                    const code = t.tableCode || t.id;
+                    const isSelected = waiterSelectedTable?.toUpperCase() === code?.toUpperCase();
+                    return (
+                      <button
+                        key={code}
+                        type="button"
+                        onClick={() => setWaiterSelectedTable(code)}
+                        className={`px-3.5 py-2 rounded-xl text-xs font-black transition cursor-pointer ${
+                          isSelected
+                            ? 'bg-black text-white shadow-sm ring-2 ring-zinc-900 ring-offset-1'
+                            : 'bg-zinc-100 hover:bg-zinc-200 text-zinc-800 border border-zinc-200'
+                        }`}
+                      >
+                        {code} {t.displayName && t.displayName !== code ? `(${t.displayName})` : ''}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* 2. Search Dishes */}
+              <div>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="text-xs font-black text-zinc-900 uppercase tracking-wider">
+                    2. Select Dishes (ഭക്ഷണങ്ങൾ തിരഞ്ഞെടുക്കുക)
+                  </label>
+                  <span className="text-[11px] font-mono text-zinc-400 font-bold">
+                    {filteredDishes.length} items
+                  </span>
+                </div>
+
+                <div className="relative">
+                  <Search className="w-4 h-4 absolute left-3 top-2.5 text-zinc-400 pointer-events-none" />
+                  <input
+                    type="text"
+                    value={waiterSearchQuery}
+                    onChange={(e) => setWaiterSearchQuery(e.target.value)}
+                    placeholder="Search porotta, biryani, fish, tea..."
+                    className="w-full pl-9 pr-4 py-2 rounded-xl bg-zinc-50 border border-zinc-200 text-xs font-semibold focus:outline-none focus:border-black text-zinc-900"
+                  />
+                  {waiterSearchQuery && (
+                    <button
+                      onClick={() => setWaiterSearchQuery('')}
+                      className="absolute right-3 top-2.5 text-zinc-400 hover:text-black text-xs"
+                    >
+                      Clear
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {/* Dish Selection Grid */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-56 overflow-y-auto p-1 border border-zinc-100 rounded-2xl bg-zinc-50/50">
+                {filteredDishes.length === 0 ? (
+                  <div className="col-span-full py-8 text-center text-xs text-zinc-400 font-semibold">
+                    No dishes found. Go to Menu to add or activate items.
+                  </div>
+                ) : (
+                  filteredDishes.map((dish: any) => {
+                    const inCart = waiterCart.find((c) => c.id === dish.id);
+                    return (
+                      <div
+                        key={dish.id}
+                        className="p-2.5 rounded-xl bg-white border border-zinc-200 flex items-center justify-between hover:border-zinc-400 transition"
+                      >
+                        <div className="truncate pr-2">
+                          <p className="text-xs font-extrabold text-zinc-900 truncate">{dish.name}</p>
+                          {dish.malayalamName && (
+                            <p className="text-[10px] text-zinc-500 truncate">{dish.malayalamName}</p>
+                          )}
+                          <p className="text-[11px] font-mono font-bold text-black mt-0.5">
+                            ₹{Math.round((dish.pricePaise || dish.priceInr * 100 || 12000) / 100)}
+                          </p>
+                        </div>
+
+                        {inCart ? (
+                          <div className="flex items-center space-x-1.5 bg-black text-white px-2 py-1 rounded-lg shrink-0">
+                            <button
+                              type="button"
+                              onClick={() => handleWaiterRemoveItem(dish.id)}
+                              className="w-5 h-5 flex items-center justify-center hover:bg-zinc-800 rounded font-black text-sm"
+                            >
+                              -
+                            </button>
+                            <span className="text-xs font-mono font-black px-1">{inCart.qty}</span>
+                            <button
+                              type="button"
+                              onClick={() => handleWaiterAddItem(dish)}
+                              className="w-5 h-5 flex items-center justify-center hover:bg-zinc-800 rounded font-black text-sm"
+                            >
+                              +
+                            </button>
+                          </div>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => handleWaiterAddItem(dish)}
+                            className="px-3 py-1.5 rounded-lg bg-zinc-100 hover:bg-black hover:text-white text-zinc-800 font-extrabold text-xs transition cursor-pointer shrink-0"
+                          >
+                            + Add
+                          </button>
+                        )}
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+
+              {/* Order Cart Drawer */}
+              {waiterCart.length > 0 && (
+                <div className="p-3 bg-zinc-50 rounded-2xl border border-zinc-200 space-y-2">
+                  <div className="flex items-center justify-between text-xs font-extrabold text-zinc-800 pb-1 border-b border-zinc-200">
+                    <span className="flex items-center space-x-1.5">
+                      <ShoppingBag className="w-3.5 h-3.5" />
+                      <span>Order Items ({waiterCart.reduce((a, b) => a + b.qty, 0)})</span>
+                    </span>
+                    <span className="font-mono font-black text-black">
+                      Total: ₹{Math.round(waiterCartTotalPaise / 100)}
+                    </span>
+                  </div>
+
+                  <div className="max-h-28 overflow-y-auto space-y-1 text-xs">
+                    {waiterCart.map((item) => (
+                      <div key={item.id} className="flex items-center justify-between text-zinc-700">
+                        <span className="truncate pr-2 font-medium">
+                          {item.qty}x {item.name}
+                        </span>
+                        <div className="flex items-center space-x-2 shrink-0 font-mono">
+                          <span className="font-bold">₹{Math.round((item.pricePaise * item.qty) / 100)}</span>
+                          <button
+                            type="button"
+                            onClick={() => handleWaiterRemoveItem(item.id)}
+                            className="text-zinc-400 hover:text-red-600 p-0.5"
+                          >
+                            <X className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Modal Footer */}
+            <div className="pt-3 border-t border-zinc-100 flex items-center space-x-2 shrink-0">
+              <button
+                type="button"
+                onClick={() => {
+                  setWaiterCart([]);
+                  setIsWaiterOrderModalOpen(false);
+                }}
+                className="flex-1 py-3 rounded-2xl border border-zinc-200 text-xs font-bold text-zinc-600 hover:bg-zinc-50 cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleSubmitWaiterOrder}
+                disabled={waiterSubmitting || waiterCart.length === 0}
+                className="flex-2 py-3 rounded-2xl bg-black hover:bg-zinc-800 text-white font-black text-xs flex items-center justify-center space-x-2 shadow-md cursor-pointer disabled:opacity-50"
+              >
+                {waiterSubmitting ? (
+                  <RefreshCw className="w-4 h-4 animate-spin" />
+                ) : (
+                  <Check className="w-4 h-4 text-emerald-400" />
+                )}
+                <span>
+                  Send to Kitchen &amp; Counter (Table {waiterSelectedTable || 'T1'})
+                </span>
+              </button>
+            </div>
           </div>
         </div>
       )}

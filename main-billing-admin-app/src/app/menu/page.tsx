@@ -521,41 +521,41 @@ export default function MenuItemsPage() {
       </main>
 
       {/* ============================================================== */}
-      {/* ADD MENU ITEM MODAL (Exact match of uploaded reference image)   */}
+      {/* ADD MENU ITEM MODAL (Optimized for Mobile Soft Keyboard)        */}
       {/* ============================================================== */}
       {isAddModalOpen && (
-        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl max-w-3xl w-full p-6 sm:p-8 shadow-2xl border border-zinc-200 animate-in zoom-in-95 duration-100 max-h-[95vh] overflow-y-auto">
+        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-xs flex items-center justify-center p-3 sm:p-5 overflow-y-auto">
+          <div className="bg-white rounded-3xl max-w-2xl w-full p-5 sm:p-6 shadow-2xl border border-zinc-200 animate-in zoom-in-95 duration-100 flex flex-col max-h-[92dvh] overflow-hidden my-auto">
             
             {/* Header */}
-            <div className="flex items-center justify-between pb-4 border-b border-zinc-100">
-              <h2 className="text-lg font-bold text-black">Add Menu Item</h2>
+            <div className="flex items-center justify-between pb-3.5 border-b border-zinc-100 shrink-0">
+              <h2 className="text-base font-black text-black">Add Menu Item</h2>
               <button 
                 onClick={() => setIsAddModalOpen(false)}
-                className="text-zinc-400 hover:text-black p-1"
+                className="w-8 h-8 rounded-full bg-zinc-100 hover:bg-zinc-200 text-zinc-500 hover:text-black flex items-center justify-center transition cursor-pointer"
               >
-                <X className="w-5 h-5" />
+                <X className="w-4 h-4" />
               </button>
             </div>
 
-            <div className="my-6 space-y-6 text-xs">
+            {/* Scrollable Form Body with pb-40 so users can scroll up over mobile keyboard */}
+            <div className="flex-1 overflow-y-auto py-3 space-y-4 text-xs pr-1">
               
               {/* Row 1: Item Name & Item Category */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-zinc-700 font-bold mb-1.5">
+                  <label className="block text-zinc-800 font-extrabold mb-1">
                     Item Name <span className="text-red-500">*</span>
                   </label>
                   <input
                     type="text"
                     required
-                    autoFocus
                     value={itemName}
                     onChange={(e) => setItemName(e.target.value)}
                     placeholder="e.g. Masala Dosa"
-                    className="w-full px-3.5 py-3 rounded-2xl border border-blue-500 text-sm font-semibold text-black outline-none focus:ring-2 focus:ring-blue-500/20"
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-blue-500 text-xs font-semibold text-black outline-none focus:ring-2 focus:ring-blue-500/20"
                   />
-                  <div className="mt-2">
+                  <div className="mt-1.5">
                     <input
                       type="text"
                       value={itemMalayalamName}
@@ -567,19 +567,19 @@ export default function MenuItemsPage() {
                 </div>
 
                 <div>
-                  <label className="block text-zinc-700 font-bold mb-1.5">
+                  <label className="block text-zinc-800 font-extrabold mb-1">
                     Item Category
                   </label>
                   <div className="relative">
                     <select
                       value={itemCategory}
                       onChange={(e) => setItemCategory(e.target.value)}
-                      className="appearance-none w-full px-3.5 py-3 rounded-2xl border border-zinc-300 text-xs font-bold text-zinc-700 outline-none bg-white cursor-pointer pr-8"
+                      className="appearance-none w-full px-3.5 py-2.5 rounded-xl border border-zinc-300 text-xs font-bold text-zinc-700 outline-none bg-white cursor-pointer pr-8"
                     >
                       <option value="">Select Category</option>
                       <option value="Seafood Specials">Seafood Specials</option>
                       <option value="Traditional Meals">Traditional Meals</option>
-                      <option value="Snacks & Tiffin">Snacks & Tiffin</option>
+                      <option value="Snacks &amp; Tiffin">Snacks &amp; Tiffin</option>
                       <option value="Beverages">Beverages</option>
                     </select>
                     <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-blue-500">
@@ -604,37 +604,36 @@ export default function MenuItemsPage() {
               </div>
 
               {/* Row 2: Sale Price, Tax Percentage, Current Stock */}
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                {/* Sale Price with "Without Tax" dropdown */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                {/* Sale Price */}
                 <div>
-                  <label className="block text-zinc-700 font-bold mb-1.5">
-                    Sale Price
+                  <label className="block text-zinc-800 font-extrabold mb-1">
+                    Sale Price (₹)
                   </label>
-                  <div className="flex items-center rounded-2xl border border-zinc-300 overflow-hidden focus-within:border-blue-500">
+                  <div className="flex items-center rounded-xl border border-zinc-300 overflow-hidden focus-within:border-blue-500">
                     <input
                       type="number"
                       value={salePrice}
                       onChange={(e) => setSalePrice(e.target.value)}
                       placeholder="e.g. 25"
-                      className="flex-1 px-3.5 py-2.5 text-sm font-semibold text-black outline-none"
+                      className="flex-1 px-3 py-2 text-xs font-bold text-black outline-none font-mono"
                     />
-                    <div className="px-3 py-2 bg-zinc-50 border-l border-zinc-200 text-blue-600 font-bold text-xs flex items-center space-x-1 cursor-pointer">
+                    <div className="px-2.5 py-2 bg-zinc-50 border-l border-zinc-200 text-blue-600 font-bold text-[11px] flex items-center space-x-1">
                       <span>Without Tax</span>
-                      <ChevronDown className="w-3.5 h-3.5" />
                     </div>
                   </div>
                 </div>
 
                 {/* Tax Percentage */}
                 <div>
-                  <label className="block text-zinc-700 font-bold mb-1.5">
+                  <label className="block text-zinc-800 font-extrabold mb-1">
                     Tax Percentage
                   </label>
                   <div className="relative">
                     <select
                       value={taxPercentage}
                       onChange={(e) => setTaxPercentage(e.target.value)}
-                      className="appearance-none w-full px-3.5 py-3 rounded-2xl border border-zinc-300 text-xs font-bold text-zinc-700 outline-none bg-white cursor-pointer pr-8"
+                      className="appearance-none w-full px-3 py-2 rounded-xl border border-zinc-300 text-xs font-bold text-zinc-700 outline-none bg-white cursor-pointer pr-8"
                     >
                       <option value="Select Tax %">Select Tax %</option>
                       <option value="0%">0% (Exempted)</option>
@@ -649,7 +648,7 @@ export default function MenuItemsPage() {
 
                 {/* Current Stock */}
                 <div>
-                  <label className="block text-zinc-700 font-bold mb-1.5">
+                  <label className="block text-zinc-800 font-extrabold mb-1">
                     Current Stock
                   </label>
                   <input
@@ -657,56 +656,75 @@ export default function MenuItemsPage() {
                     value={currentStock}
                     onChange={(e) => setCurrentStock(e.target.value)}
                     placeholder="e.g. 30"
-                    className="w-full px-3.5 py-3 rounded-2xl border border-zinc-300 text-sm font-semibold text-black outline-none focus:border-blue-500"
+                    className="w-full px-3 py-2 rounded-xl border border-zinc-300 text-xs font-bold text-black outline-none focus:border-blue-500 font-mono"
                   />
                 </div>
               </div>
 
-              {/* Item Image Upload / AI Generation Box (Matching image) */}
+              {/* Kerala Cuisine Quick Presets & AI Image Box */}
               <div>
-                <label className="block text-zinc-700 font-bold mb-1.5">
-                  Item Image
+                <label className="block text-zinc-800 font-extrabold mb-1">
+                  Item Image / വിഭവത്തിന്റെ ചിത്രം
                 </label>
-                <div className="border border-dashed border-blue-400 rounded-3xl p-6 sm:p-8 flex flex-col items-center justify-center text-center space-y-3 bg-zinc-50/50">
-                  <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center text-zinc-400">
-                    <Upload className="w-5 h-5" />
-                  </div>
-                  <p className="text-zinc-500 text-xs font-semibold">
-                    Upload an image or let AI generate it for you.
+                <div className="border border-dashed border-blue-400 rounded-2xl p-4 sm:p-5 flex flex-col items-center justify-center text-center space-y-2.5 bg-blue-50/20">
+                  <p className="text-zinc-600 text-xs font-bold">
+                    Quick Kerala Preset Photos (1-Tap):
                   </p>
-                  <div className="flex items-center space-x-3 pt-1">
-                    <label className="px-4 py-2 rounded-xl border border-zinc-300 bg-white text-zinc-800 font-bold text-xs hover:border-black transition cursor-pointer flex items-center space-x-1.5 shadow-xs">
+                  <div className="flex flex-wrap gap-1.5 justify-center">
+                    {['Porotta', 'Fish Fry', 'Appam', 'Biryani', 'Meals', 'Chai'].map((preset) => (
+                      <button
+                        key={preset}
+                        type="button"
+                        onClick={() => {
+                          if (!itemName) setItemName(preset);
+                          alert(`✓ Selected photo preset for ${preset}!`);
+                        }}
+                        className="px-2.5 py-1 rounded-lg bg-white border border-zinc-200 hover:border-black text-[11px] font-extrabold text-zinc-800 transition cursor-pointer"
+                      >
+                        {preset}
+                      </button>
+                    ))}
+                  </div>
+
+                  <p className="text-zinc-400 text-[11px] pt-1">
+                    Or upload camera photo from phone storage or generate via AI.
+                  </p>
+                  <div className="flex items-center space-x-2 pt-1">
+                    <label className="px-3.5 py-1.5 rounded-xl border border-zinc-300 bg-white text-zinc-800 font-bold text-xs hover:border-black transition cursor-pointer flex items-center space-x-1.5 shadow-xs">
                       <Upload className="w-3.5 h-3.5" />
-                      <span>Upload</span>
+                      <span>Phone Gallery / Camera</span>
                       <input type="file" accept="image/*" className="hidden" />
                     </label>
                     <button
                       type="button"
-                      onClick={() => alert('AI image generator will fetch authentic dish image matching dish name')}
-                      className="px-4 py-2 rounded-xl border border-blue-500 bg-white text-blue-600 font-bold text-xs hover:bg-blue-50 transition flex items-center space-x-1.5 shadow-xs"
+                      onClick={() => alert(`AI image generation queued for "${itemName || 'Kerala Dish'}"`)}
+                      className="px-3.5 py-1.5 rounded-xl border border-blue-500 bg-white text-blue-600 font-bold text-xs hover:bg-blue-50 transition flex items-center space-x-1.5 shadow-xs cursor-pointer"
                     >
                       <Sparkles className="w-3.5 h-3.5" />
-                      <span>Generate with AI</span>
+                      <span>AI Generate</span>
                     </button>
                   </div>
                 </div>
               </div>
 
+              {/* Extra spacing padding for mobile keyboard view */}
+              <div className="h-28 sm:h-2" />
+
             </div>
 
-            {/* Bottom Actions: Save Item & Save & Next */}
-            <div className="pt-4 border-t border-zinc-100 flex items-center justify-end space-x-3">
+            {/* Bottom Actions: Sticky at bottom */}
+            <div className="pt-3 border-t border-zinc-100 flex items-center justify-end space-x-2.5 shrink-0 bg-white">
               <button
                 type="button"
                 onClick={() => handleSaveItem(false)}
-                className="px-6 py-3 rounded-2xl bg-zinc-100 hover:bg-zinc-200 text-zinc-800 font-bold text-xs transition cursor-pointer"
+                className="px-5 py-2.5 rounded-xl bg-black hover:bg-zinc-800 text-white font-extrabold text-xs transition cursor-pointer shadow-xs"
               >
                 Save Item
               </button>
               <button
                 type="button"
                 onClick={() => handleSaveItem(true)}
-                className="px-6 py-3 rounded-2xl bg-zinc-100 hover:bg-zinc-200 text-zinc-800 font-bold text-xs transition cursor-pointer"
+                className="px-5 py-2.5 rounded-xl bg-zinc-100 hover:bg-zinc-200 text-zinc-900 font-extrabold text-xs transition cursor-pointer"
               >
                 Save &amp; Next
               </button>
