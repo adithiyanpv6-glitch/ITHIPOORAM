@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { db, refreshTableSummaries } from '@/lib/serverDb';
+import { db, refreshTableSummaries, persistDb } from '@/lib/serverDb';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -52,6 +52,7 @@ export async function PATCH(request: Request) {
     }
 
     refreshTableSummaries();
+    persistDb();
 
     db.auditLogs.unshift({
       id: `aud-${Date.now()}`,

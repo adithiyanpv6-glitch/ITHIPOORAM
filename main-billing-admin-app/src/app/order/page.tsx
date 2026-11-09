@@ -200,11 +200,7 @@ function CustomerOrderingContent() {
         const res = await fetch(endpoint, { cache: 'no-store' });
         if (res.ok) {
           const data = await res.json();
-          if (Array.isArray(data)) {
-            if (data.length === 0) {
-              setMenuCategories([]);
-              return;
-            }
+          if (Array.isArray(data) && data.length > 0) {
             // Transform data into categories if required
             const validCategories: MenuCategory[] = data.map((cat: any) => ({
               id: cat.id || `cat-${Math.random()}`,
@@ -223,8 +219,14 @@ function CustomerOrderingContent() {
                 category: cat.id,
               }))
             })).filter(cat => cat.items.length > 0);
-            setMenuCategories(validCategories);
-            return;
+
+            if (validCategories.length > 0) {
+              setMenuCategories(validCategories);
+              if (typeof window !== 'undefined') {
+                localStorage.setItem('ithipooram_menu_categories', JSON.stringify(validCategories));
+              }
+              return;
+            }
           }
         }
       } catch (e) {
@@ -233,6 +235,16 @@ function CustomerOrderingContent() {
 
       // Local storage fallback for instant sync across tabs in same browser
       if (typeof window !== 'undefined') {
+        const catSaved = localStorage.getItem('ithipooram_menu_categories');
+        if (catSaved) {
+          try {
+            const parsed = JSON.parse(catSaved);
+            if (Array.isArray(parsed) && parsed.length > 0) {
+              setMenuCategories(parsed);
+              return;
+            }
+          } catch (e) {}
+        }
         const saved = localStorage.getItem('ithipooram_custom_menu_dishes');
         if (saved) {
           try {

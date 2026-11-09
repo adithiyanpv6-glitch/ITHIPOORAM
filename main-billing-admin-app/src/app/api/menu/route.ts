@@ -1,12 +1,12 @@
 import { NextResponse } from 'next/server';
-import { db } from '@/lib/serverDb';
+import { db, persistDb } from '@/lib/serverDb';
 import { autoDispatchMenuExcelToTelegram } from '@/lib/autoTelegramMenuSync';
 
 export const dynamic = 'force-dynamic';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Methods': 'GET, POST, PATCH, OPTIONS',
+  'Access-Control-Allow-Methods': 'GET, POST, PATCH, PUT, DELETE, OPTIONS',
   'Access-Control-Allow-Headers': 'Content-Type, Authorization',
   'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
 };
@@ -73,6 +73,9 @@ export async function POST(request: Request) {
 
     targetCat.items.push(newItem);
 
+    // Save state to disk immediately
+    persistDb();
+
     // Audit log entry
     db.auditLogs.unshift({
       id: `aud-${Date.now()}`,
@@ -92,6 +95,20 @@ export async function POST(request: Request) {
     }
 
     return NextResponse.json({ success: true, item: newItem, categories: db.menuCategories }, { headers: corsHeaders });
+  } catch (err: any) {
+    return NextResponse.json({ error: err.message }, { status: 500, headers: corsHeaders });
+  }
+}
+
+export async function PUT(request: Request) {
+  try {
+    const body = await request.json();
+    if (Array.isArray(body.categories)) {
+      db.menuCategories = body.categories;
+      persistDb();
+      return NextResponse.json({ success: true, categories: db.menuCategories }, { headers: corsHeaders });
+    }
+    return NextResponse.json({ error: 'categories must be an array' }, { status: 400, headers: corsHeaders });
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500, headers: corsHeaders });
   }
@@ -122,6 +139,9 @@ export async function PATCH(request: Request) {
       return NextResponse.json({ error: 'Item not found in live menu' }, { status: 404, headers: corsHeaders });
     }
 
+    // Save state to disk immediately
+    persistDb();
+
     // Add audit log entry
     db.auditLogs.unshift({
       id: `aud-${Date.now()}`,
@@ -141,6 +161,46 @@ export async function PATCH(request: Request) {
     }
 
     return NextResponse.json({ success: true, item: updatedItem }, { headers: corsHeaders });
+  } catch (err: any) {
+    return NextResponse.json({ error: err.message }, { status: 500, headers: corsHeaders });
+  }
+}
+
+export async function DELETE(request: Request) {
+  try {
+    const { searchParams } = new URL(request.url);
+    const itemId = searchParams.get('itemId');
+
+    if (!itemId) {
+      return NextResponse.json({ error: 'itemId query param is required' }, { status: 400, headers: corsHeaders });
+    }
+
+    let deletedName = '';
+    for (const cat of db.menuCategories) {
+      const idx = cat.items.findIndex((it) => it.id === itemId);
+      if (idx !== -1) {
+        deletedName = cat.items[idx].name;
+        cat.items.splice(idx, 1);
+        break;
+      }
+    }
+
+    // Filter out categories that are now empty
+    db.menuCategories = db.menuCategories.filter((c) => c.items.length > 0);
+
+    persistDb();
+
+    db.auditLogs.unshift({
+      id: `aud-${Date.now()}`,
+      timestamp: new Date().toISOString(),
+      actionType: 'MENU_ITEM_DELETED',
+      module: 'MENU',
+      usernameSnapshot: 'Menu Manager',
+      reason: `Deleted dish "${deletedName}"`,
+      success: true,
+    });
+
+    return NextResponse.json({ success: true, deletedName, categories: db.menuCategories }, { headers: corsHeaders });
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500, headers: corsHeaders });
   }

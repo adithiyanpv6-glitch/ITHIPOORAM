@@ -55,11 +55,50 @@ export default function MenuItemsPage() {
       if (res.ok) {
         const cats = await res.json();
         if (Array.isArray(cats)) {
-          setCategories(cats);
+          if (cats.length > 0) {
+            setCategories(cats);
+            if (typeof window !== 'undefined') {
+              localStorage.setItem('ithipooram_menu_categories', JSON.stringify(cats));
+              const flat: any[] = [];
+              cats.forEach(c => (c.items || []).forEach((it: any) => flat.push({ ...it, category: c.name })));
+              localStorage.setItem('ithipooram_custom_menu_dishes', JSON.stringify(flat));
+            }
+          } else {
+            // Server has 0 items. Check if local client has cached items to recover
+            if (typeof window !== 'undefined') {
+              const cached = localStorage.getItem('ithipooram_menu_categories');
+              if (cached) {
+                try {
+                  const parsed = JSON.parse(cached);
+                  if (Array.isArray(parsed) && parsed.length > 0) {
+                    setCategories(parsed);
+                    // Re-sync with server so server doesn't remain empty
+                    await fetch('/api/menu', {
+                      method: 'PUT',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ categories: parsed }),
+                    });
+                    return;
+                  }
+                } catch (err) {}
+              }
+            }
+            setCategories([]);
+          }
         }
       }
     } catch (e) {
-      console.error('Failed to load menu items:', e);
+      console.error('Failed to load menu items from server:', e);
+      // Fallback to local storage
+      if (typeof window !== 'undefined') {
+        const cached = localStorage.getItem('ithipooram_menu_categories');
+        if (cached) {
+          try {
+            const parsed = JSON.parse(cached);
+            if (Array.isArray(parsed)) setCategories(parsed);
+          } catch (err) {}
+        }
+      }
     } finally {
       setLoading(false);
     }
@@ -70,6 +109,19 @@ export default function MenuItemsPage() {
     if (!user) {
       router.replace('/login');
       return;
+    }
+    // Instant preload from local storage cache to eliminate lag or blank state
+    if (typeof window !== 'undefined') {
+      const cached = localStorage.getItem('ithipooram_menu_categories');
+      if (cached) {
+        try {
+          const parsed = JSON.parse(cached);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            setCategories(parsed);
+            setLoading(false);
+          }
+        } catch (e) {}
+      }
     }
     loadMenu();
   }, [router]);
@@ -133,7 +185,7 @@ export default function MenuItemsPage() {
     };
 
     try {
-      await fetch('/api/menu', {
+      const res = await fetch('/api/menu', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -146,7 +198,22 @@ export default function MenuItemsPage() {
         }),
       });
 
-      await loadMenu();
+      if (res.ok) {
+        const data = await res.json();
+        if (data.categories && Array.isArray(data.categories)) {
+          setCategories(data.categories);
+          if (typeof window !== 'undefined') {
+            localStorage.setItem('ithipooram_menu_categories', JSON.stringify(data.categories));
+            const flat: any[] = [];
+            data.categories.forEach((c: any) => (c.items || []).forEach((it: any) => flat.push({ ...it, category: c.name })));
+            localStorage.setItem('ithipooram_custom_menu_dishes', JSON.stringify(flat));
+          }
+        } else {
+          await loadMenu();
+        }
+      } else {
+        await loadMenu();
+      }
 
       // Reset fields
       setItemName('');
@@ -168,7 +235,7 @@ export default function MenuItemsPage() {
     const stockNum = parseInt(editStock, 10);
 
     try {
-      await fetch('/api/menu', {
+      const res = await fetch('/api/menu', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -177,9 +244,38 @@ export default function MenuItemsPage() {
           currentStock: isNaN(stockNum) ? undefined : stockNum,
         }),
       });
-      await loadMenu();
+      if (res.ok) {
+        await loadMenu();
+      }
     } catch (e) {
       console.error('Failed to update dish:', e);
+    }
+    setEditDish(null);
+  };
+
+  // Delete dish from menu
+  const handleDeleteDish = async (dishId: string) => {
+    if (!confirm('Are you sure you want to remove this dish from the menu?')) return;
+    try {
+      const res = await fetch(`/api/menu?itemId=${dishId}`, {
+        method: 'DELETE',
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.categories && Array.isArray(data.categories)) {
+          setCategories(data.categories);
+          if (typeof window !== 'undefined') {
+            localStorage.setItem('ithipooram_menu_categories', JSON.stringify(data.categories));
+            const flat: any[] = [];
+            data.categories.forEach((c: any) => (c.items || []).forEach((it: any) => flat.push({ ...it, category: c.name })));
+            localStorage.setItem('ithipooram_custom_menu_dishes', JSON.stringify(flat));
+          }
+        } else {
+          await loadMenu();
+        }
+      }
+    } catch (e) {
+      console.error('Failed to delete dish:', e);
     }
     setEditDish(null);
   };
@@ -756,21 +852,30 @@ export default function MenuItemsPage() {
                 />
               </div>
 
-              <div className="pt-2 flex justify-end space-x-2">
+              <div className="pt-2 flex items-center justify-between">
                 <button
                   type="button"
-                  onClick={() => setEditDish(null)}
-                  className="px-4 py-2 rounded-xl text-zinc-600 font-bold"
+                  onClick={() => handleDeleteDish(editDish.id)}
+                  className="px-3.5 py-2 rounded-xl text-red-600 bg-red-50 hover:bg-red-100 font-bold transition text-xs"
                 >
-                  Cancel
+                  Delete Dish
                 </button>
-                <button
-                  type="button"
-                  onClick={handleSaveEdit}
-                  className="px-5 py-2 rounded-xl bg-black text-white font-black hover:bg-zinc-800 transition"
-                >
-                  Save Changes
-                </button>
+                <div className="flex space-x-2">
+                  <button
+                    type="button"
+                    onClick={() => setEditDish(null)}
+                    className="px-4 py-2 rounded-xl text-zinc-600 font-bold"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleSaveEdit}
+                    className="px-5 py-2 rounded-xl bg-black text-white font-black hover:bg-zinc-800 transition"
+                  >
+                    Save Changes
+                  </button>
+                </div>
               </div>
             </div>
           </div>

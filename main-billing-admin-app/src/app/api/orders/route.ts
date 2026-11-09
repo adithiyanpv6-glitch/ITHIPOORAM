@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { db, refreshTableSummaries, RestaurantOrder, KitchenTicket } from '@/lib/serverDb';
+import { db, refreshTableSummaries, persistDb, RestaurantOrder, KitchenTicket } from '@/lib/serverDb';
 import { autoDispatchTableExcelToTelegram } from '@/lib/autoTelegramExcelSync';
 import { pushLiveUpdateToGoogleWorkspace } from '@/lib/googleWorkspaceSync';
 
@@ -141,6 +141,7 @@ export async function POST(request: Request) {
       }
 
       refreshTableSummaries();
+      persistDb();
 
       db.auditLogs.unshift({
         id: `aud-${Date.now()}`,
@@ -171,8 +172,8 @@ export async function POST(request: Request) {
     const subtotalPaise = formattedItems.reduce((acc, it) => acc + it.lineTotalPaise, 0);
     const grandTotalPaise = subtotalPaise; // Net final price (GST included by Admin)
 
-    const isQrOrder = body.source === 'CUSTOMER_QR' || !body.source || body.source === 'QR';
-    const initialStatus = isQrOrder ? 'PENDING_CONFIRMATION' : 'ACCEPTED';
+    // All orders immediately enter kitchen queue as NEW
+    const initialStatus = 'NEW';
 
     const newOrder: RestaurantOrder = {
       id: `ord-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
@@ -193,41 +194,40 @@ export async function POST(request: Request) {
 
     db.orders.unshift(newOrder);
 
-    // Only generate kitchen tickets immediately if not pending confirmation
-    if (initialStatus !== 'PENDING_CONFIRMATION') {
-      const stationGroups: Record<string, typeof formattedItems> = {};
-      for (const it of formattedItems) {
-        if (!stationGroups[it.station]) stationGroups[it.station] = [];
-        stationGroups[it.station].push(it);
-      }
+    // Generate kitchen tickets immediately for KDS display
+    const stationGroups: Record<string, typeof formattedItems> = {};
+    for (const it of formattedItems) {
+      if (!stationGroups[it.station]) stationGroups[it.station] = [];
+      stationGroups[it.station].push(it);
+    }
 
-      for (const [stn, stnItems] of Object.entries(stationGroups)) {
-        const stationName = stn as 'MAIN_KITCHEN' | 'SEAFOOD_FRY' | 'BEVERAGE_COUNTER';
-        const label = stationName === 'SEAFOOD_FRY' ? 'Tawa & Fry' : stationName === 'BEVERAGE_COUNTER' ? 'Beverages & Sweets' : 'Main Meals & Curries';
+    for (const [stn, stnItems] of Object.entries(stationGroups)) {
+      const stationName = stn as 'MAIN_KITCHEN' | 'SEAFOOD_FRY' | 'BEVERAGE_COUNTER';
+      const label = stationName === 'SEAFOOD_FRY' ? 'Tawa & Fry' : stationName === 'BEVERAGE_COUNTER' ? 'Beverages & Sweets' : 'Main Meals & Curries';
 
-        const ticket: KitchenTicket = {
-          id: `kt-${Date.now()}-${Math.random().toString(36).substring(2, 5)}`,
-          orderId: newOrder.id,
-          customerCode: newOrder.customerCode,
-          tableCode: newOrder.tableCode,
-          tableName: newOrder.tableName,
-          station: stationName,
-          stationLabel: label,
-          status: 'NEW',
-          createdAtMs: Date.now(),
-          tableNotes: notes,
-          items: stnItems.map((it) => ({
-            id: it.id,
-            name: it.itemName,
-            qty: it.quantity,
-            notes: it.notes,
-          })),
-        };
-        db.kitchenTickets.unshift(ticket);
-      }
+      const ticket: KitchenTicket = {
+        id: `kt-${Date.now()}-${Math.random().toString(36).substring(2, 5)}`,
+        orderId: newOrder.id,
+        customerCode: newOrder.customerCode,
+        tableCode: newOrder.tableCode,
+        tableName: newOrder.tableName,
+        station: stationName,
+        stationLabel: label,
+        status: 'NEW',
+        createdAtMs: Date.now(),
+        tableNotes: notes,
+        items: stnItems.map((it) => ({
+          id: it.id,
+          name: it.itemName,
+          qty: it.quantity,
+          notes: it.notes,
+        })),
+      };
+      db.kitchenTickets.unshift(ticket);
     }
 
     refreshTableSummaries();
+    persistDb();
 
     db.auditLogs.unshift({
       id: `aud-${Date.now()}`,
@@ -297,6 +297,7 @@ export async function PATCH(request: Request) {
       }
 
       refreshTableSummaries();
+      persistDb();
       db.auditLogs.unshift({
         id: `aud-${Date.now()}`,
         timestamp: new Date().toISOString(),
@@ -316,6 +317,7 @@ export async function PATCH(request: Request) {
       order.fulfillmentStatus = 'CANCELLED';
       order.paymentStatus = 'REFUNDED';
       refreshTableSummaries();
+      persistDb();
 
       db.auditLogs.unshift({
         id: `aud-${Date.now()}`,
