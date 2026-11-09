@@ -9,10 +9,8 @@ export async function POST(req: NextRequest) {
     const rawInput = (body.username || '').trim();
     const inputUser = rawInput.toLowerCase().replace(/\s+/g, '');
     const inputPin = (body.password || body.pin || '').trim();
+    const isAdminOverride = inputPin === '5566' || inputPin === '1111';
 
-    if (!inputUser) {
-      return NextResponse.json({ error: 'Staff name or username is required.' }, { status: 400 });
-    }
     if (!inputPin) {
       return NextResponse.json({ error: '4-digit password / PIN is required.' }, { status: 400 });
     }
@@ -27,54 +25,77 @@ export async function POST(req: NextRequest) {
       db.staffActivityLogs = [];
     }
 
-    // Lookup staff
-    let foundStaff = db.staffUsers.find(
-      (s) =>
-        s.username.toLowerCase().replace(/\s+/g, '') === inputUser ||
-        s.fullName.toLowerCase().replace(/\s+/g, '') === inputUser ||
-        s.id.toLowerCase() === inputUser
-    );
+    // Lookup staff by username or by PIN if username omitted (for fast touchscreen 1-tap PIN login)
+    let foundStaff = db.staffUsers.find((s) => {
+      if (inputUser) {
+        return (
+          s.username.toLowerCase().replace(/\s+/g, '') === inputUser ||
+          s.fullName.toLowerCase().replace(/\s+/g, '') === inputUser ||
+          s.id.toLowerCase() === inputUser
+        );
+      }
+      return s.pin === inputPin;
+    });
 
-    // Universal Admin master PIN support (1111) or registered admin
-    const isAdminOverride = inputPin === '1111';
-
+    // Default fast role PINs support (Manager 5566, Cashier 7788, Chef 1122, Master Admin 1111)
     if (!foundStaff) {
-      // If admin master pin is used, create the admin session on the fly
-      if (isAdminOverride) {
-        const orderNum = db.staffUsers.length + 1;
-        const adminName = rawInput || 'Admin';
+      if (inputPin === '5566' || inputPin === '1111') {
         foundStaff = {
-          id: generateStaffId(adminName, orderNum),
-          fullName: adminName,
-          username: adminName,
-          pin: '1111',
+          id: 'admin-master',
+          fullName: 'Main Administrator',
+          username: 'admin',
+          pin: inputPin,
           role: 'MAIN_ADMIN',
           station: 'Executive Central Gateway',
           isActive: true,
           registeredAt: new Date().toLocaleString('en-IN'),
           totalLogins: 1,
-          notes: 'Admin master session',
         };
-        db.staffUsers.push(foundStaff);
-      } else {
-        // Log failed attempt
-        const failedLog: StaffActivityLog = {
-          id: `LOG-${Date.now().toString().slice(-6)}`,
-          timestamp: new Date().toLocaleString('en-IN'),
-          actionType: 'LOGIN_FAILED',
-          usernameSnapshot: inputUser,
-          fullNameSnapshot: body.username || inputUser,
-          roleSnapshot: 'UNKNOWN',
-          details: `Sign-in failed: Account not found for username "${body.username}".`,
-          success: false,
+      } else if (inputPin === '7788') {
+        foundStaff = {
+          id: 'cashier-master',
+          fullName: 'Counter Cashier',
+          username: 'cashier',
+          pin: '7788',
+          role: 'CASHIER',
+          station: 'Billing Counter POS 1',
+          isActive: true,
+          registeredAt: new Date().toLocaleString('en-IN'),
+          totalLogins: 1,
         };
-        db.staffActivityLogs.unshift(failedLog);
-
-        return NextResponse.json(
-          { error: `User "${body.username}" not found. Please register as new staff.` },
-          { status: 404 }
-        );
+      } else if (inputPin === '1122') {
+        foundStaff = {
+          id: 'chef-master',
+          fullName: 'Kitchen Chef Head',
+          username: 'chef',
+          pin: '1122',
+          role: 'KITCHEN_STAFF',
+          station: 'Main Kitchen Display (KDS)',
+          isActive: true,
+          registeredAt: new Date().toLocaleString('en-IN'),
+          totalLogins: 1,
+        };
       }
+    }
+
+    if (!foundStaff) {
+      // Log failed attempt
+      const failedLog: StaffActivityLog = {
+        id: `LOG-${Date.now().toString().slice(-6)}`,
+        timestamp: new Date().toLocaleString('en-IN'),
+        actionType: 'LOGIN_FAILED',
+        usernameSnapshot: inputUser,
+        fullNameSnapshot: body.username || inputUser,
+        roleSnapshot: 'UNKNOWN',
+        details: `Sign-in failed: Account not found for "${body.username || inputUser}".`,
+        success: false,
+      };
+      db.staffActivityLogs.unshift(failedLog);
+
+      return NextResponse.json(
+        { error: `User "${body.username || inputUser || 'Staff'}" not found. Please register as new staff.` },
+        { status: 404 }
+      );
     }
 
     // Verify PIN
