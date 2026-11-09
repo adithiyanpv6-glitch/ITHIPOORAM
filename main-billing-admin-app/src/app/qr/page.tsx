@@ -69,15 +69,17 @@ export default function TablesManagementPage() {
   const [customerBaseUrl, setCustomerBaseUrl] = useState<string>('https://admin-app-ithipooram.vercel.app');
 
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('ithipooram_customer_qr_base_url');
-      if (saved) {
-        setCustomerBaseUrl(saved);
-      } else {
-        const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-        setCustomerBaseUrl(isLocal ? 'https://admin-app-ithipooram.vercel.app' : window.location.origin);
-      }
-    }
+    // Automatically detect active Cloudflare Tunnel URL or permanent live cloud domain
+    fetch('/api/tunnel/register')
+      .then((r) => r.json())
+      .then((d) => {
+        if (d?.tunnelUrl) {
+          setCustomerBaseUrl(d.tunnelUrl);
+        }
+      })
+      .catch(() => {
+        setCustomerBaseUrl('https://admin-app-ithipooram.vercel.app');
+      });
   }, []);
 
   // Load tables & running orders
@@ -1004,8 +1006,16 @@ export default function TablesManagementPage() {
             {/* Actions */}
             <div className="space-y-2">
               <button
-                onClick={handleDownloadQr}
+                onClick={() => window.print()}
                 className="w-full py-2.5 rounded-xl bg-black hover:bg-zinc-800 text-white font-black text-xs flex items-center justify-center space-x-1.5 shadow-xs cursor-pointer"
+              >
+                <Printer className="w-3.5 h-3.5" />
+                <span>Print Table Stand (Cut &amp; Paste on Table)</span>
+              </button>
+
+              <button
+                onClick={handleDownloadQr}
+                className="w-full py-2.5 rounded-xl border border-zinc-300 hover:border-black text-black font-black text-xs flex items-center justify-center space-x-1.5 shadow-xs cursor-pointer transition"
               >
                 <Download className="w-3.5 h-3.5" />
                 <span>Download QR Image (PNG)</span>

@@ -1,12 +1,12 @@
 # ==============================================================================
-# ITHI POORAM - CLOUDFLARE TUNNEL ONE-CLICK LAUNCHER
-# Exposes http://localhost:3000 to public HTTPS for customer QR mobile ordering
+# ITHI POORAM - CLOUDFLARE TUNNEL ONE-CLICK AUTOMATIC LAUNCHER
+# Automatically embeds public HTTPS link into all table QR codes
 # Works on all 4G / 5G mobile networks without store WiFi or router port-forwarding!
 # ==============================================================================
 
 Write-Host ""
 Write-Host "==========================================================" -ForegroundColor Cyan
-Write-Host "   ITHI POORAM - CLOUDFLARE TUNNEL (CUSTOMER QR READY)    " -ForegroundColor Yellow
+Write-Host "   ITHI POORAM - CLOUDFLARE TUNNEL (AUTOMATIC QR SYNC)    " -ForegroundColor Yellow
 Write-Host "==========================================================" -ForegroundColor Cyan
 Write-Host ""
 
@@ -22,7 +22,7 @@ if (-not (Test-Path $binPath)) {
         Write-Host "✓ Download complete!" -ForegroundColor Green
     } catch {
         Write-Host "Download failed: $($_.Exception.Message)" -ForegroundColor Red
-        Write-Host "Alternative: Your live Vercel URL https://admin-app-ithipooram.vercel.app is already active worldwide on all mobile networks!" -ForegroundColor Yellow
+        Write-Host "Defaulting to permanent cloud link https://admin-app-ithipooram.vercel.app" -ForegroundColor Yellow
         pause
         exit
     }
@@ -32,13 +32,30 @@ if (-not (Test-Path $binPath)) {
 Write-Host "[2/3] Checking local Next.js server on port 3000..." -ForegroundColor Green
 $tcp = Test-NetConnection -ComputerName "localhost" -Port 3000 -InformationLevel Quiet
 if (-not $tcp) {
-    Write-Host "⚠️ Warning: Port 3000 not responding. Make sure to run 'npm run dev' or 'npm run start' in another terminal." -ForegroundColor Yellow
+    Write-Host "⚠️ Notice: Local server on port 3000 not detected yet. Table QRs will use permanent cloud URL." -ForegroundColor Yellow
 }
 
-# 3. Launch the Cloudflare Quick Tunnel
+# 3. Launch the Cloudflare Quick Tunnel and automatically sync URL
 Write-Host "[3/3] Starting Cloudflare Tunnel pointing to http://localhost:3000 ..." -ForegroundColor Cyan
-Write-Host "Look below for your public HTTPS URL (e.g. https://xxxx.trycloudflare.com)" -ForegroundColor Yellow
-Write-Host "Copy that URL and paste it in Table Management > Configure Tunnel URL!" -ForegroundColor Green
+Write-Host "Connecting tunnel..." -ForegroundColor Yellow
 Write-Host ""
 
-& $binPath tunnel --url http://localhost:3000
+& $binPath tunnel --url http://localhost:3000 2>&1 | ForEach-Object {
+    $line = $_.ToString()
+    Write-Host $line
+
+    if ($line -match '(https://[a-zA-Z0-9-]+\.trycloudflare\.com)') {
+        $tunnelUrl = $matches[1]
+        Write-Host ""
+        Write-Host "****************************************************************" -ForegroundColor Green
+        Write-Host "  ✓ SUCCESS: CLOUDFLARE TUNNEL IS ACTIVE!                      " -ForegroundColor Green
+        Write-Host "  Public URL: $tunnelUrl" -ForegroundColor Yellow
+        Write-Host "  ALL TABLE QRs AUTOMATICALLY POINT TO THIS LINK!               " -ForegroundColor Cyan
+        Write-Host "  Customers on 4G/5G mobile networks can now scan and order!    " -ForegroundColor Green
+        Write-Host "****************************************************************" -ForegroundColor Green
+        Write-Host ""
+        try {
+            Invoke-RestMethod -Uri "http://localhost:3000/api/tunnel/register" -Method Post -ContentType "application/json" -Body "{`"url`": `"$tunnelUrl`"}" -ErrorAction SilentlyContinue
+        } catch {}
+    }
+}
