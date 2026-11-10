@@ -47,8 +47,6 @@ export default function RootHomePage() {
   const [chartMetric, setChartMetric] = useState<'sales' | 'orders' | 'aov'>('sales');
   const [selectedRange, setSelectedRange] = useState<'today' | '7days' | 'month' | 'all'>('today');
 
-  // Mobile navigation drawer toggle
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isDayCloseModalOpen, setIsDayCloseModalOpen] = useState(false);
   const [dayCloseLoading, setDayCloseLoading] = useState(false);
   const [dayCloseSummary, setDayCloseSummary] = useState<any | null>(null);
@@ -103,8 +101,8 @@ export default function RootHomePage() {
   const loadDashboardData = async () => {
     try {
       setLoading(true);
-      // Fetch overview metrics
-      const res = await apiRequest(`/admin/overview?range=today`);
+      // Fetch real-time overview metrics & timeline for selected range
+      const res = await apiRequest(`/admin/overview?range=${selectedRange}`);
       setData(res);
 
       // Fetch running (UNPAID / Active) orders
@@ -167,7 +165,7 @@ export default function RootHomePage() {
     loadDashboardData();
     const interval = setInterval(loadDashboardData, 4000);
     return () => clearInterval(interval);
-  }, []);
+  }, [selectedRange]);
 
   // Waiter Order Handlers
   const handleOpenWaiterOrderModal = () => {
@@ -335,6 +333,76 @@ export default function RootHomePage() {
     return tables.filter((t) => !occupiedCodes.has((t.tableCode || '').toUpperCase()));
   }, [tables, runningOrders]);
 
+  // Real-Time Dynamic Graph Computations
+  const graphTimeline = useMemo(() => {
+    if (data?.timeline && Array.isArray(data.timeline) && data.timeline.length > 0) {
+      return data.timeline;
+    }
+    return [
+      { label: '09:00', salesPaise: 0, ordersCount: 0, aovPaise: 0 },
+      { label: '12:00', salesPaise: 0, ordersCount: 0, aovPaise: 0 },
+      { label: '15:00', salesPaise: 0, ordersCount: 0, aovPaise: 0 },
+      { label: '18:00', salesPaise: 0, ordersCount: 0, aovPaise: 0 },
+      { label: '21:00', salesPaise: 0, ordersCount: 0, aovPaise: 0 },
+      { label: '23:59', salesPaise: 0, ordersCount: 0, aovPaise: 0 },
+    ];
+  }, [data?.timeline]);
+
+  const graphValues = useMemo(() => {
+    return graphTimeline.map((item: any) => {
+      if (chartMetric === 'sales') return Math.round((item.salesPaise || 0) / 100);
+      if (chartMetric === 'orders') return item.ordersCount || 0;
+      return Math.round((item.aovPaise || 0) / 100);
+    });
+  }, [graphTimeline, chartMetric]);
+
+  const maxGraphValue = useMemo(() => {
+    const m = Math.max(...graphValues);
+    if (m > 0) return Math.ceil(m * 1.15);
+    return chartMetric === 'orders' ? 10 : 2000;
+  }, [graphValues, chartMetric]);
+
+  const yAxisTicks = useMemo(() => {
+    return [
+      maxGraphValue,
+      Math.round(maxGraphValue * 0.75),
+      Math.round(maxGraphValue * 0.5),
+      Math.round(maxGraphValue * 0.25),
+      0,
+    ];
+  }, [maxGraphValue]);
+
+  const formatTick = (val: number) => {
+    if (chartMetric === 'orders') return `${val}`;
+    if (val >= 1000) return `₹ ${(val / 1000).toFixed(1)}k`;
+    return `₹ ${val}`;
+  };
+
+  const svgCoordinates = useMemo(() => {
+    const width = 480;
+    const height = 150;
+    const paddingX = 15;
+    const bottomY = 140;
+    const topY = 15;
+    const len = graphValues.length;
+
+    const points = graphValues.map((val: number, idx: number) => {
+      const x = paddingX + (idx / Math.max(1, len - 1)) * (width - 2 * paddingX);
+      const ratio = maxGraphValue > 0 ? val / maxGraphValue : 0;
+      const y = bottomY - ratio * (bottomY - topY);
+      return { x, y, val, label: graphTimeline[idx]?.label };
+    });
+
+    if (points.length === 0) return { pathD: '', areaD: '', points: [] as { x: number; y: number; val: number; label?: string }[] };
+
+    const pathD = points.map((p: { x: number; y: number }, idx: number) => (idx === 0 ? `M ${p.x},${p.y}` : `L ${p.x},${p.y}`)).join(' ');
+    const lastX = points[points.length - 1].x;
+    const firstX = points[0].x;
+    const areaD = `${pathD} L ${lastX},${bottomY} L ${firstX},${bottomY} Z`;
+
+    return { pathD, areaD, points };
+  }, [graphValues, maxGraphValue, graphTimeline]);
+
   return (
     <div className="min-h-screen bg-[#F8F9FA] text-[#0A0C10] flex flex-col md:flex-row font-sans selection:bg-zinc-800 selection:text-white">
       
@@ -471,91 +539,31 @@ export default function RootHomePage() {
       </aside>
 
       {/* ============================================================== */}
-      {/* 2. MOBILE TOP BAR HEADER (Lap & Mobile Friendly)                */}
+      {/* 2. MOBILE TOP BAR HEADER (Large Brand Name, Starts from Left)  */}
       {/* ============================================================== */}
-      <header className="md:hidden bg-[#0C0E12] text-white p-4 border-b border-zinc-800 flex items-center justify-between sticky top-0 z-40">
-        <div className="flex items-center space-x-3 flex-1">
-          <button
-            onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-            className="p-2 rounded-xl bg-zinc-900 border border-zinc-700 text-zinc-300"
-          >
-            {isMobileMenuOpen ? <X className="w-5 h-5" /> : <MenuIcon className="w-5 h-5" />}
-          </button>
+      <header className="md:hidden bg-[#0C0E12] text-white px-4 py-3 border-b border-zinc-800 flex items-center justify-between sticky top-0 z-40">
+        <div className="flex items-center justify-start">
           <img 
             src="/brand-calligraphy-uploaded.png" 
             alt="ഇത്തിപ്പൂരം" 
-            className="h-10 w-auto object-contain invert brightness-200"
+            className="h-12 sm:h-14 w-auto object-contain invert brightness-200"
           />
         </div>
 
         <div className="flex items-center space-x-2">
           <button
             onClick={handleOpenWaiterOrderModal}
-            className="px-3.5 py-1.5 rounded-xl bg-white text-black font-black text-xs cursor-pointer shadow-xs active:scale-95"
+            className="px-4 py-2 rounded-xl bg-white text-black font-black text-xs cursor-pointer shadow-xs active:scale-95"
           >
             <span>+ Add Order</span>
           </button>
         </div>
       </header>
 
-      {/* Mobile Drawer */}
-      {isMobileMenuOpen && (
-        <div className="md:hidden bg-[#0C0E12] border-b border-zinc-800 px-4 py-3 space-y-2 z-30 animate-in slide-in-from-top-2">
-          <Link
-            href="/"
-            onClick={() => setIsMobileMenuOpen(false)}
-            className="flex items-center space-x-3 px-3 py-2.5 rounded-xl bg-white text-black font-black text-sm"
-          >
-            <Home className="w-4 h-4" />
-            <span>Home</span>
-          </Link>
-          <Link
-            href="/qr"
-            onClick={() => setIsMobileMenuOpen(false)}
-            className="flex items-center space-x-3 px-3 py-2.5 rounded-xl text-zinc-300 hover:bg-zinc-900 font-bold text-sm"
-          >
-            <Grid3X3 className="w-4 h-4" />
-            <span>Table</span>
-          </Link>
-          <Link
-            href="/billing"
-            onClick={() => setIsMobileMenuOpen(false)}
-            className="flex items-center space-x-3 px-3 py-2.5 rounded-xl text-zinc-300 hover:bg-zinc-900 font-bold text-sm"
-          >
-            <Receipt className="w-4 h-4" />
-            <span>Billing</span>
-          </Link>
-          <Link
-            href="/menu"
-            onClick={() => setIsMobileMenuOpen(false)}
-            className="flex items-center space-x-3 px-3 py-2.5 rounded-xl text-zinc-300 hover:bg-zinc-900 font-bold text-sm"
-          >
-            <UtensilsCrossed className="w-4 h-4" />
-            <span>Items</span>
-          </Link>
-          <Link
-            href="/kitchen"
-            onClick={() => setIsMobileMenuOpen(false)}
-            className="flex items-center space-x-3 px-3 py-2.5 rounded-xl text-zinc-300 hover:bg-zinc-900 font-bold text-sm"
-          >
-            <ChefHat className="w-4 h-4 text-orange-400" />
-            <span>Kitchen (KDS)</span>
-          </Link>
-          <Link
-            href="/users"
-            onClick={() => setIsMobileMenuOpen(false)}
-            className="flex items-center space-x-3 px-3 py-2.5 rounded-xl text-zinc-300 hover:bg-zinc-900 font-bold text-sm"
-          >
-            <MoreHorizontal className="w-4 h-4" />
-            <span>More</span>
-          </Link>
-        </div>
-      )}
-
       {/* ============================================================== */}
-      {/* 3. MAIN WORKSPACE AREA                                          */}
+      {/* 3. MAIN WORKSPACE AREA (Complete Scroll Down)                   */}
       {/* ============================================================== */}
-      <main className="flex-1 p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto w-full space-y-6 overflow-y-auto">
+      <main className="flex-1 p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto w-full space-y-6 overflow-y-auto pb-48 sm:pb-36">
         
         {/* Top Header Label with Large Home and English Date & Day */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-3 border-b border-zinc-200/80">
@@ -745,71 +753,68 @@ export default function RootHomePage() {
               </div>
             </div>
 
-            {/* SVG Visual Smooth Curve Graph (Fixed inside box with internal X-axis markings) */}
+            {/* SVG Visual Smooth Curve Graph (Connected to real-time data) */}
             <div className="flex flex-col h-64 sm:h-72 w-full pt-4 pb-2 justify-between">
               <div className="relative flex-1 w-full">
-                {/* Horizontal dashed guide lines */}
+                {/* Horizontal guide lines with dynamic Y-axis ticks */}
                 <div className="absolute inset-0 flex flex-col justify-between pointer-events-none pb-2">
-                  <div className="flex items-center text-[10px] font-mono font-bold text-zinc-400">
-                    <span className="w-12">₹ 2.0k</span>
-                    <div className="flex-1 border-b border-dashed border-zinc-100" />
-                  </div>
-                  <div className="flex items-center text-[10px] font-mono font-bold text-zinc-400">
-                    <span className="w-12">₹ 1.5k</span>
-                    <div className="flex-1 border-b border-dashed border-zinc-100" />
-                  </div>
-                  <div className="flex items-center text-[10px] font-mono font-bold text-zinc-400">
-                    <span className="w-12">₹ 1.0k</span>
-                    <div className="flex-1 border-b border-dashed border-zinc-100" />
-                  </div>
-                  <div className="flex items-center text-[10px] font-mono font-bold text-zinc-400">
-                    <span className="w-12">₹ 500</span>
-                    <div className="flex-1 border-b border-dashed border-zinc-100" />
-                  </div>
-                  <div className="flex items-center text-[10px] font-mono font-bold text-zinc-400">
-                    <span className="w-12">₹ 0</span>
-                    <div className="flex-1 border-b border-zinc-200" />
-                  </div>
+                  {yAxisTicks.map((tick, i) => (
+                    <div key={i} className="flex items-center text-[10px] font-mono font-bold text-zinc-400">
+                      <span className="w-14 truncate">{formatTick(tick)}</span>
+                      <div className={`flex-1 border-b ${i === yAxisTicks.length - 1 ? 'border-zinc-200' : 'border-dashed border-zinc-100'}`} />
+                    </div>
+                  ))}
                 </div>
 
-                {/* Dynamic SVG Area & Smooth Curve Line */}
-                <div className="ml-12 h-full relative">
-                  <svg className="w-full h-full" preserveAspectRatio="none" viewBox="0 0 500 180">
+                {/* Dynamic SVG Area & Real-Time Line */}
+                <div className="ml-14 h-full relative">
+                  <svg className="w-full h-full" preserveAspectRatio="none" viewBox="0 0 480 150">
                     <defs>
                       <linearGradient id="curveGradient" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor="#1E293B" stopOpacity="0.25" />
-                        <stop offset="100%" stopColor="#1E293B" stopOpacity="0.0" />
+                        <stop offset="0%" stopColor="#0F172A" stopOpacity="0.2" />
+                        <stop offset="100%" stopColor="#0F172A" stopOpacity="0.0" />
                       </linearGradient>
                     </defs>
 
                     {/* Shaded Area Under Curve */}
-                    <path
-                      d="M 50,160 C 180,160 250,30 450,15 L 450,175 L 50,175 Z"
-                      fill="url(#curveGradient)"
-                    />
+                    {svgCoordinates.areaD && (
+                      <path d={svgCoordinates.areaD} fill="url(#curveGradient)" />
+                    )}
 
-                    {/* High-Contrast Premium Black/Slate Curve */}
-                    <path
-                      d="M 50,160 C 180,160 250,30 450,15"
-                      fill="none"
-                      stroke="#0F172A"
-                      strokeWidth="3.5"
-                      strokeLinecap="round"
-                    />
+                    {/* Real-time Line */}
+                    {svgCoordinates.pathD && (
+                      <path
+                        d={svgCoordinates.pathD}
+                        fill="none"
+                        stroke="#0F172A"
+                        strokeWidth="3"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
+                    )}
 
-                    {/* Start Data Point */}
-                    <circle cx="50" cy="160" r="4.5" fill="#0F172A" stroke="#FFFFFF" strokeWidth="2.5" />
-                    {/* Peak Data Point */}
-                    <circle cx="450" cy="15" r="5" fill="#0F172A" stroke="#FFFFFF" strokeWidth="3" />
+                    {/* Real-time Data Points */}
+                    {svgCoordinates.points.map((pt: { x: number; y: number; val: number; label?: string }, i: number) => (
+                      <g key={i}>
+                        <circle
+                          cx={pt.x}
+                          cy={pt.y}
+                          r={pt.val > 0 ? 4.5 : 3}
+                          fill={pt.val > 0 ? '#0F172A' : '#94A3B8'}
+                          stroke="#FFFFFF"
+                          strokeWidth="2"
+                        />
+                      </g>
+                    ))}
                   </svg>
                 </div>
               </div>
 
-              {/* X-Axis Date Range Labels - cleanly contained inside the box */}
-              <div className="flex justify-between text-[11px] font-mono font-bold text-zinc-500 pl-12 pt-2 border-t border-zinc-100 shrink-0">
-                <span>Start Shift (03:00 AM)</span>
-                <span>Peak Hours</span>
-                <span>Live Active</span>
+              {/* X-Axis Labels from Real-time Timeline */}
+              <div className="flex justify-between text-[11px] font-mono font-bold text-zinc-500 pl-14 pt-2 border-t border-zinc-100 shrink-0">
+                {graphTimeline.map((item: any, i: number) => (
+                  <span key={i} className="text-center">{item.label}</span>
+                ))}
               </div>
             </div>
 
@@ -1091,18 +1096,9 @@ export default function RootHomePage() {
           <div className="bg-white rounded-3xl max-w-2xl w-full p-5 sm:p-6 shadow-2xl border border-zinc-200 flex flex-col max-h-[92dvh] overflow-hidden my-auto animate-in fade-in zoom-in-95 duration-150">
             {/* Modal Header */}
             <div className="flex items-center justify-between pb-3.5 border-b border-zinc-100 shrink-0">
-              <div className="flex items-center space-x-2.5">
-                <div className="w-9 h-9 rounded-xl bg-black text-white flex items-center justify-center shadow-xs">
-                  <ChefHat className="w-5 h-5 text-amber-400" />
-                </div>
-                <div>
-                  <h3 className="text-base font-black text-black">Waiter Manual Order Desk</h3>
-                  <p className="text-[11px] font-semibold text-zinc-500">
-                    Take orders directly for guests who do not use smartphone QR code
-                  </p>
-                </div>
-              </div>
+              <h3 className="text-lg font-black text-black">Manual Order</h3>
               <button
+                type="button"
                 onClick={() => setIsWaiterOrderModalOpen(false)}
                 className="w-8 h-8 rounded-full bg-zinc-100 hover:bg-zinc-200 text-zinc-500 hover:text-black flex items-center justify-center transition cursor-pointer"
               >
@@ -1123,42 +1119,41 @@ export default function RootHomePage() {
               {/* 1. Select Registered Table */}
               <div>
                 <label className="block text-xs font-black text-zinc-900 uppercase tracking-wider mb-2">
-                  1. Select Registered Table (ലഭ്യമായ ടേബിളുകൾ)
+                  Select Table
                 </label>
-                <div className="flex flex-wrap gap-2">
-                  {(tables && tables.length > 0 ? tables : [
-                    { id: 't1', tableCode: 'T1', displayName: 'Table 1' },
-                    { id: 't2', tableCode: 'T2', displayName: 'Table 2' },
-                    { id: 't3', tableCode: 'T3', displayName: 'Table 3' },
-                    { id: 't4', tableCode: 'T4', displayName: 'Table 4' },
-                    { id: 't5', tableCode: 'T5', displayName: 'Table 5' },
-                    { id: 't6', tableCode: 'T6', displayName: 'Table 6' },
-                  ]).map((t: any) => {
-                    const code = t.tableCode || t.id;
-                    const isSelected = waiterSelectedTable?.toUpperCase() === code?.toUpperCase();
-                    return (
-                      <button
-                        key={code}
-                        type="button"
-                        onClick={() => setWaiterSelectedTable(code)}
-                        className={`px-3.5 py-2 rounded-xl text-xs font-black transition cursor-pointer ${
-                          isSelected
-                            ? 'bg-black text-white shadow-sm ring-2 ring-zinc-900 ring-offset-1'
-                            : 'bg-zinc-100 hover:bg-zinc-200 text-zinc-800 border border-zinc-200'
-                        }`}
-                      >
-                        {code} {t.displayName && t.displayName !== code ? `(${t.displayName})` : ''}
-                      </button>
-                    );
-                  })}
-                </div>
+                {tables && tables.length > 0 ? (
+                  <div className="flex flex-wrap gap-2">
+                    {tables.map((t: any) => {
+                      const code = t.tableCode || t.id;
+                      const isSelected = waiterSelectedTable?.toUpperCase() === code?.toUpperCase();
+                      return (
+                        <button
+                          key={code}
+                          type="button"
+                          onClick={() => setWaiterSelectedTable(code)}
+                          className={`px-3.5 py-2 rounded-xl text-xs font-black transition cursor-pointer ${
+                            isSelected
+                              ? 'bg-black text-white shadow-sm ring-2 ring-zinc-900 ring-offset-1'
+                              : 'bg-zinc-100 hover:bg-zinc-200 text-zinc-800 border border-zinc-200'
+                          }`}
+                        >
+                          {code} {t.displayName && t.displayName !== code ? `(${t.displayName})` : ''}
+                        </button>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <p className="text-xs text-zinc-500 font-bold bg-zinc-50 p-3 rounded-xl border border-zinc-200">
+                    No registered tables found. Please add tables in the Table section first.
+                  </p>
+                )}
               </div>
 
-              {/* 2. Search Dishes */}
+              {/* 2. Select Dishes */}
               <div>
-                <div className="flex items-center justify-between mb-1.5">
+                <div className="flex items-center justify-between mb-2">
                   <label className="text-xs font-black text-zinc-900 uppercase tracking-wider">
-                    2. Select Dishes (ഭക്ഷണങ്ങൾ തിരഞ്ഞെടുക്കുക)
+                    Select Dishes
                   </label>
                   <span className="text-[11px] font-mono text-zinc-400 font-bold">
                     {filteredDishes.length} items
@@ -1171,13 +1166,13 @@ export default function RootHomePage() {
                     type="text"
                     value={waiterSearchQuery}
                     onChange={(e) => setWaiterSearchQuery(e.target.value)}
-                    placeholder="Search porotta, biryani, fish, tea..."
+                    placeholder="Search present menu..."
                     className="w-full pl-9 pr-4 py-2 rounded-xl bg-zinc-50 border border-zinc-200 text-xs font-semibold focus:outline-none focus:border-black text-zinc-900"
                   />
                   {waiterSearchQuery && (
                     <button
                       onClick={() => setWaiterSearchQuery('')}
-                      className="absolute right-3 top-2.5 text-zinc-400 hover:text-black text-xs"
+                      className="absolute right-3 top-2.5 text-zinc-400 hover:text-black text-xs font-bold"
                     >
                       Clear
                     </button>
@@ -1302,7 +1297,7 @@ export default function RootHomePage() {
                   <Check className="w-4 h-4 text-emerald-400" />
                 )}
                 <span>
-                  Send to Kitchen &amp; Counter (Table {waiterSelectedTable || 'T1'})
+                  Place Order (Table {waiterSelectedTable || 'T1'})
                 </span>
               </button>
             </div>

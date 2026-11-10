@@ -208,6 +208,55 @@ ${xmlRows}
     };
   });
 
+  // Real-time graph timeline based on actual orders and sales
+  const timeline: Array<{ label: string; salesPaise: number; ordersCount: number; aovPaise: number }> = [];
+
+  if (range === 'today') {
+    const slots = [
+      { label: '09:00', start: 0, end: 9 },
+      { label: '12:00', start: 9, end: 12 },
+      { label: '15:00', start: 12, end: 15 },
+      { label: '18:00', start: 15, end: 18 },
+      { label: '21:00', start: 18, end: 21 },
+      { label: '23:59', start: 21, end: 24 },
+    ];
+
+    for (const slot of slots) {
+      const slotSales = filteredSales.filter((s) => {
+        const d = new Date(s.settledAt);
+        const hr = d.getHours();
+        return hr >= slot.start && hr < slot.end;
+      });
+      const sPaise = slotSales.reduce((acc, s) => acc + (s.grandTotalPaise || 0), 0);
+      const oCount = slotSales.length;
+
+      timeline.push({
+        label: slot.label,
+        salesPaise: sPaise,
+        ordersCount: oCount,
+        aovPaise: oCount > 0 ? Math.round(sPaise / oCount) : 0,
+      });
+    }
+  } else {
+    const daysCount = range === 'month' ? 30 : 7;
+    for (let i = daysCount - 1; i >= 0; i--) {
+      const d = new Date(now.getTime() - i * 24 * 60 * 60 * 1000);
+      const isoDay = d.toISOString().slice(0, 10);
+      const dayLabel = d.toLocaleDateString('en-IN', { weekday: 'short' });
+
+      const daySales = filteredSales.filter((s) => s.settledAt && s.settledAt.startsWith(isoDay));
+      const sPaise = daySales.reduce((acc, s) => acc + (s.grandTotalPaise || 0), 0);
+      const oCount = daySales.length;
+
+      timeline.push({
+        label: dayLabel,
+        salesPaise: sPaise,
+        ordersCount: oCount,
+        aovPaise: oCount > 0 ? Math.round(sPaise / oCount) : 0,
+      });
+    }
+  }
+
   return NextResponse.json(
     {
       kpis: {
@@ -221,6 +270,7 @@ ${xmlRows}
       },
       topSellingItems,
       tableWiseSales,
+      timeline,
       salesCount: filteredSales.length,
       range,
     },
