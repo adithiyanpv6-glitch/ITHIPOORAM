@@ -204,18 +204,18 @@ ${xmlRows}
     return {
       tableCode: t.tableCode,
       displayName: t.displayName,
-      totalPaise: tableSales > 0 ? tableSales : (Math.floor(Math.random() * 5 + 1) * 35000),
+      totalPaise: tableSales,
     };
   });
 
   return NextResponse.json(
     {
       kpis: {
-        grossSalesPaise: grossSalesPaise > 0 ? grossSalesPaise : 4875000,
-        paidOrdersCount: paidOrdersCount > 0 ? paidOrdersCount : 24,
-        totalOrdersCount: totalOrdersCount > 0 ? totalOrdersCount : 27,
+        grossSalesPaise: grossSalesPaise,
+        paidOrdersCount: paidOrdersCount,
+        totalOrdersCount: totalOrdersCount,
         unpaidOrdersCount,
-        averageOrderValuePaise: averageOrderValuePaise > 0 ? averageOrderValuePaise : 203100,
+        averageOrderValuePaise: averageOrderValuePaise,
         discountPaise: 0,
         cancelledOrdersCount: 0,
       },

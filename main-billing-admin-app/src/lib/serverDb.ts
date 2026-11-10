@@ -232,7 +232,7 @@ if (!global.__ITHIPOORAM_DB__) {
     staffUsers: [...DEFAULT_STAFF_DATABASE],
     loginSessions: [...INITIAL_SESSIONS],
     staffActivityLogs: [...INITIAL_STAFF_ACTIVITY],
-    historicalSales: generateInitialHistoricalSales(),
+    historicalSales: [],
   };
 } else {
   // Ensure staffUsers, loginSessions, and staffActivityLogs exist

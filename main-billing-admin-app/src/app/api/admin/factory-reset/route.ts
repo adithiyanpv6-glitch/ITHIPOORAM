@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { db, refreshTableSummaries } from '@/lib/serverDb';
+import { db, refreshTableSummaries, persistDb } from '@/lib/serverDb';
 import fs from 'fs';
 import path from 'path';
 
@@ -37,35 +37,12 @@ export async function POST(request: Request) {
     db.staffActivityLogs = [];
     db.dailyMenuHistory = [];
     db.historicalSales = [];
+    db.currentBusinessDate = new Date().toISOString().slice(0, 10);
+    db.dailyOrderSequence = 0;
+    db.dailyInvoiceSequence = 0;
 
     refreshTableSummaries();
-
-    // Persist absolute zero-state ledger to disk
-    try {
-      const storeFile = path.join(process.cwd(), 'tmp', 'restaurant_store.json');
-      fs.writeFileSync(
-        storeFile,
-        JSON.stringify(
-          {
-            tables: [],
-            orders: [],
-            kitchenTickets: [],
-            menuCategories: [],
-            staffUsers: [],
-            loginSessions: [],
-            staffActivityLogs: [],
-            auditLogs: [],
-            dailyMenuHistory: [],
-            historicalSales: [],
-          },
-          null,
-          2
-        ),
-        'utf-8'
-      );
-    } catch (e) {
-      console.warn('Could not persist factory reset to local disk file (non-fatal):', e);
-    }
+    persistDb();
 
     return NextResponse.json(
       {
