@@ -137,7 +137,9 @@ export default function BillingTerminalPage() {
       if (data && data.length > 0) {
         setSelectedTableCode((prev) => {
           const exists = data.some((t) => t.tableCode.toUpperCase() === prev?.toUpperCase());
-          return exists ? prev : data[0].tableCode;
+          if (exists) return prev;
+          const withUnpaid = data.find((t) => t.unpaidCount > 0);
+          return withUnpaid ? withUnpaid.tableCode : data[0].tableCode;
         });
       }
     } catch (err) {
@@ -154,13 +156,11 @@ export default function BillingTerminalPage() {
       const freshOrders = res.unpaidOrders || [];
       setUnpaidOrders(freshOrders);
       if (freshOrders.length > 0) {
-        // If no order selected or currently selected order no longer unpaid, select first
         setSelectedOrder((curr: any) => {
-          if (!curr || !freshOrders.some((o: any) => o.id === curr.id)) {
-            selectOrderForBilling(freshOrders[0]);
-            return freshOrders[0];
-          }
-          return curr;
+          const valid = curr && freshOrders.find((o: any) => o.id === curr.id);
+          const target = valid || freshOrders[0];
+          selectOrderForBilling(target);
+          return target;
         });
       } else {
         setSelectedOrder(null);
@@ -370,7 +370,7 @@ export default function BillingTerminalPage() {
       {/* Main 3-Column Split View for High-Volume Counter Work */}
       <div className="flex-1 flex flex-col lg:flex-row overflow-y-auto lg:overflow-hidden min-h-0">
         {/* Left Column: Table Selector Grid */}
-        <section className={`w-full lg:w-80 border-r border-parchment-200 bg-white p-4 flex flex-col flex-shrink-0 overflow-y-auto pb-24 lg:pb-4 ${
+        <section className={`w-full lg:w-80 border-r border-parchment-200 bg-white p-4 flex flex-col flex-shrink-0 overflow-y-auto pb-36 lg:pb-6 ${
           mobileTab === 'tables' ? 'flex' : 'hidden lg:flex'
         }`}>
           <div className="flex items-center justify-between mb-3">
@@ -453,7 +453,7 @@ export default function BillingTerminalPage() {
         </section>
 
         {/* Middle Column: Latest 3 to 5 Unpaid Orders for Selected Table */}
-        <section className={`w-full lg:w-96 border-r border-parchment-200 bg-parchment-50 p-4 flex flex-col flex-shrink-0 overflow-y-auto pb-28 lg:pb-4 ${
+        <section className={`w-full lg:w-96 border-r border-parchment-200 bg-parchment-50 p-4 flex flex-col flex-shrink-0 overflow-y-auto pb-36 lg:pb-6 ${
           mobileTab === 'orders' ? 'flex' : 'hidden lg:flex'
         }`}>
           <div className="flex items-center justify-between mb-3 pb-2 border-b border-parchment-200">
@@ -558,7 +558,7 @@ export default function BillingTerminalPage() {
                       {order.items.map((it: any) => (
                         <div key={it.id} className="flex justify-between text-xs text-slatepos-700">
                           <span className="truncate pr-2">
-                            {it.quantity}x {it.itemNameSnapshot}
+                            {it.quantity}x {it.itemNameSnapshot || it.itemName || it.name}
                           </span>
                           <span className="font-semibold text-slatepos-900">
                             {formatRupees(it.lineTotalPaise)}
@@ -617,9 +617,9 @@ export default function BillingTerminalPage() {
                   {selectedOrder.items.map((it: any) => (
                     <div key={it.id} className="flex justify-between text-sm text-slatepos-800">
                       <div>
-                        <span className="font-semibold text-slatepos-950">{it.itemNameSnapshot}</span>
+                        <span className="font-semibold text-slatepos-950">{it.itemNameSnapshot || it.itemName || it.name}</span>
                         <span className="text-xs text-slatepos-500 ml-2">
-                          ({it.quantity} x {formatRupees(it.itemPriceSnapshotPaise)})
+                          ({it.quantity} x {formatRupees(it.itemPriceSnapshotPaise || it.pricePaise)})
                         </span>
                       </div>
                       <span className="font-mono font-bold text-slatepos-900">

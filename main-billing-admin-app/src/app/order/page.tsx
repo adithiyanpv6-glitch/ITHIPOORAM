@@ -145,14 +145,23 @@ function CustomerOrderingContent() {
     setDeviceSessionId(currentSession);
     setPhoneLabel(label);
 
-    // Check if this specific phone session already has an active unpaid order on this table
+    // Initial check for active order
     checkActiveTableOrder(currentSession, tableCode);
   }, [tableCode]);
 
+  // Real-time background sync with kitchen and billing terminal (every 3 seconds)
+  useEffect(() => {
+    if (!tableCode) return;
+    const interval = setInterval(() => {
+      checkActiveTableOrder(deviceSessionId, tableCode);
+    }, 3000);
+    return () => clearInterval(interval);
+  }, [tableCode, deviceSessionId, apiUrl]);
+
   const checkActiveTableOrder = async (sessionId: string, tCode: string) => {
-    // 1. Check local device memory first
+    if (!tCode) return;
     const storageKey = `ithipooram_active_order_${tCode}_${sessionId}`;
-    const rawLocalOrder = localStorage.getItem(storageKey);
+    const rawLocalOrder = typeof window !== 'undefined' ? localStorage.getItem(storageKey) : null;
     let activeLocal: PlacedOrder | null = null;
 
     if (rawLocalOrder) {
@@ -160,34 +169,42 @@ function CustomerOrderingContent() {
         const parsed = JSON.parse(rawLocalOrder);
         if (parsed && parsed.paymentStatus === 'UNPAID') {
           activeLocal = parsed;
-          setActiveExistingOrder(parsed);
         }
       } catch (e) {
-        // ignore parse error
+        // ignore
       }
     }
 
-    // 2. Query Central Server if API URL is available
-    if (apiUrl) {
-      try {
-        const res = await fetch(`${apiUrl}/api/orders?tableCode=${tCode}&deviceSessionId=${sessionId}&unpaidOnly=true`);
-        if (res.ok) {
-          const orders = await res.json();
-          if (Array.isArray(orders) && orders.length > 0) {
-            // Found existing active unpaid order for this exact phone session!
-            const serverOrder = orders[0];
-            setActiveExistingOrder(serverOrder);
-            localStorage.setItem(storageKey, JSON.stringify(serverOrder));
-            return;
-          } else {
-            // Server confirmed no active unpaid order for this phone session
-            if (!activeLocal) {
-              setActiveExistingOrder(null);
+    // Query Central Server (relative or via configured apiUrl)
+    try {
+      const base = apiUrl ? apiUrl.replace(/\/$/, '') : '';
+      const res = await fetch(`${base}/api/orders?tableCode=${encodeURIComponent(tCode)}&unpaidOnly=true`, { cache: 'no-store' });
+      if (res.ok) {
+        const orders = await res.json();
+        if (Array.isArray(orders) && orders.length > 0) {
+          // If multiple orders exist for this table, find matching device session or latest
+          const matching = orders.find((o: any) => o.deviceSessionId === sessionId) || orders[0];
+          setActiveExistingOrder(matching);
+          if (typeof window !== 'undefined') {
+            localStorage.setItem(storageKey, JSON.stringify(matching));
+          }
+          return;
+        } else {
+          // No unpaid order on server (bill settled or closed)
+          if (activeLocal) {
+            // Bill was settled by cashier!
+            setActiveExistingOrder((prev) => prev ? { ...prev, paymentStatus: 'PAID', fulfillmentStatus: 'SERVED' } : null);
+            if (typeof window !== 'undefined') {
+              localStorage.removeItem(storageKey);
             }
+          } else {
+            setActiveExistingOrder(null);
           }
         }
-      } catch (err) {
-        // network fallback to local storage check
+      }
+    } catch (err) {
+      if (activeLocal) {
+        setActiveExistingOrder(activeLocal);
       }
     }
   };
@@ -774,7 +791,7 @@ function CustomerOrderingContent() {
           </div>
 
           {/* Dishes List */}
-          <main className="max-w-xl mx-auto px-4 py-4 space-y-3">
+          <main className="max-w-xl mx-auto px-4 pt-4 pb-40 space-y-3">
             {allMenuItems.length === 0 ? (
               <div className="text-center py-16 bg-white rounded-3xl border-2 border-dashed border-stone-200 p-8 shadow-xs">
                 <Utensils className="w-12 h-12 text-[#9E341D] mx-auto mb-3 opacity-60" />
@@ -911,7 +928,7 @@ function CustomerOrderingContent() {
 
       {/* VIEW 3: LIVE ORDER STATUS & KITCHEN COOKING TRACKER */}
       {currentView === 'status' && activeExistingOrder && (
-        <main className="max-w-xl mx-auto px-4 py-6 space-y-5 animate-in fade-in duration-300">
+        <main className="max-w-xl mx-auto px-4 pt-6 pb-40 space-y-5 animate-in fade-in duration-300">
           {/* Main Hospitality Kitchen Message Card */}
           <div className="bg-white rounded-3xl p-6 border-2 border-amber-300/80 shadow-md relative overflow-hidden">
             <div className="flex items-center justify-between pb-4 border-b border-stone-100">
@@ -924,9 +941,36 @@ function CustomerOrderingContent() {
                 </div>
               </div>
               <div className="text-right">
-                <span className="px-3 py-1 rounded-full text-xs font-bold uppercase inline-flex items-center space-x-1 bg-amber-100 text-amber-900 border border-amber-300">
-                  <Flame className="w-3.5 h-3.5 mr-1 text-amber-600 animate-bounce" />
-                  <span>Cooking in Kitchen</span>
+                <span className={`px-3 py-1 rounded-full text-xs font-bold uppercase inline-flex items-center space-x-1 ${
+                  activeExistingOrder.paymentStatus === 'PAID'
+                    ? 'bg-emerald-100 text-emerald-800 border border-emerald-300'
+                    : activeExistingOrder.fulfillmentStatus === 'READY' || activeExistingOrder.fulfillmentStatus === 'SERVED'
+                    ? 'bg-emerald-100 text-emerald-800 border border-emerald-300'
+                    : activeExistingOrder.fulfillmentStatus === 'ACCEPTED' || activeExistingOrder.fulfillmentStatus === 'PREPARING'
+                    ? 'bg-amber-100 text-amber-900 border border-amber-300'
+                    : 'bg-zinc-100 text-zinc-800 border border-zinc-300'
+                }`}>
+                  {activeExistingOrder.paymentStatus === 'PAID' ? (
+                    <>
+                      <CheckCircle2 className="w-3.5 h-3.5 mr-1 text-emerald-600" />
+                      <span>Bill Paid &amp; Settled</span>
+                    </>
+                  ) : activeExistingOrder.fulfillmentStatus === 'READY' || activeExistingOrder.fulfillmentStatus === 'SERVED' ? (
+                    <>
+                      <CheckCircle2 className="w-3.5 h-3.5 mr-1 text-emerald-600" />
+                      <span>Food Served</span>
+                    </>
+                  ) : activeExistingOrder.fulfillmentStatus === 'ACCEPTED' || activeExistingOrder.fulfillmentStatus === 'PREPARING' ? (
+                    <>
+                      <Flame className="w-3.5 h-3.5 mr-1 text-amber-600 animate-bounce" />
+                      <span>Cooking in Kitchen</span>
+                    </>
+                  ) : (
+                    <>
+                      <Clock className="w-3.5 h-3.5 mr-1 text-zinc-500 animate-pulse" />
+                      <span>Received by Kitchen</span>
+                    </>
+                  )}
                 </span>
                 <div className="text-xs text-stone-500 mt-1 font-mono font-bold">
                   Total Bill: {formatRupees(activeExistingOrder.grandTotalPaise)}
@@ -934,35 +978,86 @@ function CustomerOrderingContent() {
               </div>
             </div>
 
-            {/* THE MODIFIED POST-ORDER SENTENCE */}
-            <div className="mt-5 p-4 rounded-2xl bg-amber-50/80 border border-amber-200 space-y-1.5">
+            {/* LIVE KITCHEN STATUS BANNER */}
+            <div className={`mt-5 p-4 rounded-2xl border space-y-1.5 ${
+              activeExistingOrder.fulfillmentStatus === 'SERVED' || activeExistingOrder.fulfillmentStatus === 'READY'
+                ? 'bg-emerald-50/80 border-emerald-200'
+                : 'bg-amber-50/80 border-amber-200'
+            }`}>
               <div className="flex items-center space-x-2 text-[#9E341D] font-black text-sm">
                 <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-                <span>Order Received! Fresh cooking in progress</span>
+                <span>
+                  {activeExistingOrder.paymentStatus === 'PAID'
+                    ? 'Payment Confirmed! Thank you for dining with us'
+                    : activeExistingOrder.fulfillmentStatus === 'SERVED'
+                    ? 'All dishes served hot to your table!'
+                    : activeExistingOrder.fulfillmentStatus === 'READY'
+                    ? 'Your dishes are freshly cooked and being served!'
+                    : activeExistingOrder.fulfillmentStatus === 'ACCEPTED' || activeExistingOrder.fulfillmentStatus === 'PREPARING'
+                    ? 'Chef is preparing your meal fresh with authentic spices'
+                    : 'Order confirmed and placed into kitchen queue'}
+                </span>
               </div>
               <p className="text-xs text-stone-700 leading-relaxed font-medium">
-                Your order is under cooking and will be prepared fresh with traditional spices, delivered hot to your table within <strong>10–15 minutes</strong>.
-              </p>
-              <p className="text-[11px] text-stone-500 font-malayalam-serif pt-1">
-                നിങ്ങളുടെ ഓർഡർ അടുക്കളയിൽ തയ്യാറാക്കിക്കൊണ്ടിരിക്കുന്നു. ഏറ്റവും ഫ്രഷായി 10-15 മിനിറ്റിൽ മേശയിലെത്തും!
+                {activeExistingOrder.fulfillmentStatus === 'SERVED'
+                  ? 'Hope you enjoy your meal! Feel free to add more items or request the bill from the counter whenever ready.'
+                  : 'Your order is being cooked fresh and delivered hot to your table within 10–15 minutes.'}
               </p>
             </div>
 
-            {/* Stepper Dots */}
+            {/* Stepper Dots (Synced Live with Kitchen) */}
             <div className="mt-5 pt-3 border-t border-stone-100 flex items-center justify-between text-xs font-bold text-stone-500">
+              {/* Step 1: Sent */}
               <div className="flex items-center space-x-1 text-emerald-700">
                 <CheckCircle2 className="w-4 h-4" />
-                <span>Sent</span>
+                <span>Received</span>
               </div>
-              <span className="h-0.5 w-8 bg-emerald-400" />
-              <div className="flex items-center space-x-1 text-amber-700 font-extrabold">
-                <Flame className="w-4 h-4 text-amber-600 animate-pulse" />
+              <span className={`h-0.5 w-8 ${
+                activeExistingOrder.fulfillmentStatus === 'ACCEPTED' || 
+                activeExistingOrder.fulfillmentStatus === 'PREPARING' || 
+                activeExistingOrder.fulfillmentStatus === 'READY' || 
+                activeExistingOrder.fulfillmentStatus === 'SERVED'
+                  ? 'bg-emerald-400' 
+                  : 'bg-stone-200'
+              }`} />
+              
+              {/* Step 2: Cooking */}
+              <div className={`flex items-center space-x-1 ${
+                activeExistingOrder.fulfillmentStatus === 'READY' || activeExistingOrder.fulfillmentStatus === 'SERVED'
+                  ? 'text-emerald-700 font-extrabold'
+                  : activeExistingOrder.fulfillmentStatus === 'ACCEPTED' || activeExistingOrder.fulfillmentStatus === 'PREPARING'
+                  ? 'text-amber-700 font-extrabold'
+                  : 'text-stone-400'
+              }`}>
+                {activeExistingOrder.fulfillmentStatus === 'READY' || activeExistingOrder.fulfillmentStatus === 'SERVED' ? (
+                  <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                ) : (
+                  <Flame className={`w-4 h-4 ${
+                    activeExistingOrder.fulfillmentStatus === 'ACCEPTED' || activeExistingOrder.fulfillmentStatus === 'PREPARING'
+                      ? 'text-amber-600 animate-pulse'
+                      : ''
+                  }`} />
+                )}
                 <span>Cooking</span>
               </div>
-              <span className="h-0.5 w-8 bg-stone-200" />
-              <div className="flex items-center space-x-1 text-stone-400">
-                <CheckCircle2 className="w-4 h-4" />
-                <span>Serving</span>
+              <span className={`h-0.5 w-8 ${
+                activeExistingOrder.fulfillmentStatus === 'READY' || activeExistingOrder.fulfillmentStatus === 'SERVED'
+                  ? 'bg-emerald-400' 
+                  : 'bg-stone-200'
+              }`} />
+              
+              {/* Step 3: Served */}
+              <div className={`flex items-center space-x-1 ${
+                activeExistingOrder.fulfillmentStatus === 'READY' || activeExistingOrder.fulfillmentStatus === 'SERVED'
+                  ? 'text-emerald-700 font-extrabold'
+                  : 'text-stone-400'
+              }`}>
+                <CheckCircle2 className={`w-4 h-4 ${
+                  activeExistingOrder.fulfillmentStatus === 'READY' || activeExistingOrder.fulfillmentStatus === 'SERVED'
+                    ? 'text-emerald-600'
+                    : ''
+                }`} />
+                <span>Served</span>
               </div>
             </div>
 

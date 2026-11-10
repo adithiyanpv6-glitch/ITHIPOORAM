@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import Link from 'next/link';
 import { 
   ChefHat, 
@@ -12,9 +12,7 @@ import {
   RefreshCw,
   BellRing,
   ArrowLeft,
-  Columns,
   Check,
-  SplitSquareVertical,
   Utensils
 } from 'lucide-react';
 
@@ -37,13 +35,13 @@ export interface KitchenTicket {
 export default function KitchenDisplayPage() {
   const [tickets, setTickets] = useState<KitchenTicket[]>([]);
   const [stationFilter, setStationFilter] = useState<string>('ALL');
-  const [soundEnabled, setSoundEnabled] = useState(true);
+  const [speakerEnabled, setSpeakerEnabled] = useState(true);
   const [now, setNow] = useState(Date.now());
   const [isLiveConnected, setIsLiveConnected] = useState(true);
-  const [lastTicketCount, setLastTicketCount] = useState(0);
+  const [lastTicketCount, setLastTicketCount] = useState<number | null>(null);
 
-  // Tab navigation: 'new' | 'accepted' | 'delivered' | 'split'
-  const [activeTab, setActiveTab] = useState<'new' | 'accepted' | 'delivered' | 'split'>('new');
+  // Tab navigation: exactly 3 options as requested: 'new' (New Orders to Receive) | 'working' (Working Orders) | 'served' (Served Ones)
+  const [activeTab, setActiveTab] = useState<'new' | 'working' | 'served'>('new');
 
   // Update clock every 5 seconds for elapsed times
   useEffect(() => {
@@ -71,6 +69,24 @@ export default function KitchenDisplayPage() {
     } catch (e) {}
   };
 
+  // Automatic Text-To-Speech Voice Callout
+  const speakNewOrder = (tableCode?: string) => {
+    if (!speakerEnabled || typeof window === 'undefined' || !('speechSynthesis' in window)) return;
+    try {
+      window.speechSynthesis.cancel();
+      const text = tableCode 
+        ? `New order received for Table ${tableCode}`
+        : 'New order received in kitchen';
+      const utterance = new SpeechSynthesisUtterance(text);
+      utterance.rate = 0.95;
+      utterance.pitch = 1.0;
+      utterance.lang = 'en-US';
+      window.speechSynthesis.speak(utterance);
+    } catch (e) {
+      console.warn('Speech synthesis callout error:', e);
+    }
+  };
+
   // Poll Central API for live incoming orders every 2.5s
   const fetchTickets = async () => {
     try {
@@ -80,11 +96,15 @@ export default function KitchenDisplayPage() {
         const data = await res.json();
         const serverTickets: KitchenTicket[] = data.tickets || [];
         
-        // Trigger chime if new orders arrived
         const currentNewCount = serverTickets.filter(t => t.status === 'NEW').length;
-        if (soundEnabled && currentNewCount > lastTicketCount) {
+        
+        // If brand new order arrived: play chime + call out over speaker automatically!
+        if (lastTicketCount !== null && currentNewCount > lastTicketCount) {
           playChime();
+          const latestNew = serverTickets.find(t => t.status === 'NEW');
+          speakNewOrder(latestNew?.tableCode);
         }
+        
         setLastTicketCount(currentNewCount);
         setTickets(serverTickets);
         setIsLiveConnected(true);
@@ -100,10 +120,10 @@ export default function KitchenDisplayPage() {
     fetchTickets();
     const interval = setInterval(fetchTickets, 2500);
     return () => clearInterval(interval);
-  }, [stationFilter, soundEnabled, lastTicketCount]);
+  }, [stationFilter, speakerEnabled, lastTicketCount]);
 
-  // Handle Pick Order (moves to ACCEPTED / PREPARING)
-  const handlePickOrder = async (ticketId: string) => {
+  // Handle Receive / Pick Order (moves to ACCEPTED / PREPARING)
+  const handleReceiveOrder = async (ticketId: string) => {
     try {
       await fetch('/api/kitchen', {
         method: 'PATCH',
@@ -112,12 +132,12 @@ export default function KitchenDisplayPage() {
       });
       fetchTickets();
     } catch (err) {
-      console.error('Failed to pick order:', err);
+      console.error('Failed to receive order:', err);
     }
   };
 
-  // Handle Mark as Delivered (moves to SERVED)
-  const handleMarkDelivered = async (ticketId: string) => {
+  // Handle Mark as Served (moves to SERVED)
+  const handleMarkServed = async (ticketId: string) => {
     try {
       await fetch('/api/kitchen', {
         method: 'PATCH',
@@ -126,20 +146,20 @@ export default function KitchenDisplayPage() {
       });
       fetchTickets();
     } catch (err) {
-      console.error('Failed to mark delivered:', err);
+      console.error('Failed to mark served:', err);
     }
   };
 
-  // Filtered tickets
+  // Filtered ticket groups
   const newOrders = useMemo(() => {
     return tickets.filter(t => t.status === 'NEW');
   }, [tickets]);
 
-  const acceptedOrders = useMemo(() => {
+  const workingOrders = useMemo(() => {
     return tickets.filter(t => t.status === 'ACCEPTED' || t.status === 'PREPARING' || t.status === 'READY');
   }, [tickets]);
 
-  const deliveredOrders = useMemo(() => {
+  const servedOrders = useMemo(() => {
     return tickets.filter(t => t.status === 'SERVED');
   }, [tickets]);
 
@@ -154,124 +174,133 @@ export default function KitchenDisplayPage() {
   return (
     <div className="min-h-screen bg-[#F8F9FA] text-[#0A0C10] flex flex-col font-sans selection:bg-zinc-800 selection:text-white">
       
-      {/* Top Header: Condensed into One Clean Single Line */}
-      <header className="bg-white border-b border-zinc-200 px-3 sm:px-5 py-2 flex items-center justify-between sticky top-0 z-30 shadow-xs gap-2">
-        {/* Left: Back + Title with Live Pulse */}
-        <div className="flex items-center space-x-2 shrink-0">
-          <Link
-            href="/"
-            className="p-1.5 rounded-xl border border-zinc-200 hover:border-black text-zinc-600 hover:text-black transition"
-            title="Back to Admin Dashboard"
-          >
-            <ArrowLeft className="w-4 h-4" />
-          </Link>
+      {/* Top Header: Clean Left-Aligned Heading & Top Navigation */}
+      <header className="bg-white border-b border-zinc-200 px-4 sm:px-6 py-3.5 sticky top-0 z-30 shadow-xs">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 max-w-7xl mx-auto w-full">
+          
+          {/* Left: Heading Starts from Left Perfectly */}
+          <div className="flex items-center space-x-3">
+            <Link
+              href="/"
+              className="p-2 rounded-xl border border-zinc-200 hover:border-black text-zinc-600 hover:text-black transition"
+              title="Back to Admin Dashboard"
+            >
+              <ArrowLeft className="w-4 h-4" />
+            </Link>
 
-          <div className="flex items-center space-x-1.5">
-            <h1 className="text-sm sm:text-base font-black text-black">
-              Kitchen (KDS)
-            </h1>
-            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" title="Live Synced" />
+            <div>
+              <div className="flex items-center space-x-2">
+                <h1 className="text-lg sm:text-xl font-black text-black">
+                  Kitchen Display System (KDS)
+                </h1>
+                <span className="inline-flex items-center space-x-1 text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                  <span>Live Sync</span>
+                </span>
+              </div>
+              <p className="text-[11px] text-zinc-400 font-semibold">
+                Live food preparation queue &amp; order dispatch terminal
+              </p>
+            </div>
           </div>
-        </div>
 
-        {/* Center: Clean Navigation Pills (New, Cooking, Delivered, Split) */}
-        <div className="flex items-center space-x-1 overflow-x-auto no-scrollbar py-0.5">
-          <button
-            onClick={() => setActiveTab('new')}
-            className={`px-3 py-1.5 rounded-xl text-xs font-black flex items-center space-x-1.5 transition cursor-pointer shrink-0 ${
-              activeTab === 'new'
-                ? 'bg-black text-white shadow-xs'
-                : 'text-zinc-600 hover:bg-zinc-100'
-            }`}
-          >
-            <span>New</span>
-            <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-black ${
-              newOrders.length > 0 ? 'bg-amber-400 text-black animate-pulse' : 'bg-zinc-800 text-white'
-            }`}>
-              {newOrders.length}
-            </span>
-          </button>
+          {/* Right: The 3 Main Options + Station Filter + Speaker Button */}
+          <div className="flex flex-wrap items-center gap-2">
+            
+            {/* Exactly 3 Tab Options: New Orders to Receive, Working Orders, Served Ones */}
+            <div className="inline-flex items-center p-1 bg-zinc-100 rounded-2xl text-xs font-bold text-zinc-600">
+              <button
+                onClick={() => setActiveTab('new')}
+                className={`px-3.5 py-1.5 rounded-xl transition flex items-center space-x-1.5 cursor-pointer ${
+                  activeTab === 'new'
+                    ? 'bg-black text-white shadow-xs font-black'
+                    : 'hover:text-black'
+                }`}
+              >
+                <span>New Orders to Receive</span>
+                <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-black ${
+                  newOrders.length > 0 ? 'bg-amber-400 text-black animate-pulse' : 'bg-zinc-200 text-zinc-700'
+                }`}>
+                  {newOrders.length}
+                </span>
+              </button>
 
-          <button
-            onClick={() => setActiveTab('accepted')}
-            className={`px-3 py-1.5 rounded-xl text-xs font-black flex items-center space-x-1.5 transition cursor-pointer shrink-0 ${
-              activeTab === 'accepted'
-                ? 'bg-black text-white shadow-xs'
-                : 'text-zinc-600 hover:bg-zinc-100'
-            }`}
-          >
-            <span>Cooking</span>
-            <span className="px-1.5 py-0.5 rounded-full text-[10px] font-black bg-zinc-200 text-black">
-              {acceptedOrders.length}
-            </span>
-          </button>
+              <button
+                onClick={() => setActiveTab('working')}
+                className={`px-3.5 py-1.5 rounded-xl transition flex items-center space-x-1.5 cursor-pointer ${
+                  activeTab === 'working'
+                    ? 'bg-black text-white shadow-xs font-black'
+                    : 'hover:text-black'
+                }`}
+              >
+                <span>Working Orders</span>
+                <span className="px-1.5 py-0.5 rounded-full text-[10px] font-black bg-zinc-200 text-zinc-700">
+                  {workingOrders.length}
+                </span>
+              </button>
 
-          <button
-            onClick={() => setActiveTab('delivered')}
-            className={`px-3 py-1.5 rounded-xl text-xs font-black flex items-center space-x-1.5 transition cursor-pointer shrink-0 ${
-              activeTab === 'delivered'
-                ? 'bg-black text-white shadow-xs'
-                : 'text-zinc-600 hover:bg-zinc-100'
-            }`}
-          >
-            <span>Delivered</span>
-            <span className="px-1.5 py-0.5 rounded-full text-[10px] font-black bg-zinc-100 text-zinc-600">
-              {deliveredOrders.length}
-            </span>
-          </button>
+              <button
+                onClick={() => setActiveTab('served')}
+                className={`px-3.5 py-1.5 rounded-xl transition flex items-center space-x-1.5 cursor-pointer ${
+                  activeTab === 'served'
+                    ? 'bg-black text-white shadow-xs font-black'
+                    : 'hover:text-black'
+                }`}
+              >
+                <span>Served Ones</span>
+                <span className="px-1.5 py-0.5 rounded-full text-[10px] font-black bg-zinc-200 text-zinc-700">
+                  {servedOrders.length}
+                </span>
+              </button>
+            </div>
 
-          <button
-            onClick={() => setActiveTab('split')}
-            className={`hidden md:flex px-2.5 py-1.5 rounded-xl text-xs font-black items-center space-x-1 transition cursor-pointer shrink-0 ${
-              activeTab === 'split'
-                ? 'bg-black text-white shadow-xs'
-                : 'text-zinc-600 hover:bg-zinc-100'
-            }`}
-          >
-            <Columns className="w-3 h-3" />
-            <span>Split</span>
-          </button>
-        </div>
+            {/* Station Dropdown */}
+            <select
+              value={stationFilter}
+              onChange={(e) => setStationFilter(e.target.value)}
+              className="text-xs font-bold bg-zinc-100 border border-zinc-200 rounded-xl px-2.5 py-1.5 text-black outline-none focus:border-black"
+            >
+              <option value="ALL">All Stations</option>
+              <option value="MAIN_KITCHEN">Meals &amp; Curry</option>
+              <option value="SEAFOOD_FRY">Tawa &amp; Fry</option>
+              <option value="BEVERAGE_COUNTER">Beverages</option>
+            </select>
 
-        {/* Right: Station Dropdown + Audio + Refresh */}
-        <div className="flex items-center space-x-1.5 shrink-0">
-          <select
-            value={stationFilter}
-            onChange={(e) => setStationFilter(e.target.value)}
-            className="text-[11px] font-bold bg-zinc-100 border border-zinc-300 rounded-xl px-2 py-1 text-black outline-none focus:border-black max-w-[110px] sm:max-w-none truncate"
-          >
-            <option value="ALL">All Stations</option>
-            <option value="MAIN_KITCHEN">Meals &amp; Curry</option>
-            <option value="SEAFOOD_FRY">Tawa &amp; Fry</option>
-            <option value="BEVERAGE_COUNTER">Beverages</option>
-          </select>
+            {/* Automatic Speaker Option */}
+            <button
+              onClick={() => {
+                const next = !speakerEnabled;
+                setSpeakerEnabled(next);
+                if (next) speakNewOrder();
+              }}
+              className={`px-3 py-1.5 rounded-xl border text-xs font-bold flex items-center space-x-1.5 transition cursor-pointer ${
+                speakerEnabled
+                  ? 'bg-emerald-50 border-emerald-300 text-emerald-800'
+                  : 'bg-zinc-100 border-zinc-200 text-zinc-400'
+              }`}
+              title={speakerEnabled ? 'Auto-Speaker is ACTIVE (Calls out new orders)' : 'Speaker is MUTED'}
+            >
+              {speakerEnabled ? <Volume2 className="w-3.5 h-3.5 text-emerald-600 animate-pulse" /> : <VolumeX className="w-3.5 h-3.5" />}
+              <span>{speakerEnabled ? 'Speaker: Auto Call' : 'Speaker: Off'}</span>
+            </button>
 
-          <button
-            onClick={() => setSoundEnabled(!soundEnabled)}
-            className={`p-1.5 rounded-xl border transition cursor-pointer ${
-              soundEnabled 
-                ? 'bg-zinc-100 border-zinc-300 text-black' 
-                : 'bg-zinc-50 border-zinc-200 text-zinc-400'
-            }`}
-            title={soundEnabled ? 'Mute Chime' : 'Enable Chime'}
-          >
-            {soundEnabled ? <Volume2 className="w-3.5 h-3.5" /> : <VolumeX className="w-3.5 h-3.5" />}
-          </button>
+            {/* Refresh Button */}
+            <button
+              onClick={fetchTickets}
+              className="p-1.5 rounded-xl border border-zinc-200 hover:border-black text-zinc-600 transition cursor-pointer"
+              title="Refresh"
+            >
+              <RefreshCw className="w-3.5 h-3.5" />
+            </button>
+          </div>
 
-          <button
-            onClick={fetchTickets}
-            className="p-1.5 rounded-xl border border-zinc-200 hover:border-black text-zinc-600 transition cursor-pointer"
-            title="Refresh"
-          >
-            <RefreshCw className="w-3.5 h-3.5" />
-          </button>
         </div>
       </header>
 
-      {/* Main Workspace */}
-      <main className="flex-1 p-4 sm:p-6 overflow-y-auto">
+      {/* Main Workspace with Generous Bottom Padding for Smooth Scrolling */}
+      <main className="flex-1 p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto w-full pb-36 sm:pb-32 overflow-y-auto">
         
-        {/* VIEW 1: NEW ORDERS TAB */}
+        {/* OPTION 1: NEW ORDERS TO RECEIVE TAB */}
         {activeTab === 'new' && (
           <div>
             {newOrders.length === 0 ? (
@@ -281,7 +310,7 @@ export default function KitchenDisplayPage() {
                 </div>
                 <h3 className="text-base font-black text-black">No New Kitchen Orders</h3>
                 <p className="text-xs text-zinc-400 font-semibold max-w-sm mx-auto">
-                  When confirmed orders arrive from table QR or POS counter, they will instantly chime and appear here.
+                  When confirmed orders arrive from QR codes or manual billing, the speaker automatically calls them out and they appear here for receiving.
                 </p>
               </div>
             ) : (
@@ -334,13 +363,13 @@ export default function KitchenDisplayPage() {
                       </div>
                     </div>
 
-                    {/* Action: Pick Order */}
+                    {/* Action: Receive Order / Start Cooking */}
                     <button
-                      onClick={() => handlePickOrder(t.id)}
+                      onClick={() => handleReceiveOrder(t.id)}
                       className="w-full py-3 rounded-2xl bg-black hover:bg-zinc-800 text-white font-black text-xs flex items-center justify-center space-x-2 shadow-xs transition active:scale-98 cursor-pointer"
                     >
                       <Flame className="w-4 h-4 text-orange-400" />
-                      <span>Pick Order &amp; Cook</span>
+                      <span>Receive Order &amp; Cook</span>
                     </button>
                   </div>
                 ))}
@@ -349,22 +378,22 @@ export default function KitchenDisplayPage() {
           </div>
         )}
 
-        {/* VIEW 2: ACCEPTED / COOKING ORDERS TAB */}
-        {activeTab === 'accepted' && (
+        {/* OPTION 2: WORKING ORDERS (COOKING) TAB */}
+        {activeTab === 'working' && (
           <div>
-            {acceptedOrders.length === 0 ? (
+            {workingOrders.length === 0 ? (
               <div className="py-24 text-center space-y-3 bg-white rounded-3xl border border-zinc-200 shadow-xs max-w-xl mx-auto">
                 <div className="w-16 h-16 rounded-2xl bg-zinc-100 text-zinc-400 mx-auto flex items-center justify-center">
                   <Flame className="w-8 h-8 text-orange-400" />
                 </div>
                 <h3 className="text-base font-black text-black">No Orders Currently Cooking</h3>
                 <p className="text-xs text-zinc-400 font-semibold max-w-sm mx-auto">
-                  Pick orders from the New Orders tab to move them here.
+                  Receive orders from the New Orders tab to move them into active preparation.
                 </p>
               </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                {acceptedOrders.map((t) => (
+                {workingOrders.map((t) => (
                   <div
                     key={t.id}
                     className="bg-white rounded-3xl p-5 border border-zinc-200 shadow-xs flex flex-col justify-between space-y-4 hover:border-black transition"
@@ -398,13 +427,13 @@ export default function KitchenDisplayPage() {
                       </div>
                     </div>
 
-                    {/* Action: Delivered */}
+                    {/* Action: Mark Served to Table */}
                     <button
-                      onClick={() => handleMarkDelivered(t.id)}
+                      onClick={() => handleMarkServed(t.id)}
                       className="w-full py-3 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs flex items-center justify-center space-x-2 shadow-xs transition active:scale-98 cursor-pointer"
                     >
                       <Check className="w-4 h-4" />
-                      <span>Mark as Delivered</span>
+                      <span>Mark as Served to Table</span>
                     </button>
                   </div>
                 ))}
@@ -413,15 +442,15 @@ export default function KitchenDisplayPage() {
           </div>
         )}
 
-        {/* VIEW 3: DELIVERED HISTORY TAB */}
-        {activeTab === 'delivered' && (
+        {/* OPTION 3: SERVED ONES TAB */}
+        {activeTab === 'served' && (
           <div className="bg-white rounded-3xl border border-zinc-200 p-5 sm:p-6 shadow-xs max-w-4xl mx-auto">
-            <h3 className="text-sm font-black text-black mb-4">Delivered Orders History</h3>
-            {deliveredOrders.length === 0 ? (
-              <p className="text-xs text-zinc-400">No dishes delivered yet today.</p>
+            <h3 className="text-sm font-black text-black mb-4">Served Orders History</h3>
+            {servedOrders.length === 0 ? (
+              <p className="text-xs text-zinc-400">No dishes served yet today.</p>
             ) : (
               <div className="divide-y divide-zinc-100">
-                {deliveredOrders.map((t) => (
+                {servedOrders.map((t) => (
                   <div key={t.id} className="py-3 flex items-center justify-between text-xs">
                     <div className="flex items-center space-x-3">
                       <span className="px-2.5 py-1 rounded-xl bg-zinc-100 font-mono font-black text-black">
@@ -434,78 +463,14 @@ export default function KitchenDisplayPage() {
                         </p>
                       </div>
                     </div>
-                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                      Delivered
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 flex items-center space-x-1">
+                      <Check className="w-3 h-3 text-emerald-600" />
+                      <span>Served</span>
                     </span>
                   </div>
                 ))}
               </div>
             )}
-          </div>
-        )}
-
-        {/* VIEW 4: SPLIT SCREEN VIEW */}
-        {activeTab === 'split' && (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Left: New Orders */}
-            <div className="space-y-4">
-              <div className="flex items-center justify-between pb-2 border-b border-zinc-200">
-                <h3 className="text-sm font-black text-black flex items-center space-x-2">
-                  <BellRing className="w-4 h-4 text-amber-500" />
-                  <span>Incoming New Orders ({newOrders.length})</span>
-                </h3>
-              </div>
-              <div className="space-y-3">
-                {newOrders.map((t) => (
-                  <div key={t.id} className="bg-white rounded-2xl p-4 border-2 border-amber-400 shadow-xs flex items-center justify-between">
-                    <div>
-                      <span className="font-mono font-black text-xs bg-black text-white px-2 py-0.5 rounded-md mr-2">
-                        {t.tableCode}
-                      </span>
-                      <span className="font-bold text-xs text-black">
-                        {t.items.map(it => `${it.qty}x ${it.name}`).join(', ')}
-                      </span>
-                    </div>
-                    <button
-                      onClick={() => handlePickOrder(t.id)}
-                      className="px-3 py-1.5 rounded-xl bg-black text-white font-black text-xs hover:bg-zinc-800"
-                    >
-                      Pick &amp; Cook
-                    </button>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Right: Cooking Orders */}
-            <div className="space-y-4">
-              <div className="flex items-center justify-between pb-2 border-b border-zinc-200">
-                <h3 className="text-sm font-black text-black flex items-center space-x-2">
-                  <Flame className="w-4 h-4 text-orange-500" />
-                  <span>Cooking / Preparing ({acceptedOrders.length})</span>
-                </h3>
-              </div>
-              <div className="space-y-3">
-                {acceptedOrders.map((t) => (
-                  <div key={t.id} className="bg-white rounded-2xl p-4 border border-zinc-200 shadow-xs flex items-center justify-between">
-                    <div>
-                      <span className="font-mono font-black text-xs bg-orange-600 text-white px-2 py-0.5 rounded-md mr-2">
-                        {t.tableCode}
-                      </span>
-                      <span className="font-bold text-xs text-black">
-                        {t.items.map(it => `${it.qty}x ${it.name}`).join(', ')}
-                      </span>
-                    </div>
-                    <button
-                      onClick={() => handleMarkDelivered(t.id)}
-                      className="px-3 py-1.5 rounded-xl bg-emerald-600 text-white font-black text-xs hover:bg-emerald-700"
-                    >
-                      Delivered
-                    </button>
-                  </div>
-                ))}
-              </div>
-            </div>
           </div>
         )}
 

@@ -59,6 +59,8 @@ export interface KitchenTicket {
   stationLabel: string;
   status: 'NEW' | 'ACCEPTED' | 'PREPARING' | 'READY' | 'SERVED';
   createdAtMs: number;
+  acceptedAtMs?: number;
+  deliveredAtMs?: number;
   tableNotes?: string;
   items: Array<{ id: string; name: string; qty: number; notes?: string }>;
 }
@@ -332,9 +334,28 @@ checkAndPerformDailyReset();
 
 // Helper to recalculate table unpaid totals
 export function refreshTableSummaries() {
+  // 1. Ensure any table with orders is registered in db.tables
+  const knownCodes = new Set(db.tables.map((t) => (t.tableCode || '').toUpperCase()));
+  for (const ord of db.orders) {
+    const code = (ord.tableCode || '').toUpperCase();
+    if (code && !knownCodes.has(code)) {
+      db.tables.push({
+        id: `t-${code.toLowerCase()}-${Date.now()}`,
+        tableCode: code,
+        displayName: ord.tableName || `Table ${code}`,
+        capacity: 4,
+        status: 'AVAILABLE',
+        unpaidCount: 0,
+        unpaidTotalPaise: 0,
+      });
+      knownCodes.add(code);
+    }
+  }
+
+  // 2. Recalculate unpaid totals and table occupancy status case-insensitively
   for (const table of db.tables) {
     const tableOrders = db.orders.filter(
-      (o) => o.tableCode === table.tableCode && o.paymentStatus === 'UNPAID'
+      (o) => (o.tableCode || '').toUpperCase() === (table.tableCode || '').toUpperCase() && o.paymentStatus === 'UNPAID'
     );
     table.unpaidCount = tableOrders.length;
     table.unpaidTotalPaise = tableOrders.reduce((sum, o) => sum + o.grandTotalPaise, 0);

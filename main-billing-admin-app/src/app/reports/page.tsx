@@ -378,8 +378,8 @@ export default function ReportsPage() {
           </div>
         </div>
 
-        {/* Content View */}
-        <div className="flex-1 p-4 sm:p-6 overflow-y-auto space-y-5">
+        {/* Content View with Full Smooth Scrolling */}
+        <div className="flex-1 p-4 sm:p-6 pb-36 sm:pb-32 overflow-y-auto space-y-5">
           
           {/* Filter Pills Bar: Date Dropdown, Payment Type, Orders */}
           <div className="flex flex-wrap items-center gap-2.5 relative">

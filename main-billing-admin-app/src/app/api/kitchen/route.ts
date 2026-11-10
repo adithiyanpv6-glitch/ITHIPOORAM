@@ -34,20 +34,27 @@ export async function PATCH(request: Request) {
     }
 
     ticket.status = status;
+    if (status === 'ACCEPTED') {
+      ticket.acceptedAtMs = Date.now();
+    } else if (status === 'SERVED') {
+      ticket.deliveredAtMs = Date.now();
+    }
 
     // Update parent order fulfillment status
     const parentOrder = db.orders.find((o) => o.id === ticket.orderId);
     if (parentOrder) {
+      parentOrder.updatedAt = new Date().toISOString();
       const allTickets = db.kitchenTickets.filter((k) => k.orderId === ticket.orderId);
+      const allServed = allTickets.every((k) => k.status === 'SERVED');
       const allReady = allTickets.every((k) => k.status === 'READY' || k.status === 'SERVED');
-      const anyPreparing = allTickets.some((k) => k.status === 'PREPARING' || k.status === 'READY');
+      const anyCooking = allTickets.some((k) => k.status === 'PREPARING' || k.status === 'ACCEPTED');
 
-      if (allReady) {
+      if (allServed) {
+        parentOrder.fulfillmentStatus = 'SERVED';
+      } else if (allReady) {
         parentOrder.fulfillmentStatus = 'READY';
-      } else if (anyPreparing) {
+      } else if (anyCooking || status === 'ACCEPTED') {
         parentOrder.fulfillmentStatus = 'PREPARING';
-      } else if (status === 'ACCEPTED') {
-        parentOrder.fulfillmentStatus = 'ACCEPTED';
       }
     }
 

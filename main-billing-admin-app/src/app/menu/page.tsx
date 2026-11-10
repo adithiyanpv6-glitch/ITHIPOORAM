@@ -454,19 +454,38 @@ export default function MenuItemsPage() {
       {/* ============================================================== */}
       <main className="flex-1 flex flex-col w-full overflow-hidden">
         
-        {/* Top Header Bar with Red "+ Add Item" Button */}
-        <div className="px-6 py-4 bg-white border-b border-zinc-200 flex items-center justify-between">
-          <h1 className="text-xl sm:text-2xl font-black text-black">Menu Items</h1>
+        {/* Top Header Bar with Live QR Sync & Red "+ Add Item" Button */}
+        <div className="px-6 py-4 bg-white border-b border-zinc-200 flex items-center justify-between gap-3">
+          <div className="flex items-center space-x-3">
+            <h1 className="text-xl sm:text-2xl font-black text-black">Menu Items</h1>
+            <span className="hidden sm:inline-flex items-center space-x-1 text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+              <span>QR Order Synced</span>
+            </span>
+          </div>
 
-          {/* Red Pill "+ Add Item" Button (Matching uploaded screenshot) */}
-          <button
-            onClick={() => setIsAddModalOpen(true)}
-            className="px-4 py-2 rounded-2xl bg-[#DC2626] hover:bg-[#B91C1C] text-white font-extrabold text-xs sm:text-sm flex items-center space-x-1.5 shadow-sm transition active:scale-98 cursor-pointer"
-          >
-            <Plus className="w-4 h-4 stroke-[3]" />
-            <span>Add Item</span>
-            <ChevronDown className="w-3.5 h-3.5" />
-          </button>
+          <div className="flex items-center space-x-2">
+            {/* Live QR Customer View Link */}
+            <Link
+              href="/order?table=1A"
+              target="_blank"
+              className="px-3.5 py-2 rounded-2xl border border-zinc-200 hover:border-black text-zinc-700 hover:text-black font-extrabold text-xs flex items-center space-x-1.5 transition shadow-2xs cursor-pointer"
+              title="Preview Live QR Menu that customers see on their phones"
+            >
+              <span>Live QR Menu Preview</span>
+              <span className="text-[10px]">&rarr;</span>
+            </Link>
+
+            {/* Red Pill "+ Add Item" Button (Matching uploaded screenshot) */}
+            <button
+              onClick={() => setIsAddModalOpen(true)}
+              className="px-4 py-2 rounded-2xl bg-[#DC2626] hover:bg-[#B91C1C] text-white font-extrabold text-xs sm:text-sm flex items-center space-x-1.5 shadow-sm transition active:scale-98 cursor-pointer"
+            >
+              <Plus className="w-4 h-4 stroke-[3]" />
+              <span>Add Item</span>
+              <ChevronDown className="w-3.5 h-3.5" />
+            </button>
+          </div>
         </div>
 
         {/* Two-Column Layout: Left Category Panel + Right Items Table */}
@@ -524,7 +543,7 @@ export default function MenuItemsPage() {
           </div>
 
           {/* Right Main Table: Menu Items List */}
-          <div className="flex-1 p-4 sm:p-6 overflow-y-auto">
+          <div className="flex-1 p-4 sm:p-6 pb-36 sm:pb-32 overflow-y-auto">
             <div className="bg-white rounded-3xl border border-zinc-200 overflow-hidden shadow-xs">
               <div className="overflow-x-auto">
                 <table className="w-full text-left text-xs text-zinc-800">

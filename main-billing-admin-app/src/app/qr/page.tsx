@@ -514,9 +514,9 @@ export default function TablesManagementPage() {
       {/* ============================================================== */}
       {/* 3. MAIN WORKSPACE                                               */}
       {/* ============================================================== */}
-      <main className="flex-1 p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto w-full space-y-6 overflow-y-auto">
+      <main className="flex-1 p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto w-full space-y-6 pb-36 sm:pb-32 overflow-y-auto">
         
-        {/* Top Header Filter Pill (All, Occupied, Empty) */}
+        {/* Top Header with Add Table + Filter Pills (All, Occupied, Empty Only) */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
             <h1 className="text-xl sm:text-2xl font-black text-black">Table Management</h1>
@@ -525,83 +525,49 @@ export default function TablesManagementPage() {
             </p>
           </div>
 
-          {/* Filter Pills matching uploaded design */}
-          <div className="inline-flex items-center p-1 bg-zinc-200/70 rounded-2xl text-xs font-bold text-zinc-600">
-            <button
-              onClick={() => setFilterTab('all')}
-              className={`px-4 py-1.5 rounded-xl transition ${
-                filterTab === 'all'
-                  ? 'bg-white text-blue-600 font-extrabold shadow-xs'
-                  : 'hover:text-black'
-              }`}
-            >
-              All ({tables.length})
-            </button>
-            <button
-              onClick={() => setFilterTab('occupied')}
-              className={`px-4 py-1.5 rounded-xl transition ${
-                filterTab === 'occupied'
-                  ? 'bg-white text-blue-600 font-extrabold shadow-xs'
-                  : 'hover:text-black'
-              }`}
-            >
-              Occupied ({occupiedCount})
-            </button>
-            <button
-              onClick={() => setFilterTab('empty')}
-              className={`px-4 py-1.5 rounded-xl transition ${
-                filterTab === 'empty'
-                  ? 'bg-white text-blue-600 font-extrabold shadow-xs'
-                  : 'hover:text-black'
-              }`}
-            >
-              Empty ({emptyCount})
-            </button>
-          </div>
-        </div>
-
-        {/* Customer QR Public URL & Cloudflare Tunnel Settings (Works on Non-WiFi Networks) */}
-        <div className="bg-white rounded-3xl p-4 sm:p-5 border border-zinc-200 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div className="flex items-center space-x-3">
-            <div className="w-10 h-10 rounded-2xl bg-black text-white flex items-center justify-center shrink-0">
-              <QrCode className="w-5 h-5 text-amber-400" />
-            </div>
-            <div>
-              <div className="flex items-center space-x-2">
-                <h3 className="text-xs sm:text-sm font-black text-black">Customer QR Public URL (Non-WiFi 4G/5G Network Ready)</h3>
-                <span className="inline-flex items-center space-x-1 text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-                  <span>Public HTTPS Active</span>
-                </span>
-              </div>
-              <p className="text-[11px] text-zinc-500 mt-0.5 font-mono truncate max-w-lg">
-                Generated table QRs point to: <strong className="text-black">{customerBaseUrl}</strong>
-              </p>
-            </div>
-          </div>
-
-          <div className="flex items-center space-x-2 shrink-0">
+            {/* Add Table Button */}
             <button
-              onClick={() => {
-                const custom = prompt('Enter your Cloudflare Tunnel URL or Public Domain for QR Menu:', customerBaseUrl);
-                if (custom && custom.trim()) {
-                  const cleaned = custom.trim().replace(/\/$/, '');
-                  setCustomerBaseUrl(cleaned);
-                  if (typeof window !== 'undefined') {
-                    localStorage.setItem('ithipooram_customer_qr_base_url', cleaned);
-                  }
-                  fetch('/api/tunnel/register', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ url: cleaned }),
-                  }).catch(() => {});
-                  alert(`✓ Customer QR URL updated to:\n${cleaned}\n\nAll generated table QRs will now use this URL.`);
-                }
-              }}
-              className="px-3.5 py-2 rounded-xl bg-zinc-100 hover:bg-black hover:text-white text-zinc-800 text-xs font-black transition cursor-pointer"
+              onClick={() => setIsAddModalOpen(true)}
+              className="px-4 py-2 rounded-2xl bg-black hover:bg-zinc-800 text-white font-extrabold text-xs sm:text-sm flex items-center space-x-1.5 shadow-sm transition active:scale-98 cursor-pointer"
             >
-              Configure Tunnel / Domain
+              <Plus className="w-4 h-4 stroke-[3]" />
+              <span>Add Table</span>
             </button>
+
+            {/* Filter Pills: All, Occupied, Empty only */}
+            <div className="inline-flex items-center p-1 bg-zinc-200/70 rounded-2xl text-xs font-bold text-zinc-600">
+              <button
+                onClick={() => setFilterTab('all')}
+                className={`px-4 py-1.5 rounded-xl transition ${
+                  filterTab === 'all'
+                    ? 'bg-white text-blue-600 font-extrabold shadow-xs'
+                    : 'hover:text-black'
+                }`}
+              >
+                All ({tables.length})
+              </button>
+              <button
+                onClick={() => setFilterTab('occupied')}
+                className={`px-4 py-1.5 rounded-xl transition ${
+                  filterTab === 'occupied'
+                    ? 'bg-white text-blue-600 font-extrabold shadow-xs'
+                    : 'hover:text-black'
+                }`}
+              >
+                Occupied ({occupiedCount})
+              </button>
+              <button
+                onClick={() => setFilterTab('empty')}
+                className={`px-4 py-1.5 rounded-xl transition ${
+                  filterTab === 'empty'
+                    ? 'bg-white text-blue-600 font-extrabold shadow-xs'
+                    : 'hover:text-black'
+                }`}
+              >
+                Empty ({emptyCount})
+              </button>
+            </div>
           </div>
         </div>
 
