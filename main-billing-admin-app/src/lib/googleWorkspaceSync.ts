@@ -233,7 +233,15 @@ export async function pushLiveUpdateToGoogleWorkspace(): Promise<{ success: bool
       };
     }
 
-    const payload = getFullGoogleWorkspacePayload();
+    const payload = {
+      action: 'FULL_SYNC',
+      tables: db.tables || [],
+      menuCategories: db.menuCategories || [],
+      staffUsers: db.staffUsers || [],
+      orders: db.orders || [],
+      updatedAt: new Date().toISOString(),
+    };
+
     const res = await fetch(webhookUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -247,5 +255,63 @@ export async function pushLiveUpdateToGoogleWorkspace(): Promise<{ success: bool
     }
   } catch (err: any) {
     return { success: false, message: err.message || 'Error pushing to Google Workspace' };
+  }
+}
+
+/**
+ * Pushes a new customer/waiter order to Google Sheet Live_Orders in real-time
+ */
+export async function pushOrderToGoogleDrive(order: any) {
+  try {
+    const webhookUrl = GOOGLE_WORKSPACE_CONFIG.webhookUrl;
+    if (!webhookUrl) return;
+
+    const itemsSummary = (order.items || []).map((it: any) => `${it.quantity || it.qty || 1}x ${it.itemName || it.name}`).join('; ');
+    await fetch(webhookUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        action: 'NEW_ORDER',
+        order: {
+          customerCode: order.customerCode || order.id,
+          tableCode: order.tableCode,
+          tableName: order.tableName,
+          itemsSummary,
+          grandTotalPaise: order.grandTotalPaise || order.subtotalPaise || 0,
+          fulfillmentStatus: order.fulfillmentStatus || 'NEW',
+          paymentStatus: order.paymentStatus || 'UNPAID',
+        },
+      }),
+    });
+  } catch (e) {
+    console.warn('[Google Drive Sync] Could not push new order:', e);
+  }
+}
+
+/**
+ * Pushes settled POS bill to Google Sheet Sales_Ledger in real-time
+ */
+export async function pushSettledBillToGoogleDrive(sale: any) {
+  try {
+    const webhookUrl = GOOGLE_WORKSPACE_CONFIG.webhookUrl;
+    if (!webhookUrl) return;
+
+    await fetch(webhookUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        action: 'BILL_SETTLED',
+        sale: {
+          invoiceNumber: sale.invoiceNumber,
+          orderCode: sale.orderCode,
+          tableCode: sale.tableCode,
+          paymentMode: sale.paymentMode || 'UPI',
+          grandTotalPaise: sale.grandTotalPaise,
+          cashier: sale.cashier || 'Cashier',
+        },
+      }),
+    });
+  } catch (e) {
+    console.warn('[Google Drive Sync] Could not push settled bill:', e);
   }
 }

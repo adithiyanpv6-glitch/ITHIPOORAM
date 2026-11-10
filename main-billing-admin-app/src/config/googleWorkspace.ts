@@ -11,9 +11,11 @@ export const GOOGLE_WORKSPACE_CONFIG = {
   restaurantName: 'ITHI POORAM (ഇത്തിപ്പൂരം)',
   restaurantLocation: 'Vanchiyoor, Trivandrum',
   sheets: {
-    staff: 'Staff Database',
-    sessions: 'Staff Session Database',
-    tables: 'Table Orders Database',
+    orders: 'Live_Orders',
+    sales: 'Sales_Ledger',
+    menu: 'Menu_Stock',
+    tables: 'Tables_Master',
+    staff: 'Staff_Registry',
   },
-  webhookUrl: process.env.GOOGLE_WORKSPACE_WEBHOOK_URL || '',
+  webhookUrl: process.env.GOOGLE_WORKSPACE_WEBHOOK_URL || 'https://script.google.com/macros/s/AKfycbwQPNt9ZF9_jl1Z3cZIhEPL1c-ZZKDESv1VrQSLKeA6MYJ1QjA9NPujO4ypjJUFgrx7/exec',
 };

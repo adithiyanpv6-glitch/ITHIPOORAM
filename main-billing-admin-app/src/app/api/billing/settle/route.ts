@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
-import { db, refreshTableSummaries } from '@/lib/serverDb';
+import { db, refreshTableSummaries, persistDb } from '@/lib/serverDb';
+import { pushSettledBillToGoogleDrive } from '@/lib/googleWorkspaceSync';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -52,6 +53,17 @@ export async function POST(request: Request) {
 
     // Refresh tables
     refreshTableSummaries();
+    persistDb();
+
+    // Stream settled bill directly to Google Drive Master Sales_Ledger
+    pushSettledBillToGoogleDrive({
+      invoiceNumber,
+      orderCode: order.customerCode,
+      tableCode: order.tableCode,
+      paymentMode: order.paymentMode || 'UPI',
+      grandTotalPaise: order.grandTotalPaise,
+      cashier: order.cashierName || 'Cashier',
+    }).catch(() => {});
 
     // Record audit log
     db.auditLogs.unshift({
