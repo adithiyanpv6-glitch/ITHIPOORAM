@@ -26,6 +26,7 @@ import {
   Trash2,
   FolderDown,
   FileSpreadsheet,
+  FileText,
   Plus,
   Lock,
   Unlock,
@@ -36,6 +37,7 @@ import {
   ArrowLeft
 } from 'lucide-react';
 import { getCurrentUser } from '../../lib/api';
+import { downloadReportAsPdf } from '@/lib/reportPdfGenerator';
 import { 
   printDirectToBluetoothThermalPrinter,
   connectPersistentBluetoothPrinter,
@@ -382,13 +384,18 @@ export default function MorePage() {
     return list;
   }, []);
 
-  const handleDownloadSingleReport = (reportType: string, isoDate: string, filename: string) => {
-    const link = document.createElement('a');
-    link.href = `/api/admin/daily-reports?format=excel&report=${reportType}&date=${isoDate}`;
-    link.download = filename;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+  const handleDownloadSingleReport = async (reportType: string, isoDate: string, filename: string) => {
+    try {
+      await downloadReportAsPdf(reportType, isoDate, filename);
+    } catch (e) {
+      console.warn('PDF generation fallback to Excel:', e);
+      const link = document.createElement('a');
+      link.href = `/api/admin/daily-reports?format=excel&report=${reportType}&date=${isoDate}`;
+      link.download = filename.replace('.pdf', '.xls');
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    }
   };
 
   const [activeReportSubTab, setActiveReportSubTab] = useState<'sales' | 'menu' | 'tables' | 'staff' | 'billing'>('sales');
@@ -1346,19 +1353,20 @@ export default function MorePage() {
 
                               <div className="divide-y divide-zinc-200 rounded-xl border border-zinc-200 bg-white overflow-hidden">
                                 {last7Days.map((d) => {
-                                  const filename = `${d.dateLabel}-${cat.fileSuffix}.xls`;
+                                  const filename = `${d.dateLabel}-${cat.fileSuffix}.pdf`;
                                   return (
                                     <div 
                                       key={d.isoDate} 
                                       className="p-3 sm:px-4 flex items-center justify-between gap-3 hover:bg-zinc-50 transition"
                                     >
                                       <div className="flex items-center space-x-3 min-w-0">
-                                        <div className="w-8 h-8 rounded-lg bg-zinc-100 text-zinc-700 flex items-center justify-center shrink-0">
-                                          <FileSpreadsheet className="w-4 h-4 text-emerald-600" />
+                                        <div className="w-8 h-8 rounded-lg bg-red-50 text-red-700 flex items-center justify-center shrink-0 border border-red-200">
+                                          <FileText className="w-4 h-4 text-red-600" />
                                         </div>
                                         <div className="min-w-0">
-                                          <p className="text-xs font-mono font-black text-black truncate">
-                                            {filename}
+                                          <p className="text-xs font-mono font-black text-black truncate flex items-center space-x-1.5">
+                                            <span>{filename}</span>
+                                            <span className="text-[9px] uppercase px-1.5 py-0.5 rounded bg-red-100 text-red-800 font-bold">PDF</span>
                                           </p>
                                           <p className="text-[11px] text-zinc-500">
                                             {d.dateLabel} ({d.weekday})
