@@ -32,7 +32,8 @@ import {
   Key,
   Check,
   Calendar,
-  HardDrive
+  HardDrive,
+  ArrowLeft
 } from 'lucide-react';
 import { getCurrentUser } from '../../lib/api';
 import { printDirectToBluetoothThermalPrinter } from '../../lib/thermalPrinter';
@@ -40,8 +41,8 @@ import { printDirectToBluetoothThermalPrinter } from '../../lib/thermalPrinter';
 export default function MorePage() {
   const router = useRouter();
 
-  // Active sub-tab in More: 1. printer, 2. staff, 3. reports, 4. storage, 5. reset
-  const [activeTab, setActiveTab] = useState<'printer' | 'staff' | 'reports' | 'storage' | 'reset'>('printer');
+  // Active sub-tab in More: 1. printer, 2. staff, 3. reports, 4. storage, 5. reset (null = 5 options landing)
+  const [activeTab, setActiveTab] = useState<'printer' | 'staff' | 'reports' | 'storage' | 'reset' | null>(null);
   
   // Printer Configuration (SEZNIK 58mm default)
   const [pageSize, setPageSize] = useState<'2-inch' | '3-inch'>('2-inch');
@@ -459,100 +460,249 @@ export default function MorePage() {
       {/* ============================================================== */}
       <main className="flex-1 flex flex-col w-full min-h-screen pb-32">
         
-        {/* Top Header */}
-        <div className="px-6 py-4 bg-white border-b border-zinc-200 flex flex-wrap items-center justify-between gap-3 shrink-0">
-          <div>
-            <h1 className="text-xl sm:text-2xl font-black text-black">More Options</h1>
-            <p className="text-xs font-semibold text-zinc-500">Hardware, Staff PINs, Reports, Local Storage &amp; Reset</p>
+        {/* ========================================================== */}
+        {/* LANDING PAGE: HEADING "MORE OPTION" & EXACTLY 5 OPTIONS    */}
+        {/* ========================================================== */}
+        {activeTab === null && (
+          <div className="flex-1 flex flex-col w-full">
+            {/* Top Header */}
+            <div className="px-4 sm:px-6 py-4 sm:py-5 bg-white border-b border-zinc-200 flex flex-wrap items-center justify-between gap-3 shrink-0">
+              <div>
+                <h1 className="text-2xl sm:text-3xl font-black text-black tracking-tight">More Option</h1>
+                <p className="text-xs font-semibold text-zinc-500 mt-1">Tap any of the 5 options below to open</p>
+              </div>
+              <span className="text-[10px] font-black uppercase tracking-wider bg-zinc-100 text-zinc-800 px-3 py-1.5 rounded-full border border-zinc-300">
+                5 Options Available
+              </span>
+            </div>
+
+            {/* Exactly 5 Options on the First Page */}
+            <div className="max-w-4xl mx-auto w-full p-4 sm:p-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {/* 1. Printer */}
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('printer')}
+                  className="text-left bg-white hover:bg-zinc-50 p-5 rounded-3xl border-2 border-zinc-200 hover:border-black shadow-xs hover:shadow-md transition-all cursor-pointer flex flex-col justify-between group active:scale-[0.99]"
+                >
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div className="w-12 h-12 rounded-2xl bg-black text-white flex items-center justify-center shadow-xs group-hover:scale-105 transition-transform">
+                        <Printer className="w-6 h-6" />
+                      </div>
+                      <span className="text-[10px] font-black uppercase tracking-wider bg-emerald-50 text-emerald-700 border border-emerald-200 px-2.5 py-1 rounded-full">
+                        SEZNIK 58mm Active
+                      </span>
+                    </div>
+                    <div>
+                      <h2 className="text-base font-black text-black">1. Printer Setup</h2>
+                      <p className="text-xs text-zinc-600 font-medium mt-1 leading-relaxed">
+                        SEZNIK 58mm POS printer setup, paper width (2-inch / 3-inch), test print &amp; extra paper feed lines.
+                      </p>
+                    </div>
+                  </div>
+                  <div className="mt-4 pt-3 border-t border-zinc-100 flex items-center justify-between text-xs font-black text-zinc-900 group-hover:text-black">
+                    <span>Tap to open printer</span>
+                    <ChevronRight className="w-4 h-4 text-zinc-400 group-hover:text-black group-hover:translate-x-1 transition-all" />
+                  </div>
+                </button>
+
+                {/* 2. Staff */}
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('staff')}
+                  className="text-left bg-white hover:bg-zinc-50 p-5 rounded-3xl border-2 border-zinc-200 hover:border-black shadow-xs hover:shadow-md transition-all cursor-pointer flex flex-col justify-between group active:scale-[0.99]"
+                >
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div className="w-12 h-12 rounded-2xl bg-black text-white flex items-center justify-center shadow-xs group-hover:scale-105 transition-transform">
+                        <Users className="w-6 h-6" />
+                      </div>
+                      <span className="text-[10px] font-black uppercase tracking-wider bg-amber-50 text-amber-700 border border-amber-200 px-2.5 py-1 rounded-full flex items-center space-x-1">
+                        <Lock className="w-3 h-3" />
+                        <span>Admin Protected</span>
+                      </span>
+                    </div>
+                    <div>
+                      <h2 className="text-base font-black text-black">2. Staff Access &amp; PINs</h2>
+                      <p className="text-xs text-zinc-600 font-medium mt-1 leading-relaxed">
+                        Staff management, designated roles (Cashier, Chef, Manager) and 4-digit PIN access. Admin PIN (5566) required.
+                      </p>
+                    </div>
+                  </div>
+                  <div className="mt-4 pt-3 border-t border-zinc-100 flex items-center justify-between text-xs font-black text-zinc-900 group-hover:text-black">
+                    <span>Tap to open staff</span>
+                    <ChevronRight className="w-4 h-4 text-zinc-400 group-hover:text-black group-hover:translate-x-1 transition-all" />
+                  </div>
+                </button>
+
+                {/* 3. Reports */}
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('reports')}
+                  className="text-left bg-white hover:bg-zinc-50 p-5 rounded-3xl border-2 border-zinc-200 hover:border-black shadow-xs hover:shadow-md transition-all cursor-pointer flex flex-col justify-between group active:scale-[0.99]"
+                >
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div className="w-12 h-12 rounded-2xl bg-black text-white flex items-center justify-center shadow-xs group-hover:scale-105 transition-transform">
+                        <BarChart3 className="w-6 h-6" />
+                      </div>
+                      <span className="text-[10px] font-black uppercase tracking-wider bg-blue-50 text-blue-700 border border-blue-200 px-2.5 py-1 rounded-full">
+                        5 Compliance Reports
+                      </span>
+                    </div>
+                    <div>
+                      <h2 className="text-base font-black text-black">3. Reports &amp; Analytics</h2>
+                      <p className="text-xs text-zinc-600 font-medium mt-1 leading-relaxed">
+                        Total Sales of the Day, Remaining Menu Stock, Daily Table Revenue, Staff Login Audit &amp; 5-in-1 Excel export.
+                      </p>
+                    </div>
+                  </div>
+                  <div className="mt-4 pt-3 border-t border-zinc-100 flex items-center justify-between text-xs font-black text-zinc-900 group-hover:text-black">
+                    <span>Tap to open reports</span>
+                    <ChevronRight className="w-4 h-4 text-zinc-400 group-hover:text-black group-hover:translate-x-1 transition-all" />
+                  </div>
+                </button>
+
+                {/* 4. Storage */}
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('storage')}
+                  className="text-left bg-white hover:bg-zinc-50 p-5 rounded-3xl border-2 border-zinc-200 hover:border-black shadow-xs hover:shadow-md transition-all cursor-pointer flex flex-col justify-between group active:scale-[0.99]"
+                >
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div className="w-12 h-12 rounded-2xl bg-black text-white flex items-center justify-center shadow-xs group-hover:scale-105 transition-transform">
+                        <HardDrive className="w-6 h-6" />
+                      </div>
+                      <span className="text-[10px] font-black uppercase tracking-wider bg-zinc-100 text-zinc-800 border border-zinc-300 px-2.5 py-1 rounded-full">
+                        Local Device Storage
+                      </span>
+                    </div>
+                    <div>
+                      <h2 className="text-base font-black text-black">4. Storage &amp; Archives</h2>
+                      <p className="text-xs text-zinc-600 font-medium mt-1 leading-relaxed">
+                        Set phone storage folder path for reports archive, view latest 10 saved daily reports, and export history.
+                      </p>
+                    </div>
+                  </div>
+                  <div className="mt-4 pt-3 border-t border-zinc-100 flex items-center justify-between text-xs font-black text-zinc-900 group-hover:text-black">
+                    <span>Tap to open storage</span>
+                    <ChevronRight className="w-4 h-4 text-zinc-400 group-hover:text-black group-hover:translate-x-1 transition-all" />
+                  </div>
+                </button>
+
+                {/* 5. Reset */}
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('reset')}
+                  className="text-left bg-red-50/60 hover:bg-red-50 p-5 rounded-3xl border-2 border-red-200 hover:border-red-500 shadow-xs hover:shadow-md transition-all cursor-pointer flex flex-col justify-between group active:scale-[0.99] sm:col-span-2"
+                >
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div className="w-12 h-12 rounded-2xl bg-red-600 text-white flex items-center justify-center shadow-xs group-hover:scale-105 transition-transform">
+                        <Trash2 className="w-6 h-6" />
+                      </div>
+                      <span className="text-[10px] font-black uppercase tracking-wider bg-red-100 text-red-800 border border-red-300 px-2.5 py-1 rounded-full flex items-center space-x-1">
+                        <AlertTriangle className="w-3 h-3" />
+                        <span>Sensitive Action</span>
+                      </span>
+                    </div>
+                    <div>
+                      <h2 className="text-base font-black text-red-950">5. Factory Reset (Handover)</h2>
+                      <p className="text-xs text-red-900/80 font-medium mt-1 leading-relaxed">
+                        Reset app to start fresh as new with all values 0, no menu, no tables for clean shop handover. Admin PIN (5566) required.
+                      </p>
+                    </div>
+                  </div>
+                  <div className="mt-4 pt-3 border-t border-red-200 flex items-center justify-between text-xs font-black text-red-700 group-hover:text-red-900">
+                    <span>Tap to open reset</span>
+                    <ChevronRight className="w-4 h-4 text-red-400 group-hover:text-red-700 group-hover:translate-x-1 transition-all" />
+                  </div>
+                </button>
+              </div>
+            </div>
           </div>
-          <span className="text-[10px] font-black uppercase tracking-wider bg-zinc-100 text-zinc-800 px-3 py-1.5 rounded-full border border-zinc-300">
-            SEZNIK 58mm Enabled
-          </span>
-        </div>
+        )}
 
-        {/* Sub-Navigation & Content Container */}
-        <div className="flex-1 flex flex-col md:flex-row">
-          
-          {/* Sub-Tabs: 1. PRINTER, 2. STAFF, 3. REPORTS, 4. STORAGE, 5. RESET */}
-          <div className="w-full md:w-64 bg-white border-b md:border-b-0 md:border-r border-zinc-200 p-4 space-y-2 shrink-0">
-            <button
-              onClick={() => setActiveTab('printer')}
-              className={`w-full text-left px-3.5 py-3 rounded-2xl text-xs font-extrabold transition cursor-pointer flex items-center justify-between ${
-                activeTab === 'printer'
-                  ? 'bg-black text-white shadow-sm'
-                  : 'text-zinc-700 hover:bg-zinc-100'
-              }`}
-            >
-              <div className="flex items-center space-x-2.5">
-                <Printer className="w-4 h-4" />
-                <span>1. Printer (SEZNIK 58mm)</span>
+        {/* ========================================================== */}
+        {/* DRILL-DOWN FUNCTION VIEW (WHEN AN OPTION IS OPENED)        */}
+        {/* ========================================================== */}
+        {activeTab !== null && (
+          <div className="flex-1 flex flex-col w-full">
+            {/* Top Navigation Bar with Back Button & Pills */}
+            <div className="px-4 sm:px-6 py-3.5 bg-white border-b border-zinc-200 flex flex-wrap items-center justify-between gap-3 shrink-0">
+              <div className="flex items-center space-x-3">
+                <button
+                  type="button"
+                  onClick={() => setActiveTab(null)}
+                  className="inline-flex items-center space-x-1.5 px-3 py-2 rounded-xl bg-zinc-100 hover:bg-zinc-200 text-zinc-900 font-extrabold text-xs transition cursor-pointer active:scale-95 shadow-xs"
+                >
+                  <ArrowLeft className="w-4 h-4" />
+                  <span>More Option</span>
+                </button>
+                <span className="text-zinc-300 font-bold">/</span>
+                <h1 className="text-base sm:text-lg font-black text-black truncate max-w-[200px] sm:max-w-none">
+                  {activeTab === 'printer' && '1. Printer (SEZNIK 58mm)'}
+                  {activeTab === 'staff' && '2. Staff Access & PINs'}
+                  {activeTab === 'reports' && '3. Reports & Analytics'}
+                  {activeTab === 'storage' && '4. Storage & Local Archives'}
+                  {activeTab === 'reset' && '5. Factory Reset (Handover)'}
+                </h1>
               </div>
-              <ChevronRight className="w-3.5 h-3.5 opacity-60" />
-            </button>
 
-            <button
-              onClick={() => setActiveTab('staff')}
-              className={`w-full text-left px-3.5 py-3 rounded-2xl text-xs font-extrabold transition cursor-pointer flex items-center justify-between ${
-                activeTab === 'staff'
-                  ? 'bg-black text-white shadow-sm'
-                  : 'text-zinc-700 hover:bg-zinc-100'
-              }`}
-            >
-              <div className="flex items-center space-x-2.5">
-                <Users className="w-4 h-4" />
-                <span>2. Staff Access &amp; PINs</span>
+              {/* Quick pills to switch between the 5 options */}
+              <div className="flex items-center gap-1.5 overflow-x-auto py-1 max-w-full">
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('printer')}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-black transition cursor-pointer whitespace-nowrap ${
+                    activeTab === 'printer' ? 'bg-black text-white shadow-xs' : 'bg-zinc-100 text-zinc-600 hover:bg-zinc-200'
+                  }`}
+                >
+                  1. Printer
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('staff')}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-black transition cursor-pointer whitespace-nowrap ${
+                    activeTab === 'staff' ? 'bg-black text-white shadow-xs' : 'bg-zinc-100 text-zinc-600 hover:bg-zinc-200'
+                  }`}
+                >
+                  2. Staff
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('reports')}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-black transition cursor-pointer whitespace-nowrap ${
+                    activeTab === 'reports' ? 'bg-black text-white shadow-xs' : 'bg-zinc-100 text-zinc-600 hover:bg-zinc-200'
+                  }`}
+                >
+                  3. Reports
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('storage')}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-black transition cursor-pointer whitespace-nowrap ${
+                    activeTab === 'storage' ? 'bg-black text-white shadow-xs' : 'bg-zinc-100 text-zinc-600 hover:bg-zinc-200'
+                  }`}
+                >
+                  4. Storage
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('reset')}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-black transition cursor-pointer whitespace-nowrap ${
+                    activeTab === 'reset' ? 'bg-red-600 text-white shadow-xs' : 'bg-red-50 text-red-700 hover:bg-red-100'
+                  }`}
+                >
+                  5. Reset
+                </button>
               </div>
-              <Lock className="w-3.5 h-3.5 text-amber-500" />
-            </button>
+            </div>
 
-            <button
-              onClick={() => setActiveTab('reports')}
-              className={`w-full text-left px-3.5 py-3 rounded-2xl text-xs font-extrabold transition cursor-pointer flex items-center justify-between ${
-                activeTab === 'reports'
-                  ? 'bg-black text-white shadow-sm'
-                  : 'text-zinc-700 hover:bg-zinc-100'
-              }`}
-            >
-              <div className="flex items-center space-x-2.5">
-                <BarChart3 className="w-4 h-4" />
-                <span>3. Reports &amp; Analytics</span>
-              </div>
-              <ChevronRight className="w-3.5 h-3.5 opacity-60" />
-            </button>
-
-            <button
-              onClick={() => setActiveTab('storage')}
-              className={`w-full text-left px-3.5 py-3 rounded-2xl text-xs font-extrabold transition cursor-pointer flex items-center justify-between ${
-                activeTab === 'storage'
-                  ? 'bg-black text-white shadow-sm'
-                  : 'text-zinc-700 hover:bg-zinc-100'
-              }`}
-            >
-              <div className="flex items-center space-x-2.5">
-                <HardDrive className="w-4 h-4" />
-                <span>4. Storage &amp; Local Archives</span>
-              </div>
-              <FolderDown className="w-3.5 h-3.5 opacity-60" />
-            </button>
-
-            <button
-              onClick={() => setActiveTab('reset')}
-              className={`w-full text-left px-3.5 py-3 rounded-2xl text-xs font-extrabold transition cursor-pointer flex items-center justify-between ${
-                activeTab === 'reset'
-                  ? 'bg-red-600 text-white shadow-sm'
-                  : 'text-red-600 hover:bg-red-50 border border-red-200'
-              }`}
-            >
-              <div className="flex items-center space-x-2.5">
-                <Trash2 className="w-4 h-4" />
-                <span>5. Factory Reset (Handover)</span>
-              </div>
-              <AlertTriangle className="w-3.5 h-3.5" />
-            </button>
-          </div>
-
-          {/* Right Main Panel with Full Scroll */}
-          <div className="flex-1 p-4 sm:p-6 space-y-6">
+            {/* Right Main Panel with Full Scroll */}
+            <div className="flex-1 p-4 sm:p-6 space-y-6">
             
             {/* ========================================================== */}
             {/* 1. PRINTER SETTINGS PANEL                                   */}
@@ -1394,9 +1544,9 @@ export default function MorePage() {
               </div>
             )}
 
+            </div>
           </div>
-
-        </div>
+        )}
 
       </main>
 
