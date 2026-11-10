@@ -36,7 +36,14 @@ import {
   ArrowLeft
 } from 'lucide-react';
 import { getCurrentUser } from '../../lib/api';
-import { printDirectToBluetoothThermalPrinter } from '../../lib/thermalPrinter';
+import { 
+  printDirectToBluetoothThermalPrinter,
+  connectPersistentBluetoothPrinter,
+  subscribeToPrinterConnection,
+  tryAutoReconnectBluetoothPrinter,
+  isBluetoothPrinterConnected,
+  getConnectedBluetoothDeviceName
+} from '../../lib/thermalPrinter';
 
 export default function MorePage() {
   const router = useRouter();
@@ -53,6 +60,19 @@ export default function MorePage() {
   const [btConnectionStatus, setBtConnectionStatus] = useState<'disconnected' | 'connecting' | 'connected'>('disconnected');
   const [connectedDeviceName, setConnectedDeviceName] = useState<string | null>(null);
   const [usbConnected, setUsbConnected] = useState(false);
+
+  // Subscribe to persistent direct mobile Bluetooth printer connection
+  useEffect(() => {
+    const unsubscribe = subscribeToPrinterConnection((connected, deviceName) => {
+      setBtConnectionStatus(connected ? 'connected' : 'disconnected');
+      if (deviceName) setConnectedDeviceName(deviceName);
+    });
+
+    // Check direct mobile reconnect without prompting
+    tryAutoReconnectBluetoothPrinter();
+
+    return () => unsubscribe();
+  }, []);
 
   // Browser & Physical Mobile Back-Button navigation handling
   const openTab = (tab: 'printer' | 'staff' | 'reports' | 'storage' | 'reset') => {
@@ -98,10 +118,10 @@ export default function MorePage() {
     return () => window.removeEventListener('popstate', handlePopState);
   }, []);
 
-  // Web Bluetooth Direct Pairing for SEZNIK 58mm
+  // Direct Mobile Bluetooth Connect (Hardware to Mobile directly, zero web server)
   const handleConnectBluetooth = async () => {
     if (typeof window === 'undefined' || !(navigator as any).bluetooth) {
-      setBtStatus('Web Bluetooth is supported in Chrome/Edge on Android and PC. Please ensure Bluetooth is enabled.');
+      setBtStatus('Web Bluetooth is supported on Google Chrome & Edge on Android mobile phones.');
       alert('Please use Google Chrome or Edge with Bluetooth turned on.');
       return;
     }
@@ -109,36 +129,14 @@ export default function MorePage() {
     try {
       setBtConnectionStatus('connecting');
       setBtStatus(null);
-      const device = await (navigator as any).bluetooth.requestDevice({
-        acceptAllDevices: true,
-        optionalServices: [
-          '000018f0-0000-1000-8000-00805f9b34fb',
-          'e7810a71-73ae-499d-8c15-faa9aef0c3f2',
-          '49535343-fe7d-4ae5-8fa9-9fafd205e455',
-          '0000e0ff-0000-1000-8000-00805f9b34fb',
-        ],
-      });
-
-      if (device.gatt) {
-        await device.gatt.connect();
-        setBtConnectionStatus('connected');
-        setConnectedDeviceName(device.name || 'SEZNIK 58mm');
-        setBtStatus(`Connected to ${device.name || 'SEZNIK 58mm'}`);
-
-        device.addEventListener('gattserverdisconnected', () => {
-          setBtConnectionStatus('disconnected');
-          setConnectedDeviceName(null);
-          setBtStatus('Bluetooth printer disconnected');
-        });
-      } else {
-        setBtConnectionStatus('connected');
-        setConnectedDeviceName(device.name || 'SEZNIK 58mm');
-        setBtStatus(`Paired with ${device.name || 'SEZNIK 58mm'}`);
-      }
+      const res = await connectPersistentBluetoothPrinter();
+      setBtConnectionStatus('connected');
+      setConnectedDeviceName(res.name);
+      setBtStatus(`Connected directly to mobile Bluetooth (${res.name}) - stays connected for all bills`);
     } catch (err: any) {
       setBtConnectionStatus('disconnected');
       if (err.name !== 'NotFoundError') {
-        setBtStatus(`Bluetooth Error: ${err.message}`);
+        setBtStatus(`Connection error: ${err.message}`);
       }
     }
   };
@@ -776,8 +774,31 @@ export default function MorePage() {
                           <Bluetooth className="w-3.5 h-3.5" />
                           <span>{btConnectionStatus === 'connected' ? 'Connected' : 'Connect'}</span>
                         </button>
+
+                        {/* Direct Test Print Button */}
+                        {btConnectionStatus === 'connected' && (
+                          <button
+                            type="button"
+                            onClick={handleBluetoothTestPrint}
+                            disabled={isBluetoothPrinting}
+                            className="inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-xl border border-zinc-300 hover:border-black bg-white text-xs font-bold text-black transition cursor-pointer active:scale-95 shadow-xs"
+                          >
+                            {isBluetoothPrinting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Printer className="w-3.5 h-3.5" />}
+                            <span>Test Print</span>
+                          </button>
+                        )}
                       </div>
                     </div>
+
+                    {btStatus && (
+                      <div className={`p-2.5 rounded-xl text-xs font-bold ${
+                        btStatus.includes('error') || btStatus.includes('Error')
+                          ? 'bg-red-50 text-red-700 border border-red-200' 
+                          : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                      }`}>
+                        {btStatus}
+                      </div>
+                    )}
 
                     {/* Big Rectangle Box for Printer (Cleaned: no 58mm badge and no 3 boxes) */}
                     <div className="p-4 rounded-2xl border-2 border-black bg-zinc-50">
@@ -788,7 +809,7 @@ export default function MorePage() {
                         <div>
                           <h4 className="text-sm font-black text-black">SEZNIK 58mm Thermal POS Printer</h4>
                           <p className="text-[11px] font-bold text-zinc-600 mt-0.5">Model: POS-5802 / ESC-POS Standard</p>
-                          <p className="text-[10px] text-zinc-500">Dual Connection: Wireless Bluetooth (BLE/SPP) + USB Cable</p>
+                          <p className="text-[10px] text-zinc-500">Direct Mobile Phone Bluetooth Connection (zero webserver) + USB Cable</p>
                         </div>
                       </div>
                     </div>
@@ -812,51 +833,6 @@ export default function MorePage() {
                         className="px-4 py-2 rounded-xl border border-zinc-300 hover:border-black bg-white hover:bg-zinc-100 text-xs font-black text-black transition cursor-pointer shrink-0 active:scale-95 shadow-xs"
                       >
                         {usbConnected ? 'USB Connected ✓' : 'Connect via USB'}
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* Bluetooth Direct Connect Button */}
-                  <div className="bg-white rounded-3xl p-5 border border-zinc-200 shadow-xs space-y-3">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center space-x-2">
-                        <Bluetooth className="w-4 h-4 text-blue-600" />
-                        <span className="text-xs font-black text-black">SEZNIK Bluetooth Direct Connect</span>
-                      </div>
-                      <span className="text-[10px] font-mono font-bold bg-blue-50 text-blue-700 px-2 py-0.5 rounded-md">
-                        ESC/POS 58mm
-                      </span>
-                    </div>
-
-                    <p className="text-xs text-zinc-500">
-                      Print bills straight from your tablet or laptop browser directly to your SEZNIK Bluetooth printer without any cables.
-                    </p>
-
-                    {btStatus && (
-                      <div className={`p-2.5 rounded-xl text-xs font-bold ${
-                        btStatus.includes('Error') 
-                          ? 'bg-red-50 text-red-700 border border-red-200' 
-                          : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                      }`}>
-                        {btStatus}
-                      </div>
-                    )}
-
-                    <div className="pt-1 flex items-center gap-2">
-                      <button
-                        onClick={handleBluetoothTestPrint}
-                        disabled={isBluetoothPrinting}
-                        className="px-4 py-2.5 rounded-xl bg-black hover:bg-zinc-800 text-white text-xs font-black flex items-center space-x-2 transition disabled:opacity-50 cursor-pointer shadow-xs active:scale-98"
-                      >
-                        {isBluetoothPrinting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Printer className="w-3.5 h-3.5" />}
-                        <span>Print Test Bill (SEZNIK Bluetooth)</span>
-                      </button>
-
-                      <button
-                        onClick={() => window.print()}
-                        className="px-3.5 py-2.5 rounded-xl border border-zinc-300 hover:border-black text-black text-xs font-bold transition cursor-pointer"
-                      >
-                        System Print (USB)
                       </button>
                     </div>
                   </div>

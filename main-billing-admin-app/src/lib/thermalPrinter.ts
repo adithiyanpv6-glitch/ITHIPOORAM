@@ -525,7 +525,173 @@ export async function generateEscPosRasterBitmapFromPreview(data: ReceiptData): 
   return finalBinary;
 }
 
-// 3. Print directly via Web Bluetooth API (Connects seamlessly to Seznik Bluetooth)
+// ==============================================================
+// Persistent Bluetooth Printer connection state across all pages
+// Keeps SEZNIK connected directly to mobile Bluetooth without web server
+// ==============================================================
+let persistentBluetoothDevice: any = null;
+let persistentCharacteristic: any = null;
+let isReconnecting = false;
+let connectionChangeListeners: Array<(connected: boolean, deviceName: string | null) => void> = [];
+
+export function subscribeToPrinterConnection(listener: (connected: boolean, deviceName: string | null) => void) {
+  connectionChangeListeners.push(listener);
+  // Send initial state
+  listener(isBluetoothPrinterConnected(), getConnectedBluetoothDeviceName());
+  return () => {
+    connectionChangeListeners = connectionChangeListeners.filter(l => l !== listener);
+  };
+}
+
+function notifyConnectionChange() {
+  const connected = isBluetoothPrinterConnected();
+  const name = getConnectedBluetoothDeviceName();
+  connectionChangeListeners.forEach(listener => {
+    try {
+      listener(connected, name);
+    } catch (e) {
+      console.error(e);
+    }
+  });
+}
+
+export function isBluetoothPrinterConnected(): boolean {
+  return !!(
+    persistentBluetoothDevice &&
+    persistentBluetoothDevice.gatt &&
+    persistentBluetoothDevice.gatt.connected &&
+    persistentCharacteristic
+  );
+}
+
+export function getConnectedBluetoothDeviceName(): string | null {
+  if (isBluetoothPrinterConnected() && persistentBluetoothDevice) {
+    return persistentBluetoothDevice.name || 'SEZNIK 58mm';
+  }
+  return null;
+}
+
+// Establish GATT server connection and discover writable thermal printer characteristic
+async function establishGattConnection(device: any): Promise<any> {
+  if (!device.gatt) {
+    throw new Error('Device does not support Bluetooth GATT.');
+  }
+
+  const server = device.gatt.connected ? device.gatt : await device.gatt.connect();
+  const services = await server.getPrimaryServices();
+
+  let targetChar: any = null;
+  for (const service of services) {
+    const chars = await service.getCharacteristics();
+    for (const char of chars) {
+      if (char.properties.write || char.properties.writeWithoutResponse) {
+        targetChar = char;
+        break;
+      }
+    }
+    if (targetChar) break;
+  }
+
+  if (!targetChar) {
+    throw new Error('No writable printer service found on this Bluetooth device.');
+  }
+
+  return targetChar;
+}
+
+async function onGattDisconnected() {
+  console.warn('[Bluetooth Printer] Connection dropped. Attempting direct mobile auto-reconnect...');
+  persistentCharacteristic = null;
+  notifyConnectionChange();
+
+  if (isReconnecting || !persistentBluetoothDevice) return;
+  isReconnecting = true;
+
+  // Automatically attempt reconnect up to 5 times so shopkeeper never has to reconnect
+  for (let attempt = 1; attempt <= 5; attempt++) {
+    try {
+      await new Promise(r => setTimeout(r, 2000));
+      if (!persistentBluetoothDevice) break;
+      const char = await establishGattConnection(persistentBluetoothDevice);
+      persistentCharacteristic = char;
+      console.log(`[Bluetooth Printer] Auto-reconnected to mobile successfully on attempt ${attempt}!`);
+      notifyConnectionChange();
+      break;
+    } catch (e) {
+      console.warn(`[Bluetooth Printer] Auto-reconnect attempt ${attempt} failed:`, e);
+    }
+  }
+  isReconnecting = false;
+  notifyConnectionChange();
+}
+
+// Connect directly to phone's bluetooth without web server
+export async function connectPersistentBluetoothPrinter(): Promise<{ name: string; connected: boolean }> {
+  if (typeof window === 'undefined' || !(navigator as any).bluetooth) {
+    throw new Error('Web Bluetooth is supported in Chrome/Edge on mobile phones. Please ensure Bluetooth is enabled.');
+  }
+
+  // If already connected directly, reuse
+  if (isBluetoothPrinterConnected()) {
+    return { name: persistentBluetoothDevice.name || 'SEZNIK 58mm', connected: true };
+  }
+
+  // Request Bluetooth Device directly from phone's Bluetooth chip
+  const device = await (navigator as any).bluetooth.requestDevice({
+    acceptAllDevices: true,
+    optionalServices: [
+      '000018f0-0000-1000-8000-00805f9b34fb', // Standard POS Printer Service
+      'e7810a71-73ae-499d-8c15-faa9aef0c3f2', // Mini POS thermal service
+      '49535343-fe7d-4ae5-8fa9-9fafd205e455', // ISSC transparent UART
+      '0000e0ff-0000-1000-8000-00805f9b34fb',
+    ],
+  });
+
+  persistentBluetoothDevice = device;
+  device.removeEventListener?.('gattserverdisconnected', onGattDisconnected);
+  device.addEventListener('gattserverdisconnected', onGattDisconnected);
+
+  const char = await establishGattConnection(device);
+  persistentCharacteristic = char;
+
+  if (typeof window !== 'undefined') {
+    localStorage.setItem('ithipooram_bluetooth_paired', 'true');
+    if (device.name) {
+      localStorage.setItem('ithipooram_bluetooth_name', device.name);
+    }
+  }
+
+  notifyConnectionChange();
+  return { name: device.name || 'SEZNIK 58mm', connected: true };
+}
+
+// Try reconnecting silently if previously granted permission on mobile
+export async function tryAutoReconnectBluetoothPrinter(): Promise<boolean> {
+  if (isBluetoothPrinterConnected()) return true;
+  if (typeof window === 'undefined' || !(navigator as any).bluetooth) return false;
+
+  try {
+    if ((navigator as any).bluetooth.getDevices) {
+      const devices = await (navigator as any).bluetooth.getDevices();
+      if (devices && devices.length > 0) {
+        const device = devices[0];
+        persistentBluetoothDevice = device;
+        device.removeEventListener?.('gattserverdisconnected', onGattDisconnected);
+        device.addEventListener('gattserverdisconnected', onGattDisconnected);
+        const char = await establishGattConnection(device);
+        persistentCharacteristic = char;
+        notifyConnectionChange();
+        return true;
+      }
+    }
+  } catch (e) {
+    console.debug('[Bluetooth Printer] Silent reconnect check:', e);
+  }
+  return false;
+}
+
+// 3. Print directly via Web Bluetooth API (Connects directly to mobile phone's Bluetooth)
+// Re-uses persistent connection so shopkeeper never has to reconnect for every bill
 export async function printDirectToBluetoothThermalPrinter(
   data: ReceiptData,
   mode: 'bitmap' | 'text' = 'bitmap'
@@ -534,70 +700,54 @@ export async function printDirectToBluetoothThermalPrinter(
     throw new Error('Web Bluetooth is not supported in this browser. Please use Google Chrome or Edge.');
   }
 
-  try {
-    // Request Bluetooth Device with Serial Port Profile / Thermal Printer Service
-    const device = await (navigator as any).bluetooth.requestDevice({
-      acceptAllDevices: true,
-      optionalServices: [
-        '000018f0-0000-1000-8000-00805f9b34fb', // Standard POS Printer Service
-        'e7810a71-73ae-499d-8c15-faa9aef0c3f2', // Mini POS thermal service
-        '49535343-fe7d-4ae5-8fa9-9fafd205e455', // ISSC transparent UART
-        '0000e0ff-0000-1000-8000-00805f9b34fb',
-      ],
-    });
-
-    const server = await device.gatt.connect();
-
-    // Look for writable characteristic
-    let targetChar: any = null;
-    const services = await server.getPrimaryServices();
-
-    for (const service of services) {
-      const chars = await service.getCharacteristics();
-      for (const char of chars) {
-        if (char.properties.write || char.properties.writeWithoutResponse) {
-          targetChar = char;
-          break;
-        }
-      }
-      if (targetChar) break;
-    }
-
-    if (!targetChar) {
-      throw new Error('No writable printer service found on this Bluetooth device.');
-    }
-
-    // Generate binary commands:
-    // If bitmap mode, generates exact replica of visual preview with calligraphy and Malayalam.
-    // If bitmap generation fails or text mode chosen, falls back cleanly.
-    let binary: Uint8Array;
-    if (mode === 'bitmap') {
+  // 1. Ensure we have an active, direct mobile connection
+  let targetChar = persistentCharacteristic;
+  if (!targetChar || !persistentBluetoothDevice || !persistentBluetoothDevice.gatt?.connected) {
+    if (persistentBluetoothDevice) {
       try {
-        binary = await generateEscPosRasterBitmapFromPreview(data);
-      } catch (err) {
-        console.warn('Bitmap raster render failed, falling back to clean text ESC/POS:', err);
-        binary = generateEscPos58mmCommands(data);
+        targetChar = await establishGattConnection(persistentBluetoothDevice);
+        persistentCharacteristic = targetChar;
+      } catch (e) {
+        targetChar = null;
       }
-    } else {
+    }
+
+    // If still not connected, connect directly
+    if (!targetChar) {
+      await connectPersistentBluetoothPrinter();
+      targetChar = persistentCharacteristic;
+    }
+  }
+
+  if (!targetChar) {
+    throw new Error('SEZNIK Printer is not connected. Please tap Connect on top in Printer Setup.');
+  }
+
+  // 2. Generate binary commands
+  let binary: Uint8Array;
+  if (mode === 'bitmap') {
+    try {
+      binary = await generateEscPosRasterBitmapFromPreview(data);
+    } catch (err) {
+      console.warn('Bitmap raster render failed, falling back to clean text ESC/POS:', err);
       binary = generateEscPos58mmCommands(data);
     }
-
-    // Send in chunks of 100 bytes (standard BLE MTU) with pacing
-    const chunkSize = 100;
-    for (let i = 0; i < binary.length; i += chunkSize) {
-      const chunk = binary.slice(i, i + chunkSize);
-      if (targetChar.writeValueWithoutResponse) {
-        await targetChar.writeValueWithoutResponse(chunk);
-      } else {
-        await targetChar.writeValue(chunk);
-      }
-      // Small delay to allow low-speed BLE thermal printer buffer to process
-      await new Promise((r) => setTimeout(r, 25));
-    }
-
-    return true;
-  } catch (err: any) {
-    console.error('Bluetooth printer error:', err);
-    throw err;
+  } else {
+    binary = generateEscPos58mmCommands(data);
   }
+
+  // 3. Send in chunks of 100 bytes (standard BLE MTU) directly to mobile bluetooth
+  const chunkSize = 100;
+  for (let i = 0; i < binary.length; i += chunkSize) {
+    const chunk = binary.slice(i, i + chunkSize);
+    if (targetChar.writeValueWithoutResponse) {
+      await targetChar.writeValueWithoutResponse(chunk);
+    } else {
+      await targetChar.writeValue(chunk);
+    }
+    // Small delay to allow low-speed BLE thermal printer buffer to process
+    await new Promise((r) => setTimeout(r, 25));
+  }
+
+  return true;
 }
