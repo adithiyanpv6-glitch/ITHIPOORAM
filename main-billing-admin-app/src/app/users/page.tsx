@@ -456,169 +456,127 @@ export default function MorePage() {
 
       {/* ============================================================== */}
       {/* 3. MAIN WORKSPACE (SEZNIK PRINTER, STAFF, REPORTS, STORAGE, RESET) */}
-      {/* Downscroll is completely unrestricted with pb-32              */}
+      {/* Downscroll is completely unrestricted with pb-64 sm:pb-48     */}
       {/* ============================================================== */}
-      <main className="flex-1 flex flex-col w-full min-h-screen pb-32">
+      <main className="flex-1 flex flex-col w-full min-h-screen overflow-y-auto pb-64 sm:pb-48">
         
         {/* ========================================================== */}
         {/* LANDING PAGE: HEADING "MORE OPTION" & EXACTLY 5 OPTIONS    */}
         {/* ========================================================== */}
         {activeTab === null && (
           <div className="flex-1 flex flex-col w-full">
-            {/* Top Header */}
-            <div className="px-4 sm:px-6 py-4 sm:py-5 bg-white border-b border-zinc-200 flex flex-wrap items-center justify-between gap-3 shrink-0">
-              <div>
-                <h1 className="text-2xl sm:text-3xl font-black text-black tracking-tight">More Option</h1>
-                <p className="text-xs font-semibold text-zinc-500 mt-1">Tap any of the 5 options below to open</p>
-              </div>
-              <span className="text-[10px] font-black uppercase tracking-wider bg-zinc-100 text-zinc-800 px-3 py-1.5 rounded-full border border-zinc-300">
-                5 Options Available
-              </span>
+            {/* Top Header: Only heading "More Option", no subtitles, no badges */}
+            <div className="px-4 sm:px-6 py-4 sm:py-5 bg-white border-b border-zinc-200 shrink-0">
+              <h1 className="text-xl sm:text-2xl font-black text-black tracking-tight">More Option</h1>
             </div>
 
-            {/* Exactly 5 Options on the First Page */}
-            <div className="max-w-4xl mx-auto w-full p-4 sm:p-6">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {/* Exactly 5 Options on the First Page: Flat Clean List without curved rectangle boxes */}
+            <div className="max-w-3xl mx-auto w-full px-4 sm:px-6 py-2 pb-60">
+              <div className="divide-y divide-zinc-200">
                 {/* 1. Printer */}
                 <button
                   type="button"
                   onClick={() => setActiveTab('printer')}
-                  className="text-left bg-white hover:bg-zinc-50 p-5 rounded-3xl border-2 border-zinc-200 hover:border-black shadow-xs hover:shadow-md transition-all cursor-pointer flex flex-col justify-between group active:scale-[0.99]"
+                  className="w-full text-left py-4 sm:py-5 px-2 flex items-center justify-between hover:bg-zinc-100/60 active:bg-zinc-100 transition cursor-pointer group"
                 >
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between">
-                      <div className="w-12 h-12 rounded-2xl bg-black text-white flex items-center justify-center shadow-xs group-hover:scale-105 transition-transform">
-                        <Printer className="w-6 h-6" />
-                      </div>
-                      <span className="text-[10px] font-black uppercase tracking-wider bg-emerald-50 text-emerald-700 border border-emerald-200 px-2.5 py-1 rounded-full">
-                        SEZNIK 58mm Active
-                      </span>
-                    </div>
+                  <div className="flex items-start space-x-3.5 pr-2">
+                    <span className="font-mono font-bold text-xs text-zinc-400 mt-1">01</span>
                     <div>
-                      <h2 className="text-base font-black text-black">1. Printer Setup</h2>
-                      <p className="text-xs text-zinc-600 font-medium mt-1 leading-relaxed">
-                        SEZNIK 58mm POS printer setup, paper width (2-inch / 3-inch), test print &amp; extra paper feed lines.
+                      <h2 className="text-base sm:text-lg font-black text-black group-hover:text-zinc-700 transition">
+                        1. Printer Setup
+                      </h2>
+                      <p className="text-xs text-zinc-500 font-medium mt-0.5 leading-relaxed">
+                        SEZNIK 58mm POS printer setup, paper width (2-inch / 3-inch), test print &amp; feed lines
                       </p>
                     </div>
                   </div>
-                  <div className="mt-4 pt-3 border-t border-zinc-100 flex items-center justify-between text-xs font-black text-zinc-900 group-hover:text-black">
-                    <span>Tap to open printer</span>
-                    <ChevronRight className="w-4 h-4 text-zinc-400 group-hover:text-black group-hover:translate-x-1 transition-all" />
-                  </div>
+                  <ChevronRight className="w-5 h-5 text-zinc-400 group-hover:text-black group-hover:translate-x-1 transition-all shrink-0" />
                 </button>
 
                 {/* 2. Staff */}
                 <button
                   type="button"
                   onClick={() => setActiveTab('staff')}
-                  className="text-left bg-white hover:bg-zinc-50 p-5 rounded-3xl border-2 border-zinc-200 hover:border-black shadow-xs hover:shadow-md transition-all cursor-pointer flex flex-col justify-between group active:scale-[0.99]"
+                  className="w-full text-left py-4 sm:py-5 px-2 flex items-center justify-between hover:bg-zinc-100/60 active:bg-zinc-100 transition cursor-pointer group"
                 >
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between">
-                      <div className="w-12 h-12 rounded-2xl bg-black text-white flex items-center justify-center shadow-xs group-hover:scale-105 transition-transform">
-                        <Users className="w-6 h-6" />
-                      </div>
-                      <span className="text-[10px] font-black uppercase tracking-wider bg-amber-50 text-amber-700 border border-amber-200 px-2.5 py-1 rounded-full flex items-center space-x-1">
-                        <Lock className="w-3 h-3" />
-                        <span>Admin Protected</span>
-                      </span>
-                    </div>
+                  <div className="flex items-start space-x-3.5 pr-2">
+                    <span className="font-mono font-bold text-xs text-zinc-400 mt-1">02</span>
                     <div>
-                      <h2 className="text-base font-black text-black">2. Staff Access &amp; PINs</h2>
-                      <p className="text-xs text-zinc-600 font-medium mt-1 leading-relaxed">
-                        Staff management, designated roles (Cashier, Chef, Manager) and 4-digit PIN access. Admin PIN (5566) required.
+                      <div className="flex items-center space-x-2">
+                        <h2 className="text-base sm:text-lg font-black text-black group-hover:text-zinc-700 transition">
+                          2. Staff Access &amp; PINs
+                        </h2>
+                        <Lock className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+                      </div>
+                      <p className="text-xs text-zinc-500 font-medium mt-0.5 leading-relaxed">
+                        Staff management, designated roles (Cashier, Chef, Manager) and 4-digit PIN access (Admin PIN 5566)
                       </p>
                     </div>
                   </div>
-                  <div className="mt-4 pt-3 border-t border-zinc-100 flex items-center justify-between text-xs font-black text-zinc-900 group-hover:text-black">
-                    <span>Tap to open staff</span>
-                    <ChevronRight className="w-4 h-4 text-zinc-400 group-hover:text-black group-hover:translate-x-1 transition-all" />
-                  </div>
+                  <ChevronRight className="w-5 h-5 text-zinc-400 group-hover:text-black group-hover:translate-x-1 transition-all shrink-0" />
                 </button>
 
                 {/* 3. Reports */}
                 <button
                   type="button"
                   onClick={() => setActiveTab('reports')}
-                  className="text-left bg-white hover:bg-zinc-50 p-5 rounded-3xl border-2 border-zinc-200 hover:border-black shadow-xs hover:shadow-md transition-all cursor-pointer flex flex-col justify-between group active:scale-[0.99]"
+                  className="w-full text-left py-4 sm:py-5 px-2 flex items-center justify-between hover:bg-zinc-100/60 active:bg-zinc-100 transition cursor-pointer group"
                 >
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between">
-                      <div className="w-12 h-12 rounded-2xl bg-black text-white flex items-center justify-center shadow-xs group-hover:scale-105 transition-transform">
-                        <BarChart3 className="w-6 h-6" />
-                      </div>
-                      <span className="text-[10px] font-black uppercase tracking-wider bg-blue-50 text-blue-700 border border-blue-200 px-2.5 py-1 rounded-full">
-                        5 Compliance Reports
-                      </span>
-                    </div>
+                  <div className="flex items-start space-x-3.5 pr-2">
+                    <span className="font-mono font-bold text-xs text-zinc-400 mt-1">03</span>
                     <div>
-                      <h2 className="text-base font-black text-black">3. Reports &amp; Analytics</h2>
-                      <p className="text-xs text-zinc-600 font-medium mt-1 leading-relaxed">
-                        Total Sales of the Day, Remaining Menu Stock, Daily Table Revenue, Staff Login Audit &amp; 5-in-1 Excel export.
+                      <h2 className="text-base sm:text-lg font-black text-black group-hover:text-zinc-700 transition">
+                        3. Reports &amp; Analytics
+                      </h2>
+                      <p className="text-xs text-zinc-500 font-medium mt-0.5 leading-relaxed">
+                        Total Sales of the Day, Remaining Menu Stock, Daily Table Revenue, Staff Login Audit &amp; 5-in-1 Excel export
                       </p>
                     </div>
                   </div>
-                  <div className="mt-4 pt-3 border-t border-zinc-100 flex items-center justify-between text-xs font-black text-zinc-900 group-hover:text-black">
-                    <span>Tap to open reports</span>
-                    <ChevronRight className="w-4 h-4 text-zinc-400 group-hover:text-black group-hover:translate-x-1 transition-all" />
-                  </div>
+                  <ChevronRight className="w-5 h-5 text-zinc-400 group-hover:text-black group-hover:translate-x-1 transition-all shrink-0" />
                 </button>
 
                 {/* 4. Storage */}
                 <button
                   type="button"
                   onClick={() => setActiveTab('storage')}
-                  className="text-left bg-white hover:bg-zinc-50 p-5 rounded-3xl border-2 border-zinc-200 hover:border-black shadow-xs hover:shadow-md transition-all cursor-pointer flex flex-col justify-between group active:scale-[0.99]"
+                  className="w-full text-left py-4 sm:py-5 px-2 flex items-center justify-between hover:bg-zinc-100/60 active:bg-zinc-100 transition cursor-pointer group"
                 >
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between">
-                      <div className="w-12 h-12 rounded-2xl bg-black text-white flex items-center justify-center shadow-xs group-hover:scale-105 transition-transform">
-                        <HardDrive className="w-6 h-6" />
-                      </div>
-                      <span className="text-[10px] font-black uppercase tracking-wider bg-zinc-100 text-zinc-800 border border-zinc-300 px-2.5 py-1 rounded-full">
-                        Local Device Storage
-                      </span>
-                    </div>
+                  <div className="flex items-start space-x-3.5 pr-2">
+                    <span className="font-mono font-bold text-xs text-zinc-400 mt-1">04</span>
                     <div>
-                      <h2 className="text-base font-black text-black">4. Storage &amp; Archives</h2>
-                      <p className="text-xs text-zinc-600 font-medium mt-1 leading-relaxed">
-                        Set phone storage folder path for reports archive, view latest 10 saved daily reports, and export history.
+                      <h2 className="text-base sm:text-lg font-black text-black group-hover:text-zinc-700 transition">
+                        4. Storage &amp; Archives
+                      </h2>
+                      <p className="text-xs text-zinc-500 font-medium mt-0.5 leading-relaxed">
+                        Phone storage folder path for reports archive, latest 10 saved daily reports &amp; export history
                       </p>
                     </div>
                   </div>
-                  <div className="mt-4 pt-3 border-t border-zinc-100 flex items-center justify-between text-xs font-black text-zinc-900 group-hover:text-black">
-                    <span>Tap to open storage</span>
-                    <ChevronRight className="w-4 h-4 text-zinc-400 group-hover:text-black group-hover:translate-x-1 transition-all" />
-                  </div>
+                  <ChevronRight className="w-5 h-5 text-zinc-400 group-hover:text-black group-hover:translate-x-1 transition-all shrink-0" />
                 </button>
 
                 {/* 5. Reset */}
                 <button
                   type="button"
                   onClick={() => setActiveTab('reset')}
-                  className="text-left bg-red-50/60 hover:bg-red-50 p-5 rounded-3xl border-2 border-red-200 hover:border-red-500 shadow-xs hover:shadow-md transition-all cursor-pointer flex flex-col justify-between group active:scale-[0.99] sm:col-span-2"
+                  className="w-full text-left py-4 sm:py-5 px-2 flex items-center justify-between hover:bg-red-50/60 active:bg-red-50 transition cursor-pointer group"
                 >
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between">
-                      <div className="w-12 h-12 rounded-2xl bg-red-600 text-white flex items-center justify-center shadow-xs group-hover:scale-105 transition-transform">
-                        <Trash2 className="w-6 h-6" />
-                      </div>
-                      <span className="text-[10px] font-black uppercase tracking-wider bg-red-100 text-red-800 border border-red-300 px-2.5 py-1 rounded-full flex items-center space-x-1">
-                        <AlertTriangle className="w-3 h-3" />
-                        <span>Sensitive Action</span>
-                      </span>
-                    </div>
+                  <div className="flex items-start space-x-3.5 pr-2">
+                    <span className="font-mono font-bold text-xs text-red-400 mt-1">05</span>
                     <div>
-                      <h2 className="text-base font-black text-red-950">5. Factory Reset (Handover)</h2>
-                      <p className="text-xs text-red-900/80 font-medium mt-1 leading-relaxed">
-                        Reset app to start fresh as new with all values 0, no menu, no tables for clean shop handover. Admin PIN (5566) required.
+                      <div className="flex items-center space-x-2">
+                        <h2 className="text-base sm:text-lg font-black text-red-600 group-hover:text-red-700 transition">
+                          5. Factory Reset (Handover)
+                        </h2>
+                        <AlertTriangle className="w-3.5 h-3.5 text-red-500 shrink-0" />
+                      </div>
+                      <p className="text-xs text-red-500/80 font-medium mt-0.5 leading-relaxed">
+                        Reset app to start fresh as new with all values 0, no menu, no tables for clean handover (Admin PIN 5566)
                       </p>
                     </div>
                   </div>
-                  <div className="mt-4 pt-3 border-t border-red-200 flex items-center justify-between text-xs font-black text-red-700 group-hover:text-red-900">
-                    <span>Tap to open reset</span>
-                    <ChevronRight className="w-4 h-4 text-red-400 group-hover:text-red-700 group-hover:translate-x-1 transition-all" />
-                  </div>
+                  <ChevronRight className="w-5 h-5 text-red-400 group-hover:text-red-600 group-hover:translate-x-1 transition-all shrink-0" />
                 </button>
               </div>
             </div>
@@ -702,7 +660,7 @@ export default function MorePage() {
             </div>
 
             {/* Right Main Panel with Full Scroll */}
-            <div className="flex-1 p-4 sm:p-6 space-y-6">
+            <div className="flex-1 p-4 sm:p-6 space-y-6 pb-64 sm:pb-48">
             
             {/* ========================================================== */}
             {/* 1. PRINTER SETTINGS PANEL                                   */}
