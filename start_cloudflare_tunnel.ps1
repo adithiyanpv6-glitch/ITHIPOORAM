@@ -32,7 +32,7 @@ if (-not (Test-Path $binPath)) {
 Write-Host "[2/3] Checking local Next.js server on port 3000..." -ForegroundColor Green
 $tcp = Test-NetConnection -ComputerName "localhost" -Port 3000 -InformationLevel Quiet
 if (-not $tcp) {
-    Write-Host "⚠️ Notice: Local server on port 3000 not detected yet. Table QRs will use permanent cloud URL." -ForegroundColor Yellow
+    Write-Host "Notice: Local server on port 3000 not detected. Table QRs can also route to cloud." -ForegroundColor Yellow
 }
 
 # 3. Launch the Cloudflare Quick Tunnel and automatically sync URL
@@ -54,8 +54,15 @@ Write-Host ""
         Write-Host "  Customers on 4G/5G mobile networks can now scan and order!    " -ForegroundColor Green
         Write-Host "****************************************************************" -ForegroundColor Green
         Write-Host ""
+
+        # Register with local server
         try {
             Invoke-RestMethod -Uri "http://localhost:3000/api/tunnel/register" -Method Post -ContentType "application/json" -Body "{`"url`": `"$tunnelUrl`"}" -ErrorAction SilentlyContinue
+        } catch {}
+
+        # Register with live Vercel cloud app
+        try {
+            Invoke-RestMethod -Uri "https://admin-app-ithipooram.vercel.app/api/tunnel/register" -Method Post -ContentType "application/json" -Body "{`"url`": `"$tunnelUrl`"}" -ErrorAction SilentlyContinue
         } catch {}
     }
 }

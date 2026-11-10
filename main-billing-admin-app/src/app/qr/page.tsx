@@ -69,17 +69,23 @@ export default function TablesManagementPage() {
   const [customerBaseUrl, setCustomerBaseUrl] = useState<string>('https://admin-app-ithipooram.vercel.app');
 
   useEffect(() => {
-    // Automatically detect active Cloudflare Tunnel URL or permanent live cloud domain
+    // 1. Check saved local storage first
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('ithipooram_customer_qr_base_url');
+      if (saved) {
+        setCustomerBaseUrl(saved);
+      }
+    }
+
+    // 2. Automatically detect active Cloudflare Tunnel URL or permanent live cloud domain
     fetch('/api/tunnel/register')
       .then((r) => r.json())
       .then((d) => {
-        if (d?.tunnelUrl) {
+        if (d?.tunnelUrl && d.tunnelUrl !== 'https://admin-app-ithipooram.vercel.app') {
           setCustomerBaseUrl(d.tunnelUrl);
         }
       })
-      .catch(() => {
-        setCustomerBaseUrl('https://admin-app-ithipooram.vercel.app');
-      });
+      .catch(() => {});
   }, []);
 
   // Load tables & running orders
@@ -577,6 +583,11 @@ export default function TablesManagementPage() {
                   if (typeof window !== 'undefined') {
                     localStorage.setItem('ithipooram_customer_qr_base_url', cleaned);
                   }
+                  fetch('/api/tunnel/register', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ url: cleaned }),
+                  }).catch(() => {});
                   alert(`✓ Customer QR URL updated to:\n${cleaned}\n\nAll generated table QRs will now use this URL.`);
                 }
               }}
