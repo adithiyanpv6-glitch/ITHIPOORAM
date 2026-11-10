@@ -470,113 +470,113 @@ export default function MorePage() {
               <h1 className="text-xl sm:text-2xl font-black text-black tracking-tight">More Option</h1>
             </div>
 
-            {/* Exactly 5 Options on the First Page: Flat Clean List without curved rectangle boxes */}
-            <div className="max-w-3xl mx-auto w-full px-4 sm:px-6 py-2 pb-60">
-              <div className="divide-y divide-zinc-200">
+            {/* Exactly 5 Big Rectangles (Clean card boxes without inner small curved rectangles) */}
+            <div className="max-w-4xl mx-auto w-full p-4 sm:p-6 pb-64">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {/* 1. Printer */}
                 <button
                   type="button"
                   onClick={() => setActiveTab('printer')}
-                  className="w-full text-left py-4 sm:py-5 px-2 flex items-center justify-between hover:bg-zinc-100/60 active:bg-zinc-100 transition cursor-pointer group"
+                  className="w-full text-left bg-white hover:bg-zinc-50 p-5 rounded-2xl border-2 border-zinc-200 hover:border-black shadow-xs transition-all cursor-pointer flex flex-col justify-between group active:scale-[0.99]"
                 >
-                  <div className="flex items-start space-x-3.5 pr-2">
-                    <span className="font-mono font-bold text-xs text-zinc-400 mt-1">01</span>
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <Printer className="w-6 h-6 text-black" />
+                      <ChevronRight className="w-5 h-5 text-zinc-400 group-hover:text-black group-hover:translate-x-1 transition-all" />
+                    </div>
                     <div>
-                      <h2 className="text-base sm:text-lg font-black text-black group-hover:text-zinc-700 transition">
-                        1. Printer Setup
-                      </h2>
-                      <p className="text-xs text-zinc-500 font-medium mt-0.5 leading-relaxed">
-                        SEZNIK 58mm POS printer setup, paper width (2-inch / 3-inch), test print &amp; feed lines
+                      <h2 className="text-base sm:text-lg font-black text-black">1. Printer Setup</h2>
+                      <p className="text-xs text-zinc-500 font-medium mt-1 leading-relaxed">
+                        SEZNIK 58mm POS printer setup, paper width (2-inch / 3-inch), test print &amp; extra paper feed lines.
                       </p>
                     </div>
                   </div>
-                  <ChevronRight className="w-5 h-5 text-zinc-400 group-hover:text-black group-hover:translate-x-1 transition-all shrink-0" />
                 </button>
 
                 {/* 2. Staff */}
                 <button
                   type="button"
                   onClick={() => setActiveTab('staff')}
-                  className="w-full text-left py-4 sm:py-5 px-2 flex items-center justify-between hover:bg-zinc-100/60 active:bg-zinc-100 transition cursor-pointer group"
+                  className="w-full text-left bg-white hover:bg-zinc-50 p-5 rounded-2xl border-2 border-zinc-200 hover:border-black shadow-xs transition-all cursor-pointer flex flex-col justify-between group active:scale-[0.99]"
                 >
-                  <div className="flex items-start space-x-3.5 pr-2">
-                    <span className="font-mono font-bold text-xs text-zinc-400 mt-1">02</span>
-                    <div>
-                      <div className="flex items-center space-x-2">
-                        <h2 className="text-base sm:text-lg font-black text-black group-hover:text-zinc-700 transition">
-                          2. Staff Access &amp; PINs
-                        </h2>
-                        <Lock className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center space-x-1.5">
+                        <Users className="w-6 h-6 text-black" />
+                        <Lock className="w-4 h-4 text-amber-500" />
                       </div>
-                      <p className="text-xs text-zinc-500 font-medium mt-0.5 leading-relaxed">
-                        Staff management, designated roles (Cashier, Chef, Manager) and 4-digit PIN access (Admin PIN 5566)
+                      <ChevronRight className="w-5 h-5 text-zinc-400 group-hover:text-black group-hover:translate-x-1 transition-all" />
+                    </div>
+                    <div>
+                      <h2 className="text-base sm:text-lg font-black text-black">2. Staff Access &amp; PINs</h2>
+                      <p className="text-xs text-zinc-500 font-medium mt-1 leading-relaxed">
+                        Staff management, designated roles (Cashier, Chef, Manager) and 4-digit PIN access. Admin PIN (5566) required.
                       </p>
                     </div>
                   </div>
-                  <ChevronRight className="w-5 h-5 text-zinc-400 group-hover:text-black group-hover:translate-x-1 transition-all shrink-0" />
                 </button>
 
                 {/* 3. Reports */}
                 <button
                   type="button"
                   onClick={() => setActiveTab('reports')}
-                  className="w-full text-left py-4 sm:py-5 px-2 flex items-center justify-between hover:bg-zinc-100/60 active:bg-zinc-100 transition cursor-pointer group"
+                  className="w-full text-left bg-white hover:bg-zinc-50 p-5 rounded-2xl border-2 border-zinc-200 hover:border-black shadow-xs transition-all cursor-pointer flex flex-col justify-between group active:scale-[0.99]"
                 >
-                  <div className="flex items-start space-x-3.5 pr-2">
-                    <span className="font-mono font-bold text-xs text-zinc-400 mt-1">03</span>
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <BarChart3 className="w-6 h-6 text-black" />
+                      <ChevronRight className="w-5 h-5 text-zinc-400 group-hover:text-black group-hover:translate-x-1 transition-all" />
+                    </div>
                     <div>
-                      <h2 className="text-base sm:text-lg font-black text-black group-hover:text-zinc-700 transition">
-                        3. Reports &amp; Analytics
-                      </h2>
-                      <p className="text-xs text-zinc-500 font-medium mt-0.5 leading-relaxed">
-                        Total Sales of the Day, Remaining Menu Stock, Daily Table Revenue, Staff Login Audit &amp; 5-in-1 Excel export
+                      <h2 className="text-base sm:text-lg font-black text-black">3. Reports &amp; Analytics</h2>
+                      <p className="text-xs text-zinc-500 font-medium mt-1 leading-relaxed">
+                        Total Sales of the Day, Remaining Menu Stock, Daily Table Revenue, Staff Login Audit &amp; 5-in-1 Excel export.
                       </p>
                     </div>
                   </div>
-                  <ChevronRight className="w-5 h-5 text-zinc-400 group-hover:text-black group-hover:translate-x-1 transition-all shrink-0" />
                 </button>
 
                 {/* 4. Storage */}
                 <button
                   type="button"
                   onClick={() => setActiveTab('storage')}
-                  className="w-full text-left py-4 sm:py-5 px-2 flex items-center justify-between hover:bg-zinc-100/60 active:bg-zinc-100 transition cursor-pointer group"
+                  className="w-full text-left bg-white hover:bg-zinc-50 p-5 rounded-2xl border-2 border-zinc-200 hover:border-black shadow-xs transition-all cursor-pointer flex flex-col justify-between group active:scale-[0.99]"
                 >
-                  <div className="flex items-start space-x-3.5 pr-2">
-                    <span className="font-mono font-bold text-xs text-zinc-400 mt-1">04</span>
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <HardDrive className="w-6 h-6 text-black" />
+                      <ChevronRight className="w-5 h-5 text-zinc-400 group-hover:text-black group-hover:translate-x-1 transition-all" />
+                    </div>
                     <div>
-                      <h2 className="text-base sm:text-lg font-black text-black group-hover:text-zinc-700 transition">
-                        4. Storage &amp; Archives
-                      </h2>
-                      <p className="text-xs text-zinc-500 font-medium mt-0.5 leading-relaxed">
-                        Phone storage folder path for reports archive, latest 10 saved daily reports &amp; export history
+                      <h2 className="text-base sm:text-lg font-black text-black">4. Storage &amp; Archives</h2>
+                      <p className="text-xs text-zinc-500 font-medium mt-1 leading-relaxed">
+                        Set phone storage folder path for reports archive, view latest 10 saved daily reports, and export history.
                       </p>
                     </div>
                   </div>
-                  <ChevronRight className="w-5 h-5 text-zinc-400 group-hover:text-black group-hover:translate-x-1 transition-all shrink-0" />
                 </button>
 
                 {/* 5. Reset */}
                 <button
                   type="button"
                   onClick={() => setActiveTab('reset')}
-                  className="w-full text-left py-4 sm:py-5 px-2 flex items-center justify-between hover:bg-red-50/60 active:bg-red-50 transition cursor-pointer group"
+                  className="w-full text-left bg-red-50/50 hover:bg-red-50 p-5 rounded-2xl border-2 border-red-200 hover:border-red-500 shadow-xs transition-all cursor-pointer flex flex-col justify-between group active:scale-[0.99] sm:col-span-2"
                 >
-                  <div className="flex items-start space-x-3.5 pr-2">
-                    <span className="font-mono font-bold text-xs text-red-400 mt-1">05</span>
-                    <div>
-                      <div className="flex items-center space-x-2">
-                        <h2 className="text-base sm:text-lg font-black text-red-600 group-hover:text-red-700 transition">
-                          5. Factory Reset (Handover)
-                        </h2>
-                        <AlertTriangle className="w-3.5 h-3.5 text-red-500 shrink-0" />
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center space-x-1.5">
+                        <Trash2 className="w-6 h-6 text-red-600" />
+                        <AlertTriangle className="w-4 h-4 text-red-500" />
                       </div>
-                      <p className="text-xs text-red-500/80 font-medium mt-0.5 leading-relaxed">
-                        Reset app to start fresh as new with all values 0, no menu, no tables for clean handover (Admin PIN 5566)
+                      <ChevronRight className="w-5 h-5 text-red-400 group-hover:text-red-600 group-hover:translate-x-1 transition-all" />
+                    </div>
+                    <div>
+                      <h2 className="text-base sm:text-lg font-black text-red-950">5. Factory Reset (Handover)</h2>
+                      <p className="text-xs text-red-900/80 font-medium mt-1 leading-relaxed">
+                        Reset app to start fresh as new with all values 0, no menu, no tables for clean shop handover. Admin PIN (5566) required.
                       </p>
                     </div>
                   </div>
-                  <ChevronRight className="w-5 h-5 text-red-400 group-hover:text-red-600 group-hover:translate-x-1 transition-all shrink-0" />
                 </button>
               </div>
             </div>
