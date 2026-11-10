@@ -16,6 +16,18 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const dateQuery = searchParams.get('date') || new Date().toISOString().slice(0, 10);
     const format = searchParams.get('format') || 'json';
+    const reportType = searchParams.get('report') || 'all';
+
+    // Pretty date format for download filename: e.g. 10-Nov-2026
+    let dateLabel = dateQuery;
+    const dParts = dateQuery.split('-');
+    if (dParts.length === 3) {
+      const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+      const mIdx = parseInt(dParts[1], 10) - 1;
+      if (mIdx >= 0 && mIdx < 12) {
+        dateLabel = `${dParts[2]}-${months[mIdx]}-${dParts[0]}`;
+      }
+    }
 
     // 1. FILTER PAID ORDERS FOR THE DAY
     const dayOrders = (db.orders || []).filter((o) => {
@@ -156,7 +168,19 @@ export async function GET(request: Request) {
     }));
 
     if (format === 'excel') {
-      // Build comprehensive 5-sheet HTML-based Excel document
+      let filename = `${dateLabel}-daily-report.xls`;
+      if (reportType === 'sales') filename = `${dateLabel}-sales-report.xls`;
+      else if (reportType === 'menu') filename = `${dateLabel}-menu-stock-report.xls`;
+      else if (reportType === 'tables') filename = `${dateLabel}-table-revenue-report.xls`;
+      else if (reportType === 'staff') filename = `${dateLabel}-staff-audit-report.xls`;
+      else if (reportType === 'billing') filename = `${dateLabel}-billing-auth-report.xls`;
+
+      const includeSales = reportType === 'all' || reportType === 'sales';
+      const includeMenu = reportType === 'all' || reportType === 'menu';
+      const includeTables = reportType === 'all' || reportType === 'tables';
+      const includeStaff = reportType === 'all' || reportType === 'staff';
+      const includeBilling = reportType === 'all' || reportType === 'billing';
+
       const excelXml = `<?xml version="1.0"?>
 <?mso-application progid="Excel.Sheet"?>
 <Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet"
@@ -164,10 +188,10 @@ export async function GET(request: Request) {
  xmlns:x="urn:schemas-microsoft-com:office:excel"
  xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet">
  
- <!-- SHEET 1: Total Sales of the Day -->
- <Worksheet ss:Name="Total Sales of the Day">
+ ${includeSales ? `<!-- SHEET 1: Total Sales of the Day -->
+ <Worksheet ss:Name="Total Sales">
   <Table>
-   <Row><Cell><Data ss:Type="String">ITHI POORAM - DAILY FINANCIAL AUDIT</Data></Cell></Row>
+   <Row><Cell><Data ss:Type="String">ITHI POORAM - TOTAL SALES OF THE DAY</Data></Cell></Row>
    <Row><Cell><Data ss:Type="String">Business Date</Data></Cell><Cell><Data ss:Type="String">${totalSalesReport.date}</Data></Cell></Row>
    <Row><Cell><Data ss:Type="String">Total Bills Settled</Data></Cell><Cell><Data ss:Type="Number">${totalSalesReport.totalBillsSettled}</Data></Cell></Row>
    <Row><Cell><Data ss:Type="String">Gross Revenue (INR)</Data></Cell><Cell><Data ss:Type="Number">${totalSalesReport.grossSalesRupees}</Data></Cell></Row>
@@ -178,10 +202,10 @@ export async function GET(request: Request) {
    <Row><Cell><Data ss:Type="String">CGST 2.5% (INR)</Data></Cell><Cell><Data ss:Type="Number">${totalSalesReport.cgstRupees}</Data></Cell></Row>
    <Row><Cell><Data ss:Type="String">SGST 2.5% (INR)</Data></Cell><Cell><Data ss:Type="Number">${totalSalesReport.sgstRupees}</Data></Cell></Row>
   </Table>
- </Worksheet>
+ </Worksheet>` : ''}
 
- <!-- SHEET 2: Menu of the Day & Remaining Stock -->
- <Worksheet ss:Name="Menu &amp; Remaining Stock">
+ ${includeMenu ? `<!-- SHEET 2: Menu of the Day & Remaining Stock -->
+ <Worksheet ss:Name="Menu and Stock">
   <Table>
    <Row>
     <Cell><Data ss:Type="String">Item Name</Data></Cell>
@@ -203,9 +227,9 @@ export async function GET(request: Request) {
     <Cell><Data ss:Type="Number">${m.revenueRupees}</Data></Cell>
    </Row>`).join('')}
   </Table>
- </Worksheet>
+ </Worksheet>` : ''}
 
- <!-- SHEET 3: Table-wise Order and Revenue -->
+ ${includeTables ? `<!-- SHEET 3: Table-wise Order and Revenue -->
  <Worksheet ss:Name="Tablewise Revenue">
   <Table>
    <Row>
@@ -222,9 +246,9 @@ export async function GET(request: Request) {
     <Cell><Data ss:Type="Number">${t.totalRevenueRupees}</Data></Cell>
    </Row>`).join('')}
   </Table>
- </Worksheet>
+ </Worksheet>` : ''}
 
- <!-- SHEET 4: Staff Login Audit -->
+ ${includeStaff ? `<!-- SHEET 4: Staff Login Audit -->
  <Worksheet ss:Name="Staff Login Audit">
   <Table>
    <Row>
@@ -245,9 +269,9 @@ export async function GET(request: Request) {
     <Cell><Data ss:Type="String">${s.status}</Data></Cell>
    </Row>`).join('')}
   </Table>
- </Worksheet>
+ </Worksheet>` : ''}
 
- <!-- SHEET 5: Billing Authorization & Print Report -->
+ ${includeBilling ? `<!-- SHEET 5: Billing Authorization & Print Report -->
  <Worksheet ss:Name="Billing Authorization">
   <Table>
    <Row>
@@ -270,13 +294,13 @@ export async function GET(request: Request) {
     <Cell><Data ss:Type="String">${b.status}</Data></Cell>
    </Row>`).join('')}
   </Table>
- </Worksheet>
+ </Worksheet>` : ''}
 </Workbook>`;
 
       return new NextResponse(excelXml, {
         headers: {
           'Content-Type': 'application/vnd.ms-excel; charset=utf-8',
-          'Content-Disposition': `attachment; filename="IthiPooram_Daily_Reports_${dateQuery}.xls"`,
+          'Content-Disposition': `attachment; filename="${filename}"`,
           ...corsHeaders,
         },
       });
