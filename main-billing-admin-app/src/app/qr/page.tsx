@@ -65,27 +65,31 @@ export default function TablesManagementPage() {
   const [selectedTableForQr, setSelectedTableForQr] = useState<any | null>(null);
   const [generatedQrDataUrl, setGeneratedQrDataUrl] = useState<string>('');
 
-  // Customer Base URL for Table QRs (Auto-linked to Cloudflare for 4G/5G mobile network ordering)
-  const CLOUDFLARE_DEFAULT = 'https://ghz-nursery-demonstrated-reputation.trycloudflare.com';
-  const [customerBaseUrl, setCustomerBaseUrl] = useState<string>(CLOUDFLARE_DEFAULT);
+  // Customer Base URL for Table QRs (Points to live permanent HTTPS public domain)
+  const PERMANENT_PUBLIC_URL = 'https://admin-app-ithipooram.vercel.app';
+  const [customerBaseUrl, setCustomerBaseUrl] = useState<string>(PERMANENT_PUBLIC_URL);
 
   useEffect(() => {
-    // 1. Automatically link to Cloudflare URL by default (zero pasting required)
+    // 1. Resolve live public URL for QR codes
     if (typeof window !== 'undefined') {
+      const origin = window.location.origin;
+      const isLocalhost = origin.includes('localhost') || origin.includes('127.0.0.1');
+      const activePublicOrigin = isLocalhost ? PERMANENT_PUBLIC_URL : origin;
+
       const saved = localStorage.getItem('ithipooram_customer_qr_base_url');
-      if (saved && !saved.includes('vercel.app')) {
+      if (saved && !saved.includes('trycloudflare.com')) {
         setCustomerBaseUrl(saved);
       } else {
-        setCustomerBaseUrl(CLOUDFLARE_DEFAULT);
-        localStorage.setItem('ithipooram_customer_qr_base_url', CLOUDFLARE_DEFAULT);
+        setCustomerBaseUrl(activePublicOrigin);
+        localStorage.setItem('ithipooram_customer_qr_base_url', activePublicOrigin);
       }
     }
 
-    // 2. Check active Cloudflare tunnel registration
+    // 2. Check active registered tunnel or custom domain
     fetch('/api/tunnel/register')
       .then((r) => r.json())
       .then((d) => {
-        if (d?.tunnelUrl) {
+        if (d?.tunnelUrl && !d.tunnelUrl.includes('trycloudflare.com')) {
           setCustomerBaseUrl(d.tunnelUrl);
           if (typeof window !== 'undefined') {
             localStorage.setItem('ithipooram_customer_qr_base_url', d.tunnelUrl);

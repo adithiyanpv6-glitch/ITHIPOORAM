@@ -14,7 +14,7 @@ export async function OPTIONS() {
   return new NextResponse(null, { status: 204, headers: corsHeaders });
 }
 
-const DEFAULT_TUNNEL_URL = process.env.CLOUDFLARE_TUNNEL_URL || 'https://ghz-nursery-demonstrated-reputation.trycloudflare.com';
+const DEFAULT_TUNNEL_URL = process.env.CLOUDFLARE_TUNNEL_URL || 'https://admin-app-ithipooram.vercel.app';
 
 export async function GET() {
   const activeUrl = global.__CLOUDFLARE_TUNNEL_URL__ || DEFAULT_TUNNEL_URL;
