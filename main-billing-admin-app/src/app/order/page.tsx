@@ -167,7 +167,7 @@ function CustomerOrderingContent() {
     if (rawLocalOrder) {
       try {
         const parsed = JSON.parse(rawLocalOrder);
-        if (parsed && parsed.paymentStatus === 'UNPAID') {
+        if (parsed) {
           activeLocal = parsed;
         }
       } catch (e) {
@@ -178,29 +178,45 @@ function CustomerOrderingContent() {
     // Query Central Server (relative or via configured apiUrl)
     try {
       const base = apiUrl ? apiUrl.replace(/\/$/, '') : '';
-      const res = await fetch(`${base}/api/orders?tableCode=${encodeURIComponent(tCode)}&unpaidOnly=true`, { cache: 'no-store' });
+      const res = await fetch(`${base}/api/orders?tableCode=${encodeURIComponent(tCode)}`, { cache: 'no-store' });
       if (res.ok) {
         const orders = await res.json();
         if (Array.isArray(orders) && orders.length > 0) {
-          // If multiple orders exist for this table, find matching device session or latest
-          const matching = orders.find((o: any) => o.deviceSessionId === sessionId) || orders[0];
-          setActiveExistingOrder(matching);
-          if (typeof window !== 'undefined') {
-            localStorage.setItem(storageKey, JSON.stringify(matching));
-          }
-          return;
-        } else {
-          // No unpaid order on server (bill settled or closed)
-          if (activeLocal) {
-            // Bill was settled by cashier!
-            setActiveExistingOrder((prev) => prev ? { ...prev, paymentStatus: 'PAID', fulfillmentStatus: 'SERVED' } : null);
+          // Look for matching order for this session or table
+          const matching = orders.find((o: any) => o.deviceSessionId === sessionId || (activeLocal && o.id === activeLocal.id)) || orders[0];
+          if (matching) {
+            setActiveExistingOrder(matching);
             if (typeof window !== 'undefined') {
-              localStorage.removeItem(storageKey);
+              localStorage.setItem(storageKey, JSON.stringify(matching));
             }
-          } else {
-            setActiveExistingOrder(null);
+            return;
           }
         }
+      }
+
+      // If server returned empty (e.g. cold lambda instance), DO NOT destroy local active order!
+      if (activeLocal && activeLocal.paymentStatus === 'UNPAID') {
+        setActiveExistingOrder(activeLocal);
+        // Resiliently re-seed server if cold instance lost state
+        const base = apiUrl ? apiUrl.replace(/\/$/, '') : '';
+        fetch(`${base}/api/orders`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            tableCode: activeLocal.tableCode,
+            deviceSessionId: sessionId,
+            items: activeLocal.items.map((i: any) => ({
+              id: i.itemId || i.id,
+              name: i.itemName,
+              malayalamName: i.itemMalayalamName,
+              pricePaise: i.pricePaise,
+              qty: i.quantity,
+              notes: i.notes || '',
+            })),
+          }),
+        }).catch(() => {});
+      } else if (activeLocal && activeLocal.paymentStatus === 'PAID') {
+        setActiveExistingOrder(activeLocal);
       }
     } catch (err) {
       if (activeLocal) {

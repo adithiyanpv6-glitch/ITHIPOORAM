@@ -15,10 +15,18 @@ import {
   Split, 
   Percent, 
   ArrowLeft,
-  ChevronRight
+  ChevronRight,
+  Bluetooth,
+  History
 } from 'lucide-react';
 import { apiRequest, getCurrentUser } from '../../lib/api';
-import { printDirectToBluetoothThermalPrinter } from '../../lib/thermalPrinter';
+import { 
+  printDirectToBluetoothThermalPrinter, 
+  subscribeToPrinterConnection, 
+  connectPersistentBluetoothPrinter,
+  isBluetoothPrinterConnected, 
+  getConnectedBluetoothDeviceName 
+} from '../../lib/thermalPrinter';
 
 interface TableSummary {
   id: string;
@@ -74,6 +82,15 @@ export default function BillingTerminalPage() {
   const [thermalReceiptText, setThermalReceiptText] = useState<string>('');
   const [printerErrorNotice, setPrinterErrorNotice] = useState<boolean>(false);
 
+  // Bluetooth Printer states
+  const [isPrinterConnected, setIsPrinterConnected] = useState<boolean>(false);
+  const [connectedPrinterName, setConnectedPrinterName] = useState<string | null>(null);
+  const [isConnectingPrinter, setIsConnectingPrinter] = useState<boolean>(false);
+
+  // Settled Orders tracking (persisted to localStorage so settled bills never disappear or reappear as unpaid)
+  const [orderTab, setOrderTab] = useState<'unpaid' | 'settled'>('unpaid');
+  const [settledInvoices, setSettledInvoices] = useState<any[]>([]);
+
   // Reprint modal
   const [isReprintModalOpen, setIsReprintModalOpen] = useState(false);
   const [reprintReason, setReprintReason] = useState('');
@@ -85,6 +102,41 @@ export default function BillingTerminalPage() {
   const [discountReason, setDiscountReason] = useState('');
 
   const formatRupees = (paise: number = 0) => `₹${(paise / 100).toFixed(2)}`;
+
+  // Load settled invoices from localStorage on mount
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const savedInvoices = localStorage.getItem('ithipooram_settled_invoices');
+      if (savedInvoices) {
+        try {
+          setSettledInvoices(JSON.parse(savedInvoices));
+        } catch (e) {}
+      }
+    }
+  }, []);
+
+  // Subscribe to Bluetooth printer connection events
+  useEffect(() => {
+    const unsub = subscribeToPrinterConnection((connected, name) => {
+      setIsPrinterConnected(connected);
+      setConnectedPrinterName(name);
+    });
+    return () => unsub();
+  }, []);
+
+  const handleConnectPrinter = async () => {
+    try {
+      setIsConnectingPrinter(true);
+      const res = await connectPersistentBluetoothPrinter();
+      setIsPrinterConnected(true);
+      setConnectedPrinterName(res.name);
+      alert(`Connected successfully to ${res.name}!`);
+    } catch (err: any) {
+      alert(err.message || 'Bluetooth connection failed. Make sure Bluetooth is enabled and SEZNIK printer is turned on.');
+    } finally {
+      setIsConnectingPrinter(false);
+    }
+  };
 
   const loadTables = async () => {
     try {
@@ -113,27 +165,45 @@ export default function BillingTerminalPage() {
         }
       }
 
-      let data = await apiRequest<TableSummary[]>('/tables');
-      if ((!data || data.length === 0) && typeof window !== 'undefined') {
-        const savedCustomTables = localStorage.getItem('ithipooram_custom_tables');
-        if (savedCustomTables) {
-          try {
-            const customTables = JSON.parse(savedCustomTables);
-            if (Array.isArray(customTables) && customTables.length > 0) {
-              data = customTables.map((t: any) => ({
-                id: t.id || `t-${t.tableCode?.toLowerCase() || '1'}`,
-                tableCode: (t.tableCode || '').toUpperCase(),
-                displayName: t.displayName || t.tableName || `Table ${t.tableCode}`,
-                capacity: t.capacity || 4,
-                status: 'AVAILABLE',
-                unpaidCount: 0,
-                unpaidTotalPaise: 0,
-              }));
-            }
-          } catch (e) {}
+      const data = await apiRequest<TableSummary[]>('/tables');
+      setTables((prev) => {
+        if (data && data.length > 0) {
+          if (typeof window !== 'undefined') {
+            localStorage.setItem('ithipooram_custom_tables', JSON.stringify(data));
+          }
+          return data;
         }
-      }
-      setTables(data || []);
+
+        // Cold lambda returned 0 tables — prevent wiping!
+        if (prev.length > 0) {
+          fetch('/api/tables', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ tables: prev }),
+          }).catch(() => {});
+          return prev;
+        }
+
+        // Restore from localStorage
+        if (typeof window !== 'undefined') {
+          const saved = localStorage.getItem('ithipooram_custom_tables');
+          if (saved) {
+            try {
+              const parsed = JSON.parse(saved);
+              if (Array.isArray(parsed) && parsed.length > 0) {
+                fetch('/api/tables', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ tables: parsed }),
+                }).catch(() => {});
+                return parsed;
+              }
+            } catch (e) {}
+          }
+        }
+        return prev;
+      });
+
       if (data && data.length > 0) {
         setSelectedTableCode((prev) => {
           const exists = data.some((t) => t.tableCode.toUpperCase() === prev?.toUpperCase());
@@ -150,22 +220,47 @@ export default function BillingTerminalPage() {
   };
 
   const loadUnpaidOrders = async (tCode: string, silent = false) => {
+    if (!tCode) return;
     try {
       if (!silent) setLoadingOrders(true);
       const res = await apiRequest(`/billing/tables/${tCode}/unpaid`);
-      const freshOrders = res.unpaidOrders || [];
-      setUnpaidOrders(freshOrders);
-      if (freshOrders.length > 0) {
-        setSelectedOrder((curr: any) => {
-          const valid = curr && freshOrders.find((o: any) => o.id === curr.id);
-          const target = valid || freshOrders[0];
-          selectOrderForBilling(target);
-          return target;
-        });
-      } else {
-        setSelectedOrder(null);
-        setBillPreview(null);
-      }
+      const freshOrders: any[] = res.unpaidOrders || [];
+
+      // Read settled order identifiers from localStorage
+      const savedSettled = typeof window !== 'undefined' ? localStorage.getItem('ithipooram_settled_order_ids') : null;
+      const settledSet = new Set<string>(savedSettled ? JSON.parse(savedSettled) : []);
+
+      setUnpaidOrders((prev) => {
+        // 1. Filter out anything known settled so settled orders NEVER reappear as unpaid
+        const activeFresh = freshOrders.filter(
+          (o: any) => !settledSet.has(o.id) && !settledSet.has(o.customerCode) && o.paymentStatus !== 'PAID'
+        );
+
+        // 2. If cold lambda returned 0, retain previously loaded unsettled orders
+        let resolved = activeFresh;
+        if (activeFresh.length === 0 && prev.length > 0) {
+          const stillUnsettled = prev.filter(
+            (o: any) => !settledSet.has(o.id) && !settledSet.has(o.customerCode) && o.paymentStatus !== 'PAID'
+          );
+          if (stillUnsettled.length > 0) {
+            resolved = stillUnsettled;
+          }
+        }
+
+        if (resolved.length > 0) {
+          setSelectedOrder((curr: any) => {
+            const valid = curr && resolved.find((o: any) => o.id === curr.id);
+            const target = valid || resolved[0];
+            selectOrderForBilling(target);
+            return target;
+          });
+        } else {
+          setSelectedOrder(null);
+          setBillPreview(null);
+        }
+
+        return resolved;
+      });
     } catch (err) {
       if (!silent) console.error('Failed to load unpaid orders:', err);
     } finally {
@@ -202,11 +297,17 @@ export default function BillingTerminalPage() {
   }, [selectedTableCode]);
 
   // Live tracker: continuously tracks customer ordering system in real-time (2.5s)
+  // Resilient to cold lambdas: NEVER overwrites valid table list with empty array
   useEffect(() => {
     const liveTrackerInterval = setInterval(async () => {
       try {
         const freshTables = await apiRequest<TableSummary[]>('/tables');
-        setTables(freshTables);
+        if (freshTables && freshTables.length > 0) {
+          setTables(freshTables);
+          if (typeof window !== 'undefined') {
+            localStorage.setItem('ithipooram_custom_tables', JSON.stringify(freshTables));
+          }
+        }
         if (selectedTableCode) {
           loadUnpaidOrders(selectedTableCode, true);
         }
@@ -253,6 +354,58 @@ export default function BillingTerminalPage() {
         method: 'POST',
         body: JSON.stringify(payload),
       });
+
+      const orderSettled = selectedOrder;
+      const invoiceData = res.invoice;
+
+      // 1. Immediately record in settled order IDs so this order CANNOT reappear as unpaid
+      if (typeof window !== 'undefined' && orderSettled) {
+        const savedSettled = localStorage.getItem('ithipooram_settled_order_ids');
+        const settledList: string[] = savedSettled ? JSON.parse(savedSettled) : [];
+        if (orderSettled.id) settledList.push(orderSettled.id);
+        if (orderSettled.customerCode) settledList.push(orderSettled.customerCode);
+        localStorage.setItem('ithipooram_settled_order_ids', JSON.stringify(settledList));
+
+        // 2. Persist full invoice record so cashier can review or reprint anytime
+        const savedInvoices = localStorage.getItem('ithipooram_settled_invoices');
+        const invoicesList = savedInvoices ? JSON.parse(savedInvoices) : [];
+        const fullRecord = {
+          ...invoiceData,
+          id: invoiceData?.id || `inv-${Date.now()}`,
+          invoiceNumber: invoiceData?.invoiceNumber || `INV-${Date.now().toString().slice(-4)}`,
+          orderCode: orderSettled.customerCode,
+          tableCode: selectedTableCode,
+          items: orderSettled.items,
+          grandTotalPaise: invoiceData?.grandTotalPaise || orderSettled.grandTotalPaise,
+          paymentMode,
+          settledAt: new Date().toISOString(),
+          cashierName: selectedStaffName,
+          thermalReceipt: res.thermalReceipt,
+        };
+        invoicesList.unshift(fullRecord);
+        localStorage.setItem('ithipooram_settled_invoices', JSON.stringify(invoicesList.slice(0, 100)));
+        setSettledInvoices(invoicesList.slice(0, 100));
+      }
+
+      // 3. Immediately clear settled order from current unpaid state
+      setUnpaidOrders((prev) => prev.filter((o) => o.id !== orderSettled?.id && o.customerCode !== orderSettled?.customerCode));
+      setSelectedOrder(null);
+      setBillPreview(null);
+
+      // 4. Update table status immediately (no waiting for server poll)
+      setTables((prev) => prev.map((t) => {
+        if (t.tableCode.toUpperCase() === selectedTableCode.toUpperCase()) {
+          const newCount = Math.max(0, t.unpaidCount - 1);
+          const newPaise = Math.max(0, t.unpaidTotalPaise - (orderSettled?.grandTotalPaise || 0));
+          return {
+            ...t,
+            unpaidCount: newCount,
+            unpaidTotalPaise: newPaise,
+            status: newCount > 0 ? t.status : 'AVAILABLE',
+          };
+        }
+        return t;
+      }));
 
       setIsPinModalOpen(false);
       setPrintedInvoice(res.invoice);
@@ -312,18 +465,36 @@ export default function BillingTerminalPage() {
           </h1>
         </div>
 
-        {/* Right: Live Connection Pulse & Refresh */}
+        {/* Right: Bluetooth Printer, Live Pulse & Refresh */}
         <div className="flex items-center justify-end w-1/4 space-x-2">
-          <div className="hidden sm:flex items-center space-x-1.5 bg-emerald-950/60 border border-emerald-500/30 px-2.5 py-1 rounded-full">
+          {/* SEZNIK Bluetooth Printer Live Pill */}
+          <button
+            onClick={handleConnectPrinter}
+            disabled={isConnectingPrinter}
+            className={`flex items-center space-x-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold transition border cursor-pointer ${
+              isPrinterConnected
+                ? 'bg-blue-950/70 border-blue-500/50 text-blue-300'
+                : 'bg-slatepos-800/90 border-slatepos-700 text-slatepos-300 hover:border-amber-400 hover:text-amber-300'
+            }`}
+            title={isPrinterConnected ? `SEZNIK Connected (${connectedPrinterName || '58mm'})` : 'Click to connect SEZNIK Bluetooth Thermal Printer'}
+          >
+            <span className={`w-2 h-2 rounded-full ${isPrinterConnected ? 'bg-blue-400 animate-pulse' : 'bg-stone-500'}`}></span>
+            <Printer className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">
+              {isConnectingPrinter ? 'Connecting...' : isPrinterConnected ? (connectedPrinterName || 'SEZNIK') : 'Connect Printer'}
+            </span>
+          </button>
+
+          <div className="hidden md:flex items-center space-x-1.5 bg-emerald-950/60 border border-emerald-500/30 px-2.5 py-1 rounded-full">
             <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-            <span className="text-[10px] font-bold text-emerald-300 uppercase tracking-wider">Live Orders</span>
+            <span className="text-[10px] font-bold text-emerald-300 uppercase tracking-wider">Live</span>
           </div>
           <button
             onClick={() => {
               loadTables();
               if (selectedTableCode) loadUnpaidOrders(selectedTableCode);
             }}
-            className="p-2 rounded-xl bg-slatepos-800 hover:bg-slatepos-700 text-slatepos-300 hover:text-white transition-colors"
+            className="p-2 rounded-xl bg-slatepos-800 hover:bg-slatepos-700 text-slatepos-300 hover:text-white transition-colors cursor-pointer"
             title="Refresh Live Data"
           >
             <RefreshCw className={`w-3.5 h-3.5 ${loadingTables || loadingOrders ? 'animate-spin' : ''}`} />
@@ -480,6 +651,36 @@ export default function BillingTerminalPage() {
             )}
           </div>
 
+          {/* Sub-Tabs: Unpaid Orders vs Settled History */}
+          <div className="flex bg-parchment-200/70 p-1 rounded-xl mb-3">
+            <button
+              onClick={() => setOrderTab('unpaid')}
+              className={`flex-1 py-1.5 rounded-lg text-xs font-bold transition flex items-center justify-center space-x-1.5 cursor-pointer ${
+                orderTab === 'unpaid'
+                  ? 'bg-white text-slatepos-950 shadow-xs'
+                  : 'text-slatepos-600 hover:text-slatepos-900'
+              }`}
+            >
+              <span>Unpaid</span>
+              <span className={`px-1.5 py-0.2 rounded-full text-[10px] ${orderTab === 'unpaid' ? 'bg-amber-100 text-amber-800' : 'bg-parchment-300 text-slatepos-600'}`}>
+                {unpaidOrders.length}
+              </span>
+            </button>
+            <button
+              onClick={() => setOrderTab('settled')}
+              className={`flex-1 py-1.5 rounded-lg text-xs font-bold transition flex items-center justify-center space-x-1.5 cursor-pointer ${
+                orderTab === 'settled'
+                  ? 'bg-white text-slatepos-950 shadow-xs'
+                  : 'text-slatepos-600 hover:text-slatepos-900'
+              }`}
+            >
+              <span>Settled</span>
+              <span className={`px-1.5 py-0.2 rounded-full text-[10px] ${orderTab === 'settled' ? 'bg-emerald-100 text-emerald-800' : 'bg-parchment-300 text-slatepos-600'}`}>
+                {settledInvoices.filter(inv => !selectedTableCode || (inv.tableCode || '').toUpperCase() === selectedTableCode.toUpperCase()).length}
+              </span>
+            </button>
+          </div>
+
           {tables.length === 0 ? (
             <div className="h-64 flex flex-col items-center justify-center text-center p-6 bg-white rounded-2xl border border-parchment-200">
               <h3 className="text-sm font-bold text-slatepos-900">No Tables Added Yet</h3>
@@ -494,6 +695,67 @@ export default function BillingTerminalPage() {
                 Select a table on the left to inspect customer orders.
               </p>
             </div>
+          ) : orderTab === 'settled' ? (
+            // Settled Invoices List for Selected Table
+            (() => {
+              const tableSettled = settledInvoices.filter(
+                (inv) => !selectedTableCode || (inv.tableCode || '').toUpperCase() === selectedTableCode.toUpperCase()
+              );
+
+              if (tableSettled.length === 0) {
+                return (
+                  <div className="h-64 flex flex-col items-center justify-center text-center p-6 bg-white rounded-2xl border border-parchment-200">
+                    <CheckCircle2 className="w-10 h-10 text-emerald-500/60 mb-2" />
+                    <h3 className="text-sm font-bold text-slatepos-900">No Settled Bills Yet</h3>
+                    <p className="text-xs text-slatepos-500 mt-1">
+                      Settled bills for Table {selectedTableCode} will appear here with 1-click reprint.
+                    </p>
+                  </div>
+                );
+              }
+
+              return (
+                <div className="space-y-2.5">
+                  {tableSettled.map((inv, idx) => (
+                    <div
+                      key={inv.id || idx}
+                      className="p-3.5 rounded-2xl border border-parchment-200 bg-white hover:border-emerald-300 transition shadow-2xs"
+                    >
+                      <div className="flex items-center justify-between pb-1.5 border-b border-parchment-100">
+                        <div>
+                          <span className="text-xs font-black text-slatepos-950 font-mono">
+                            {inv.invoiceNumber || 'INV-PAID'}
+                          </span>
+                          <div className="text-[10px] text-slatepos-400">
+                            {inv.settledAt ? new Date(inv.settledAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Settled'} • {inv.paymentMode || 'UPI'}
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <span className="text-sm font-black text-emerald-700">
+                            {formatRupees(inv.grandTotalPaise || 0)}
+                          </span>
+                        </div>
+                      </div>
+                      <div className="mt-2 flex items-center justify-between">
+                        <span className="text-[11px] font-semibold text-slatepos-500">
+                          {inv.cashierName || 'Cashier'}
+                        </span>
+                        <button
+                          onClick={() => {
+                            setPrintedInvoice(inv);
+                            setThermalReceiptText(inv.thermalReceipt || '');
+                          }}
+                          className="px-2.5 py-1 rounded-lg text-[11px] font-bold bg-slatepos-900 hover:bg-slatepos-800 text-white flex items-center space-x-1 cursor-pointer"
+                        >
+                          <Printer className="w-3 h-3" />
+                          <span>View Receipt</span>
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              );
+            })()
           ) : loadingOrders ? (
             <div className="py-12 text-center">
               <div className="w-6 h-6 border-2 border-brand-600 border-t-transparent rounded-full animate-spin mx-auto mb-2"></div>
@@ -796,10 +1058,38 @@ export default function BillingTerminalPage() {
         </div>
       )}
 
-      {/* 80mm ESC/POS Thermal Receipt Preview & Print Modal */}
+      {/* 58mm/80mm ESC/POS Thermal Receipt Preview & Print Modal */}
       {printedInvoice && (
         <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
           <div className="bg-white rounded-3xl max-w-md w-full max-h-[90vh] flex flex-col shadow-2xl border border-parchment-200 overflow-hidden">
+            {/* Embedded Print CSS for exact 58mm thermal paper output */}
+            <style jsx global>{`
+              @media print {
+                body * {
+                  visibility: hidden !important;
+                }
+                #printable-receipt, #printable-receipt * {
+                  visibility: visible !important;
+                }
+                #printable-receipt {
+                  position: absolute !important;
+                  left: 0 !important;
+                  top: 0 !important;
+                  width: 58mm !important;
+                  max-width: 58mm !important;
+                  padding: 2px !important;
+                  margin: 0 !important;
+                  border: none !important;
+                  box-shadow: none !important;
+                  font-family: monospace !important;
+                  font-size: 11px !important;
+                  line-height: 1.2 !important;
+                  color: black !important;
+                  background: white !important;
+                }
+              }
+            `}</style>
+
             <div className="p-4 border-b border-parchment-200 flex items-center justify-between bg-parchment-50">
               <div className="flex items-center space-x-2">
                 <CheckCircle2 className="w-5 h-5 text-emerald-600" />
@@ -815,7 +1105,7 @@ export default function BillingTerminalPage() {
                   setPrintedInvoice(null);
                   setThermalReceiptText('');
                 }}
-                className="px-3 py-1 rounded-lg text-xs font-bold bg-slatepos-200 text-slatepos-700 hover:bg-slatepos-300"
+                className="px-3 py-1 rounded-lg text-xs font-bold bg-slatepos-200 text-slatepos-700 hover:bg-slatepos-300 cursor-pointer"
               >
                 Close
               </button>
@@ -834,12 +1124,13 @@ export default function BillingTerminalPage() {
               <button
                 onClick={async () => {
                   try {
-                    const items = selectedOrder?.items?.map((i: any) => ({
-                      name: (i.itemNameSnapshot || i.itemName || 'Food Item').substring(0, 16),
+                    const rawItems = printedInvoice?.items || selectedOrder?.items || [];
+                    const items = rawItems.length > 0 ? rawItems.map((i: any) => ({
+                      name: (i.itemNameSnapshot || i.itemName || i.name || 'Food Item').substring(0, 16),
                       qty: i.quantity || 1,
                       price: (i.itemPriceSnapshotPaise || i.pricePaise || 0) / 100,
                       total: (i.lineTotalPaise || 0) / 100,
-                    })) || [
+                    })) : [
                       { name: 'Dine-In Order', qty: 1, price: (printedInvoice?.grandTotalPaise || 0) / 100, total: (printedInvoice?.grandTotalPaise || 0) / 100 }
                     ];
 
@@ -848,16 +1139,16 @@ export default function BillingTerminalPage() {
                       restaurantLocation: 'Vanchiyoor, Trivandrum',
                       phone: '+91 471 233 4567',
                       invoiceNumber: printedInvoice?.invoiceNumber || 'INV-001',
-                      orderCode: selectedOrder?.customerCode || '#1',
-                      tableCode: selectedTableCode || 'T1',
+                      orderCode: printedInvoice?.orderCode || selectedOrder?.customerCode || '#1',
+                      tableCode: printedInvoice?.tableCode || selectedTableCode || 'T1',
                       items,
                       grandTotal: (printedInvoice?.grandTotalPaise || selectedOrder?.grandTotalPaise || 0) / 100,
-                      paymentMode: paymentMode,
+                      paymentMode: printedInvoice?.paymentMode || paymentMode,
                       extraLines: 7,
                     });
                     alert('Printed successfully to SEZNIK Bluetooth printer!');
                   } catch (e: any) {
-                    alert('SEZNIK Bluetooth: ' + (e.message || 'Bluetooth connection failed'));
+                    alert('SEZNIK Bluetooth: ' + (e.message || 'Bluetooth connection failed. You can also tap "58mm Thermal Print (USB / System)" below.'));
                   }
                 }}
                 className="w-full py-3 rounded-xl text-xs font-bold bg-blue-600 hover:bg-blue-700 text-white flex items-center justify-center space-x-1.5 shadow-md cursor-pointer"

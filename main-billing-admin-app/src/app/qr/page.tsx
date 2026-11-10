@@ -137,9 +137,21 @@ export default function TablesManagementPage() {
       const ordRes = await fetch('/api/orders?unpaidOnly=true');
       if (ordRes.ok) {
         const ordList = await ordRes.json();
-        if (Array.isArray(ordList)) {
-          setRunningOrders(ordList);
-        }
+        const savedSettled = typeof window !== 'undefined' ? localStorage.getItem('ithipooram_settled_order_ids') : null;
+        const settledSet = new Set<string>(savedSettled ? JSON.parse(savedSettled) : []);
+
+        setRunningOrders((prev) => {
+          const fresh = (Array.isArray(ordList) ? ordList : []).filter(
+            (o: any) => !settledSet.has(o.id) && !settledSet.has(o.customerCode) && o.paymentStatus !== 'PAID'
+          );
+          if (fresh.length === 0 && prev.length > 0) {
+            const still = prev.filter(
+              (o: any) => !settledSet.has(o.id) && !settledSet.has(o.customerCode) && o.paymentStatus !== 'PAID'
+            );
+            if (still.length > 0) return still;
+          }
+          return fresh;
+        });
       }
     } catch (e) {
       console.error('Failed to load tables data:', e);

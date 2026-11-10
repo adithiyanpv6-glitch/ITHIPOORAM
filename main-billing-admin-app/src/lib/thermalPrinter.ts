@@ -533,6 +533,33 @@ let persistentBluetoothDevice: any = null;
 let persistentCharacteristic: any = null;
 let isReconnecting = false;
 let connectionChangeListeners: Array<(connected: boolean, deviceName: string | null) => void> = [];
+let keepAliveTimer: any = null;
+
+function startKeepAlive() {
+  stopKeepAlive();
+  if (typeof window === 'undefined') return;
+  keepAliveTimer = setInterval(async () => {
+    if (!persistentCharacteristic || !persistentBluetoothDevice?.gatt?.connected) {
+      return;
+    }
+    try {
+      // Harmless ESC null byte to keep Bluetooth GATT link active and prevent sleep
+      const ping = new Uint8Array([0x00]);
+      if (persistentCharacteristic.writeValueWithoutResponse) {
+        await persistentCharacteristic.writeValueWithoutResponse(ping);
+      }
+    } catch (e) {
+      // Ignore keepalive ping errors
+    }
+  }, 20000); // 20s interval
+}
+
+function stopKeepAlive() {
+  if (keepAliveTimer) {
+    clearInterval(keepAliveTimer);
+    keepAliveTimer = null;
+  }
+}
 
 export function subscribeToPrinterConnection(listener: (connected: boolean, deviceName: string | null) => void) {
   connectionChangeListeners.push(listener);
@@ -601,6 +628,7 @@ async function establishGattConnection(device: any): Promise<any> {
 
 async function onGattDisconnected() {
   console.warn('[Bluetooth Printer] Connection dropped. Attempting direct mobile auto-reconnect...');
+  stopKeepAlive();
   persistentCharacteristic = null;
   notifyConnectionChange();
 
@@ -614,6 +642,7 @@ async function onGattDisconnected() {
       if (!persistentBluetoothDevice) break;
       const char = await establishGattConnection(persistentBluetoothDevice);
       persistentCharacteristic = char;
+      startKeepAlive();
       console.log(`[Bluetooth Printer] Auto-reconnected to mobile successfully on attempt ${attempt}!`);
       notifyConnectionChange();
       break;
@@ -633,6 +662,7 @@ export async function connectPersistentBluetoothPrinter(): Promise<{ name: strin
 
   // If already connected directly, reuse
   if (isBluetoothPrinterConnected()) {
+    startKeepAlive();
     return { name: persistentBluetoothDevice.name || 'SEZNIK 58mm', connected: true };
   }
 
@@ -653,6 +683,7 @@ export async function connectPersistentBluetoothPrinter(): Promise<{ name: strin
 
   const char = await establishGattConnection(device);
   persistentCharacteristic = char;
+  startKeepAlive();
 
   if (typeof window !== 'undefined') {
     localStorage.setItem('ithipooram_bluetooth_paired', 'true');
@@ -667,7 +698,10 @@ export async function connectPersistentBluetoothPrinter(): Promise<{ name: strin
 
 // Try reconnecting silently if previously granted permission on mobile
 export async function tryAutoReconnectBluetoothPrinter(): Promise<boolean> {
-  if (isBluetoothPrinterConnected()) return true;
+  if (isBluetoothPrinterConnected()) {
+    startKeepAlive();
+    return true;
+  }
   if (typeof window === 'undefined' || !(navigator as any).bluetooth) return false;
 
   try {
@@ -680,6 +714,7 @@ export async function tryAutoReconnectBluetoothPrinter(): Promise<boolean> {
         device.addEventListener('gattserverdisconnected', onGattDisconnected);
         const char = await establishGattConnection(device);
         persistentCharacteristic = char;
+        startKeepAlive();
         notifyConnectionChange();
         return true;
       }
@@ -697,30 +732,42 @@ export async function printDirectToBluetoothThermalPrinter(
   mode: 'bitmap' | 'text' = 'bitmap'
 ): Promise<boolean> {
   if (typeof window === 'undefined' || !(navigator as any).bluetooth) {
-    throw new Error('Web Bluetooth is not supported in this browser. Please use Google Chrome or Edge.');
+    throw new Error('Web Bluetooth is not supported in this browser. Please use Chrome/Edge or use 58mm System Print.');
   }
 
-  // 1. Ensure we have an active, direct mobile connection
+  // 1. Ensure we have an active, direct connection
   let targetChar = persistentCharacteristic;
   if (!targetChar || !persistentBluetoothDevice || !persistentBluetoothDevice.gatt?.connected) {
     if (persistentBluetoothDevice) {
       try {
+        console.log('[Bluetooth Printer] Reconnecting to device before print...');
         targetChar = await establishGattConnection(persistentBluetoothDevice);
         persistentCharacteristic = targetChar;
+        startKeepAlive();
+        notifyConnectionChange();
       } catch (e) {
         targetChar = null;
       }
     }
 
-    // If still not connected, connect directly
-    if (!targetChar) {
-      await connectPersistentBluetoothPrinter();
-      targetChar = persistentCharacteristic;
+    // Try silent reconnect from existing permissions
+    if (!targetChar && (navigator as any).bluetooth.getDevices) {
+      try {
+        const devices = await (navigator as any).bluetooth.getDevices();
+        if (devices && devices.length > 0) {
+          const dev = devices[0];
+          targetChar = await establishGattConnection(dev);
+          persistentBluetoothDevice = dev;
+          persistentCharacteristic = targetChar;
+          startKeepAlive();
+          notifyConnectionChange();
+        }
+      } catch (e) {}
     }
   }
 
   if (!targetChar) {
-    throw new Error('SEZNIK Printer is not connected. Please tap Connect on top in Printer Setup.');
+    throw new Error('SEZNIK Printer is disconnected. Tap "Connect SEZNIK" at the top of the screen, or use "58mm System Print".');
   }
 
   // 2. Generate binary commands

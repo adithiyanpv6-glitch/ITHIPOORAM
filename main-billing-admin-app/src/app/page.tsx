@@ -110,9 +110,21 @@ export default function RootHomePage() {
         const ordRes = await fetch('/api/orders?unpaidOnly=true');
         if (ordRes.ok) {
           const ordList = await ordRes.json();
-          if (Array.isArray(ordList)) {
-            setRunningOrders(ordList);
-          }
+          const savedSettled = typeof window !== 'undefined' ? localStorage.getItem('ithipooram_settled_order_ids') : null;
+          const settledSet = new Set<string>(savedSettled ? JSON.parse(savedSettled) : []);
+
+          setRunningOrders((prev) => {
+            const activeFresh = (Array.isArray(ordList) ? ordList : []).filter(
+              (o) => !settledSet.has(o.id) && !settledSet.has(o.customerCode) && o.paymentStatus !== 'PAID'
+            );
+            if (activeFresh.length === 0 && prev.length > 0) {
+              const stillUnsettled = prev.filter(
+                (o) => !settledSet.has(o.id) && !settledSet.has(o.customerCode) && o.paymentStatus !== 'PAID'
+              );
+              if (stillUnsettled.length > 0) return stillUnsettled;
+            }
+            return activeFresh;
+          });
         }
       } catch (e) {}
 
@@ -319,9 +331,24 @@ export default function RootHomePage() {
 
   const formatRupees = (paise: number = 0) => `₹ ${(paise / 100).toLocaleString('en-IN', { minimumFractionDigits: 2 })}`;
 
-  // Metric computations from live database
-  const todaySalesPaise = data?.kpis?.grossSalesPaise || 0;
-  const todayOrdersCount = data?.kpis?.paidOrdersCount || 0;
+  // Metric computations from live database + resilient local storage for settled bills
+  const settledFromStorage = useMemo(() => {
+    if (typeof window === 'undefined') return { count: 0, totalPaise: 0 };
+    try {
+      const saved = localStorage.getItem('ithipooram_settled_invoices');
+      if (saved) {
+        const list: any[] = JSON.parse(saved);
+        const todayStr = new Date().toDateString();
+        const todayBills = list.filter((inv) => new Date(inv.settledAt || Date.now()).toDateString() === todayStr);
+        const totalPaise = todayBills.reduce((acc, inv) => acc + (inv.grandTotalPaise || 0), 0);
+        return { count: todayBills.length, totalPaise };
+      }
+    } catch (e) {}
+    return { count: 0, totalPaise: 0 };
+  }, [data]);
+
+  const todaySalesPaise = Math.max(data?.kpis?.grossSalesPaise || 0, settledFromStorage.totalPaise);
+  const todayOrdersCount = Math.max(data?.kpis?.paidOrdersCount || 0, settledFromStorage.count);
   const pendingQrOrders = runningOrders.filter((o) => o.fulfillmentStatus === 'PENDING_CONFIRMATION');
   const runningOrdersCount = runningOrders.length;
   const toCollectPaise = runningOrders.reduce((sum, o) => sum + (o.grandTotalPaise || o.subtotalPaise || 0), 0);

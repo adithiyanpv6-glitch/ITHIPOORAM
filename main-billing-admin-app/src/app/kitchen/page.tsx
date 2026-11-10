@@ -43,6 +43,21 @@ export default function KitchenDisplayPage() {
   // Tab navigation: exactly 3 options as requested: 'new' (New Orders to Receive) | 'working' (Working Orders) | 'served' (Served Ones)
   const [activeTab, setActiveTab] = useState<'new' | 'working' | 'served'>('new');
 
+  // Load persisted tickets on mount from local browser memory to prevent cold-start blanking
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('ithipooram_kds_tickets');
+      if (saved) {
+        try {
+          const parsed = JSON.parse(saved);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            setTickets(parsed);
+          }
+        } catch (e) {}
+      }
+    }
+  }, []);
+
   // Update clock every 5 seconds for elapsed times
   useEffect(() => {
     const timer = setInterval(() => setNow(Date.now()), 5000);
@@ -87,7 +102,7 @@ export default function KitchenDisplayPage() {
     }
   };
 
-  // Poll Central API for live incoming orders every 2.5s
+  // Poll Central API for live incoming orders every 2.5s with Resilient Merging (Zero Disappearing)
   const fetchTickets = async () => {
     try {
       const endpoint = `/api/kitchen${stationFilter !== 'ALL' ? `?station=${stationFilter}` : ''}`;
@@ -96,17 +111,35 @@ export default function KitchenDisplayPage() {
         const data = await res.json();
         const serverTickets: KitchenTicket[] = data.tickets || [];
         
-        const currentNewCount = serverTickets.filter(t => t.status === 'NEW').length;
-        
-        // If brand new order arrived: play chime + call out over speaker automatically!
-        if (lastTicketCount !== null && currentNewCount > lastTicketCount) {
-          playChime();
-          const latestNew = serverTickets.find(t => t.status === 'NEW');
-          speakNewOrder(latestNew?.tableCode);
-        }
-        
-        setLastTicketCount(currentNewCount);
-        setTickets(serverTickets);
+        // Intelligent Merge: Never wipe out an active ticket when hitting an ephemeral cold lambda
+        setTickets((prev) => {
+          if (serverTickets.length === 0 && prev.length > 0) {
+            return prev; // Retain existing active tickets!
+          }
+
+          const ticketMap = new Map<string, KitchenTicket>();
+          // Retain active tickets that haven't been explicitly cleared
+          prev.forEach((t) => ticketMap.set(t.id, t));
+          // Apply fresh server state
+          serverTickets.forEach((t) => ticketMap.set(t.id, t));
+
+          const merged = Array.from(ticketMap.values());
+          if (typeof window !== 'undefined') {
+            localStorage.setItem('ithipooram_kds_tickets', JSON.stringify(merged));
+          }
+
+          const currentNewCount = merged.filter((t) => t.status === 'NEW').length;
+          // If brand new order arrived: play chime + call out over speaker automatically!
+          if (lastTicketCount !== null && currentNewCount > lastTicketCount) {
+            playChime();
+            const latestNew = merged.find((t) => t.status === 'NEW');
+            speakNewOrder(latestNew?.tableCode);
+          }
+          setLastTicketCount(currentNewCount);
+
+          return merged;
+        });
+
         setIsLiveConnected(true);
       } else {
         setIsLiveConnected(false);
@@ -122,8 +155,16 @@ export default function KitchenDisplayPage() {
     return () => clearInterval(interval);
   }, [stationFilter, speakerEnabled, lastTicketCount]);
 
-  // Handle Receive / Pick Order (moves to ACCEPTED / PREPARING)
+  // Handle Receive / Pick Order (moves to ACCEPTED / PREPARING immediately with zero lag)
   const handleReceiveOrder = async (ticketId: string) => {
+    setTickets((prev) => {
+      const next = prev.map((t) => (t.id === ticketId ? { ...t, status: 'ACCEPTED' as const } : t));
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('ithipooram_kds_tickets', JSON.stringify(next));
+      }
+      return next;
+    });
+
     try {
       await fetch('/api/kitchen', {
         method: 'PATCH',
@@ -136,8 +177,16 @@ export default function KitchenDisplayPage() {
     }
   };
 
-  // Handle Mark as Served (moves to SERVED)
+  // Handle Mark as Served (moves to SERVED immediately with zero lag)
   const handleMarkServed = async (ticketId: string) => {
+    setTickets((prev) => {
+      const next = prev.map((t) => (t.id === ticketId ? { ...t, status: 'SERVED' as const } : t));
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('ithipooram_kds_tickets', JSON.stringify(next));
+      }
+      return next;
+    });
+
     try {
       await fetch('/api/kitchen', {
         method: 'PATCH',
