@@ -65,24 +65,31 @@ export default function TablesManagementPage() {
   const [selectedTableForQr, setSelectedTableForQr] = useState<any | null>(null);
   const [generatedQrDataUrl, setGeneratedQrDataUrl] = useState<string>('');
 
-  // Customer Base URL for Table QRs (Public HTTPS for Non-WiFi 4G/5G mobile customers)
-  const [customerBaseUrl, setCustomerBaseUrl] = useState<string>('https://admin-app-ithipooram.vercel.app');
+  // Customer Base URL for Table QRs (Auto-linked to Cloudflare for 4G/5G mobile network ordering)
+  const CLOUDFLARE_DEFAULT = 'https://ghz-nursery-demonstrated-reputation.trycloudflare.com';
+  const [customerBaseUrl, setCustomerBaseUrl] = useState<string>(CLOUDFLARE_DEFAULT);
 
   useEffect(() => {
-    // 1. Check saved local storage first
+    // 1. Automatically link to Cloudflare URL by default (zero pasting required)
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem('ithipooram_customer_qr_base_url');
-      if (saved) {
+      if (saved && !saved.includes('vercel.app')) {
         setCustomerBaseUrl(saved);
+      } else {
+        setCustomerBaseUrl(CLOUDFLARE_DEFAULT);
+        localStorage.setItem('ithipooram_customer_qr_base_url', CLOUDFLARE_DEFAULT);
       }
     }
 
-    // 2. Automatically detect active Cloudflare Tunnel URL or permanent live cloud domain
+    // 2. Check active Cloudflare tunnel registration
     fetch('/api/tunnel/register')
       .then((r) => r.json())
       .then((d) => {
-        if (d?.tunnelUrl && d.tunnelUrl !== 'https://admin-app-ithipooram.vercel.app') {
+        if (d?.tunnelUrl) {
           setCustomerBaseUrl(d.tunnelUrl);
+          if (typeof window !== 'undefined') {
+            localStorage.setItem('ithipooram_customer_qr_base_url', d.tunnelUrl);
+          }
         }
       })
       .catch(() => {});
