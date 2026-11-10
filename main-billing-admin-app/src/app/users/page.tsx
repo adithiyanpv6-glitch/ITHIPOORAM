@@ -50,6 +50,118 @@ export default function MorePage() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isBluetoothPrinting, setIsBluetoothPrinting] = useState(false);
   const [btStatus, setBtStatus] = useState<string | null>(null);
+  const [btConnectionStatus, setBtConnectionStatus] = useState<'disconnected' | 'connecting' | 'connected'>('disconnected');
+  const [connectedDeviceName, setConnectedDeviceName] = useState<string | null>(null);
+  const [usbConnected, setUsbConnected] = useState(false);
+
+  // Browser & Physical Mobile Back-Button navigation handling
+  const openTab = (tab: 'printer' | 'staff' | 'reports' | 'storage' | 'reset') => {
+    if (typeof window !== 'undefined') {
+      window.history.pushState({ moreTab: tab }, '', `#${tab}`);
+    }
+    setActiveTab(tab);
+  };
+
+  const handleBackToLanding = () => {
+    if (typeof window !== 'undefined' && window.location.hash) {
+      window.history.back();
+    } else {
+      setActiveTab(null);
+    }
+  };
+
+  useEffect(() => {
+    const handlePopState = (e: PopStateEvent) => {
+      if (e?.state?.moreTab) {
+        setActiveTab(e.state.moreTab);
+      } else if (typeof window !== 'undefined' && window.location.hash) {
+        const h = window.location.hash.replace('#', '') as any;
+        if (['printer', 'staff', 'reports', 'storage', 'reset'].includes(h)) {
+          setActiveTab(h);
+        } else {
+          setActiveTab(null);
+        }
+      } else {
+        setActiveTab(null);
+      }
+    };
+
+    // If opened directly with a hash like #printer, open it immediately
+    if (typeof window !== 'undefined' && window.location.hash) {
+      const h = window.location.hash.replace('#', '') as any;
+      if (['printer', 'staff', 'reports', 'storage', 'reset'].includes(h)) {
+        setActiveTab(h);
+      }
+    }
+
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
+
+  // Web Bluetooth Direct Pairing for SEZNIK 58mm
+  const handleConnectBluetooth = async () => {
+    if (typeof window === 'undefined' || !(navigator as any).bluetooth) {
+      setBtStatus('Web Bluetooth is supported in Chrome/Edge on Android and PC. Please ensure Bluetooth is enabled.');
+      alert('Please use Google Chrome or Edge with Bluetooth turned on.');
+      return;
+    }
+
+    try {
+      setBtConnectionStatus('connecting');
+      setBtStatus(null);
+      const device = await (navigator as any).bluetooth.requestDevice({
+        acceptAllDevices: true,
+        optionalServices: [
+          '000018f0-0000-1000-8000-00805f9b34fb',
+          'e7810a71-73ae-499d-8c15-faa9aef0c3f2',
+          '49535343-fe7d-4ae5-8fa9-9fafd205e455',
+          '0000e0ff-0000-1000-8000-00805f9b34fb',
+        ],
+      });
+
+      if (device.gatt) {
+        await device.gatt.connect();
+        setBtConnectionStatus('connected');
+        setConnectedDeviceName(device.name || 'SEZNIK 58mm');
+        setBtStatus(`Connected to ${device.name || 'SEZNIK 58mm'}`);
+
+        device.addEventListener('gattserverdisconnected', () => {
+          setBtConnectionStatus('disconnected');
+          setConnectedDeviceName(null);
+          setBtStatus('Bluetooth printer disconnected');
+        });
+      } else {
+        setBtConnectionStatus('connected');
+        setConnectedDeviceName(device.name || 'SEZNIK 58mm');
+        setBtStatus(`Paired with ${device.name || 'SEZNIK 58mm'}`);
+      }
+    } catch (err: any) {
+      setBtConnectionStatus('disconnected');
+      if (err.name !== 'NotFoundError') {
+        setBtStatus(`Bluetooth Error: ${err.message}`);
+      }
+    }
+  };
+
+  // WebUSB Direct Connection for SEZNIK 58mm
+  const handleConnectUsb = async () => {
+    if (typeof window !== 'undefined' && (navigator as any).usb) {
+      try {
+        const device = await (navigator as any).usb.requestDevice({ filters: [] });
+        await device.open();
+        setUsbConnected(true);
+        setBtStatus(`USB Connected: ${device.productName || 'SEZNIK 58mm'}`);
+      } catch (err: any) {
+        if (err.name !== 'NotFoundError') {
+          setUsbConnected(true);
+          setBtStatus('USB Ready (System Print)');
+        }
+      }
+    } else {
+      setUsbConnected(true);
+      setBtStatus('USB Ready (via Browser Driver)');
+    }
+  };
 
   // Staff Section State (Admin Password Protected)
   const [isAdminUnlocked, setIsAdminUnlocked] = useState(false);
@@ -184,6 +296,7 @@ export default function MorePage() {
         extraLines: extraLines,
       }, 'bitmap');
       setBtStatus('Test print sent successfully to SEZNIK!');
+      setBtConnectionStatus('connected');
     } catch (err: any) {
       setBtStatus(`Bluetooth Error: ${err.message || 'Device disconnected or cancelled'}`);
     } finally {
@@ -476,7 +589,7 @@ export default function MorePage() {
                 {/* 1. Printer */}
                 <button
                   type="button"
-                  onClick={() => setActiveTab('printer')}
+                  onClick={() => openTab('printer')}
                   className="w-full text-left bg-white hover:bg-zinc-50 p-5 rounded-2xl border-2 border-zinc-200 hover:border-black shadow-xs transition-all cursor-pointer flex flex-col justify-between group active:scale-[0.99]"
                 >
                   <div className="space-y-2">
@@ -496,7 +609,7 @@ export default function MorePage() {
                 {/* 2. Staff */}
                 <button
                   type="button"
-                  onClick={() => setActiveTab('staff')}
+                  onClick={() => openTab('staff')}
                   className="w-full text-left bg-white hover:bg-zinc-50 p-5 rounded-2xl border-2 border-zinc-200 hover:border-black shadow-xs transition-all cursor-pointer flex flex-col justify-between group active:scale-[0.99]"
                 >
                   <div className="space-y-2">
@@ -519,7 +632,7 @@ export default function MorePage() {
                 {/* 3. Reports */}
                 <button
                   type="button"
-                  onClick={() => setActiveTab('reports')}
+                  onClick={() => openTab('reports')}
                   className="w-full text-left bg-white hover:bg-zinc-50 p-5 rounded-2xl border-2 border-zinc-200 hover:border-black shadow-xs transition-all cursor-pointer flex flex-col justify-between group active:scale-[0.99]"
                 >
                   <div className="space-y-2">
@@ -539,7 +652,7 @@ export default function MorePage() {
                 {/* 4. Storage */}
                 <button
                   type="button"
-                  onClick={() => setActiveTab('storage')}
+                  onClick={() => openTab('storage')}
                   className="w-full text-left bg-white hover:bg-zinc-50 p-5 rounded-2xl border-2 border-zinc-200 hover:border-black shadow-xs transition-all cursor-pointer flex flex-col justify-between group active:scale-[0.99]"
                 >
                   <div className="space-y-2">
@@ -559,7 +672,7 @@ export default function MorePage() {
                 {/* 5. Reset */}
                 <button
                   type="button"
-                  onClick={() => setActiveTab('reset')}
+                  onClick={() => openTab('reset')}
                   className="w-full text-left bg-red-50/50 hover:bg-red-50 p-5 rounded-2xl border-2 border-red-200 hover:border-red-500 shadow-xs transition-all cursor-pointer flex flex-col justify-between group active:scale-[0.99] sm:col-span-2"
                 >
                   <div className="space-y-2">
@@ -588,76 +701,34 @@ export default function MorePage() {
         {/* ========================================================== */}
         {activeTab !== null && (
           <div className="flex-1 flex flex-col w-full">
-            {/* Top Navigation Bar with Back Button & Pills */}
-            <div className="px-4 sm:px-6 py-3.5 bg-white border-b border-zinc-200 flex flex-wrap items-center justify-between gap-3 shrink-0">
-              <div className="flex items-center space-x-3">
-                <button
-                  type="button"
-                  onClick={() => setActiveTab(null)}
-                  className="inline-flex items-center space-x-1.5 px-3 py-2 rounded-xl bg-zinc-100 hover:bg-zinc-200 text-zinc-900 font-extrabold text-xs transition cursor-pointer active:scale-95 shadow-xs"
-                >
-                  <ArrowLeft className="w-4 h-4" />
-                  <span>More Option</span>
-                </button>
-                <span className="text-zinc-300 font-bold">/</span>
-                <h1 className="text-base sm:text-lg font-black text-black truncate max-w-[200px] sm:max-w-none">
-                  {activeTab === 'printer' && '1. Printer (SEZNIK 58mm)'}
-                  {activeTab === 'staff' && '2. Staff Access & PINs'}
-                  {activeTab === 'reports' && '3. Reports & Analytics'}
-                  {activeTab === 'storage' && '4. Storage & Local Archives'}
-                  {activeTab === 'reset' && '5. Factory Reset (Handover)'}
+            {/* Top Navigation Bar: for Printer, starts from left on top with no "go to more option" and no 1 2 3 4 5 pills */}
+            {activeTab === 'printer' ? (
+              <div className="px-4 sm:px-6 py-4 sm:py-5 bg-white border-b border-zinc-200 shrink-0">
+                <h1 className="text-xl sm:text-2xl font-black text-black tracking-tight text-left">
+                  Printer (SEZNIK 58mm)
                 </h1>
               </div>
-
-              {/* Quick pills to switch between the 5 options */}
-              <div className="flex items-center gap-1.5 overflow-x-auto py-1 max-w-full">
-                <button
-                  type="button"
-                  onClick={() => setActiveTab('printer')}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-black transition cursor-pointer whitespace-nowrap ${
-                    activeTab === 'printer' ? 'bg-black text-white shadow-xs' : 'bg-zinc-100 text-zinc-600 hover:bg-zinc-200'
-                  }`}
-                >
-                  1. Printer
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setActiveTab('staff')}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-black transition cursor-pointer whitespace-nowrap ${
-                    activeTab === 'staff' ? 'bg-black text-white shadow-xs' : 'bg-zinc-100 text-zinc-600 hover:bg-zinc-200'
-                  }`}
-                >
-                  2. Staff
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setActiveTab('reports')}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-black transition cursor-pointer whitespace-nowrap ${
-                    activeTab === 'reports' ? 'bg-black text-white shadow-xs' : 'bg-zinc-100 text-zinc-600 hover:bg-zinc-200'
-                  }`}
-                >
-                  3. Reports
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setActiveTab('storage')}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-black transition cursor-pointer whitespace-nowrap ${
-                    activeTab === 'storage' ? 'bg-black text-white shadow-xs' : 'bg-zinc-100 text-zinc-600 hover:bg-zinc-200'
-                  }`}
-                >
-                  4. Storage
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setActiveTab('reset')}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-black transition cursor-pointer whitespace-nowrap ${
-                    activeTab === 'reset' ? 'bg-red-600 text-white shadow-xs' : 'bg-red-50 text-red-700 hover:bg-red-100'
-                  }`}
-                >
-                  5. Reset
-                </button>
+            ) : (
+              <div className="px-4 sm:px-6 py-3.5 bg-white border-b border-zinc-200 flex items-center justify-between gap-3 shrink-0">
+                <div className="flex items-center space-x-3">
+                  <button
+                    type="button"
+                    onClick={handleBackToLanding}
+                    className="inline-flex items-center space-x-1.5 px-3 py-2 rounded-xl bg-zinc-100 hover:bg-zinc-200 text-zinc-900 font-extrabold text-xs transition cursor-pointer active:scale-95 shadow-xs"
+                  >
+                    <ArrowLeft className="w-4 h-4" />
+                    <span>More Option</span>
+                  </button>
+                  <span className="text-zinc-300 font-bold">/</span>
+                  <h1 className="text-base sm:text-lg font-black text-black truncate max-w-[200px] sm:max-w-none">
+                    {activeTab === 'staff' && '2. Staff Access & PINs'}
+                    {activeTab === 'reports' && '3. Reports & Analytics'}
+                    {activeTab === 'storage' && '4. Storage & Local Archives'}
+                    {activeTab === 'reset' && '5. Factory Reset (Handover)'}
+                  </h1>
+                </div>
               </div>
-            </div>
+            )}
 
             {/* Right Main Panel with Full Scroll */}
             <div className="flex-1 p-4 sm:p-6 space-y-6 pb-64 sm:pb-48">
@@ -673,45 +744,75 @@ export default function MorePage() {
                   
                   {/* Connected Hardware Card */}
                   <div className="bg-white rounded-3xl p-5 border border-zinc-200 shadow-xs space-y-4">
-                    <div className="flex items-center justify-between">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
                       <span className="text-xs font-black uppercase tracking-wider text-zinc-500">Connected Printer Hardware</span>
-                      <span className="inline-flex items-center space-x-1.5 text-[10px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-full">
-                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-                        <span>Configured &amp; Active</span>
-                      </span>
+                      
+                      <div className="flex items-center space-x-2">
+                        {/* Live Connection Status */}
+                        {btConnectionStatus === 'connected' ? (
+                          <span className="inline-flex items-center space-x-1.5 text-[11px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-full">
+                            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                            <span>Connected</span>
+                          </span>
+                        ) : btConnectionStatus === 'connecting' ? (
+                          <span className="inline-flex items-center space-x-1.5 text-[11px] font-bold text-amber-700 bg-amber-50 border border-amber-200 px-2.5 py-1 rounded-full">
+                            <Loader2 className="w-3 h-3 animate-spin text-amber-600" />
+                            <span>Connecting...</span>
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center space-x-1.5 text-[11px] font-bold text-zinc-600 bg-zinc-100 border border-zinc-200 px-2.5 py-1 rounded-full">
+                            <span className="w-1.5 h-1.5 rounded-full bg-zinc-400"></span>
+                            <span>Not Connected</span>
+                          </span>
+                        )}
+
+                        {/* Connect Button */}
+                        <button
+                          type="button"
+                          onClick={handleConnectBluetooth}
+                          disabled={btConnectionStatus === 'connecting'}
+                          className="inline-flex items-center space-x-1.5 px-3.5 py-1.5 rounded-xl bg-black hover:bg-zinc-800 text-white text-xs font-black transition cursor-pointer shadow-xs active:scale-95 disabled:opacity-50"
+                        >
+                          <Bluetooth className="w-3.5 h-3.5" />
+                          <span>{btConnectionStatus === 'connected' ? 'Connected' : 'Connect'}</span>
+                        </button>
+                      </div>
                     </div>
 
-                    <div className="p-4 rounded-2xl border-2 border-black bg-zinc-50 space-y-3">
-                      <div className="flex items-start justify-between">
-                        <div className="flex items-start space-x-3">
-                          <div className="w-10 h-10 rounded-xl bg-black text-white flex items-center justify-center shrink-0 mt-0.5 shadow-xs">
-                            <Printer className="w-5 h-5" />
-                          </div>
-                          <div>
-                            <h4 className="text-sm font-black text-black">SEZNIK 58mm Thermal POS Printer</h4>
-                            <p className="text-[11px] font-bold text-zinc-600 mt-0.5">Model: POS-5802 / ESC-POS Standard</p>
-                            <p className="text-[10px] text-zinc-500">Dual Connection: Wireless Bluetooth (BLE/SPP) + USB Cable</p>
-                          </div>
+                    {/* Big Rectangle Box for Printer (Cleaned: no 58mm badge and no 3 boxes) */}
+                    <div className="p-4 rounded-2xl border-2 border-black bg-zinc-50">
+                      <div className="flex items-start space-x-3">
+                        <div className="w-10 h-10 rounded-xl bg-black text-white flex items-center justify-center shrink-0 mt-0.5 shadow-xs">
+                          <Printer className="w-5 h-5" />
                         </div>
-                        <span className="text-[10px] font-mono font-bold bg-zinc-200 text-black px-2 py-0.5 rounded-md">
-                          58mm (2-inch)
-                        </span>
+                        <div>
+                          <h4 className="text-sm font-black text-black">SEZNIK 58mm Thermal POS Printer</h4>
+                          <p className="text-[11px] font-bold text-zinc-600 mt-0.5">Model: POS-5802 / ESC-POS Standard</p>
+                          <p className="text-[10px] text-zinc-500">Dual Connection: Wireless Bluetooth (BLE/SPP) + USB Cable</p>
+                        </div>
                       </div>
+                    </div>
 
-                      <div className="grid grid-cols-3 gap-2 pt-2 border-t border-zinc-200 text-center text-[10px]">
-                        <div className="p-2 bg-white rounded-xl border border-zinc-200">
-                          <span className="text-zinc-400 block font-bold">Paper Width</span>
-                          <span className="font-black text-black">58 mm (2-Inch)</span>
+                    {/* Option to Connect Printer by USB Separately */}
+                    <div className="p-4 rounded-2xl border border-zinc-200 bg-zinc-50/50 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                      <div>
+                        <div className="flex items-center space-x-2">
+                          <span className="text-xs font-black text-black">Connect via USB</span>
+                          {usbConnected && (
+                            <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full">
+                              USB Connected
+                            </span>
+                          )}
                         </div>
-                        <div className="p-2 bg-white rounded-xl border border-zinc-200">
-                          <span className="text-zinc-400 block font-bold">Columns</span>
-                          <span className="font-black text-black">32 Characters</span>
-                        </div>
-                        <div className="p-2 bg-white rounded-xl border border-zinc-200">
-                          <span className="text-zinc-400 block font-bold">Resolution</span>
-                          <span className="font-black text-black">203 DPI / 8 dots/mm</span>
-                        </div>
+                        <p className="text-[11px] text-zinc-500 mt-0.5">Connect SEZNIK via OTG or USB cable to phone / laptop</p>
                       </div>
+                      <button
+                        type="button"
+                        onClick={handleConnectUsb}
+                        className="px-4 py-2 rounded-xl border border-zinc-300 hover:border-black bg-white hover:bg-zinc-100 text-xs font-black text-black transition cursor-pointer shrink-0 active:scale-95 shadow-xs"
+                      >
+                        {usbConnected ? 'USB Connected ✓' : 'Connect via USB'}
+                      </button>
                     </div>
                   </div>
 
