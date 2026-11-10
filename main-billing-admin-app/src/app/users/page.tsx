@@ -612,10 +612,7 @@ export default function MorePage() {
                 >
                   <div className="space-y-2">
                     <div className="flex items-center justify-between">
-                      <div className="flex items-center space-x-1.5">
-                        <Users className="w-6 h-6 text-black" />
-                        <Lock className="w-4 h-4 text-amber-500" />
-                      </div>
+                      <Users className="w-6 h-6 text-black" />
                       <ChevronRight className="w-5 h-5 text-zinc-400 group-hover:text-black group-hover:translate-x-1 transition-all" />
                     </div>
                     <div>
@@ -699,11 +696,17 @@ export default function MorePage() {
         {/* ========================================================== */}
         {activeTab !== null && (
           <div className="flex-1 flex flex-col w-full">
-            {/* Top Navigation Bar: for Printer, starts from left on top with no "go to more option" and no 1 2 3 4 5 pills */}
+            {/* Top Navigation Bar: for Printer & Staff, starts from left on top with no "More Option" button */}
             {activeTab === 'printer' ? (
               <div className="px-4 sm:px-6 py-4 sm:py-5 bg-white border-b border-zinc-200 shrink-0">
                 <h1 className="text-xl sm:text-2xl font-black text-black tracking-tight text-left">
                   Printer (SEZNIK 58mm)
+                </h1>
+              </div>
+            ) : activeTab === 'staff' ? (
+              <div className="px-4 sm:px-6 py-4 sm:py-5 bg-white border-b border-zinc-200 shrink-0">
+                <h1 className="text-xl sm:text-2xl font-black text-black tracking-tight text-left">
+                  2. Staff Access &amp; PINs
                 </h1>
               </div>
             ) : (
@@ -719,7 +722,6 @@ export default function MorePage() {
                   </button>
                   <span className="text-zinc-300 font-bold">/</span>
                   <h1 className="text-base sm:text-lg font-black text-black truncate max-w-[200px] sm:max-w-none">
-                    {activeTab === 'staff' && '2. Staff Access & PINs'}
                     {activeTab === 'reports' && '3. Reports & Analytics'}
                     {activeTab === 'storage' && '4. Storage & Local Archives'}
                     {activeTab === 'reset' && '5. Factory Reset (Handover)'}
@@ -980,19 +982,19 @@ export default function MorePage() {
             {activeTab === 'staff' && (
               <div className="max-w-3xl space-y-6">
                 {!isAdminUnlocked ? (
-                  /* Admin Password Challenge Form */
-                  <div className="bg-white rounded-3xl p-6 sm:p-8 border border-zinc-200 shadow-xs max-w-md mx-auto text-center space-y-5">
-                    <div className="w-14 h-14 rounded-2xl bg-zinc-100 flex items-center justify-center mx-auto text-zinc-800">
-                      <Lock className="w-7 h-7" />
+                  /* Admin Password Challenge Form - Compact & Smaller */
+                  <div className="bg-white rounded-2xl p-5 border border-zinc-200 shadow-xs max-w-xs mx-auto text-center space-y-3.5">
+                    <div className="w-10 h-10 rounded-xl bg-zinc-100 flex items-center justify-center mx-auto text-zinc-800">
+                      <Lock className="w-5 h-5" />
                     </div>
                     <div>
-                      <h3 className="text-base font-black text-black">Admin Access Required</h3>
-                      <p className="text-xs text-zinc-500 mt-1">
-                        Staff PINs &amp; credential configurations are protected. Enter the primary Admin PIN to unlock.
+                      <h3 className="text-sm font-black text-black">Admin Access Required</h3>
+                      <p className="text-[11px] text-zinc-500 mt-0.5">
+                        Enter Admin PIN (5566) to manage staff credentials.
                       </p>
                     </div>
 
-                    <form onSubmit={handleUnlockAdmin} className="space-y-3">
+                    <form onSubmit={handleUnlockAdmin} className="space-y-2.5">
                       <div>
                         <input
                           type="password"
@@ -1003,19 +1005,19 @@ export default function MorePage() {
                             setAdminPinInput(e.target.value);
                             setAdminPinError(null);
                           }}
-                          placeholder="Enter Admin PIN (5566)"
-                          className="w-full text-center text-xl font-mono font-black tracking-widest py-3 px-4 rounded-2xl bg-zinc-50 border border-zinc-300 focus:outline-none focus:border-black text-black"
+                          placeholder="Admin PIN (5566)"
+                          className="w-full text-center text-sm font-mono font-black tracking-widest py-2 px-3 rounded-xl bg-zinc-50 border border-zinc-300 focus:outline-none focus:border-black text-black"
                         />
                         {adminPinError && (
-                          <p className="text-xs text-red-600 font-bold mt-1.5">{adminPinError}</p>
+                          <p className="text-[11px] text-red-600 font-bold mt-1">{adminPinError}</p>
                         )}
                       </div>
 
                       <button
                         type="submit"
-                        className="w-full py-3 px-4 rounded-2xl bg-black hover:bg-zinc-800 text-white font-black text-xs transition shadow-sm cursor-pointer"
+                        className="w-full py-2.5 px-3 rounded-xl bg-black hover:bg-zinc-800 text-white font-black text-xs transition shadow-xs cursor-pointer active:scale-98"
                       >
-                        Unlock Staff Management
+                        Unlock Staff
                       </button>
                     </form>
                   </div>
@@ -1024,10 +1026,7 @@ export default function MorePage() {
                   <div className="bg-white rounded-3xl p-6 border border-zinc-200 shadow-xs space-y-6">
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-zinc-100">
                       <div>
-                        <div className="flex items-center space-x-2">
-                          <span className="w-2.5 h-2.5 rounded-full bg-emerald-500" />
-                          <h3 className="text-base font-black text-black">Staff Credentials &amp; Access Controls</h3>
-                        </div>
+                        <h3 className="text-base font-black text-black">Staff Credentials &amp; Access Controls</h3>
                         <p className="text-xs text-zinc-500 mt-0.5">
                           Admin PIN authorized. Configure rapid 4-digit PINs for counter tablets and phones.
                         </p>
@@ -1036,17 +1035,16 @@ export default function MorePage() {
                       <div className="flex items-center space-x-2">
                         <button
                           onClick={() => setIsAddStaffModalOpen(true)}
-                          className="px-4 py-2.5 rounded-2xl bg-black hover:bg-zinc-800 text-white font-black text-xs flex items-center space-x-1.5 transition shadow-xs cursor-pointer"
+                          className="px-4 py-2 rounded-2xl bg-black hover:bg-zinc-800 text-white font-black text-xs transition shadow-xs cursor-pointer active:scale-98"
                         >
-                          <Plus className="w-3.5 h-3.5" />
-                          <span>+ Add Staff</span>
+                          <span>Add Staff</span>
                         </button>
                         <button
                           onClick={() => {
                             setIsAdminUnlocked(false);
                             setAdminPinInput('');
                           }}
-                          className="p-2.5 rounded-2xl border border-zinc-200 hover:bg-zinc-100 text-zinc-600 cursor-pointer"
+                          className="p-2 rounded-2xl border border-zinc-200 hover:bg-zinc-100 text-zinc-600 cursor-pointer"
                           title="Lock Section"
                         >
                           <Lock className="w-4 h-4" />
@@ -1605,7 +1603,7 @@ export default function MorePage() {
             <form onSubmit={handleCreateStaff} className="space-y-4">
               <div>
                 <label className="block text-xs font-black text-zinc-800 uppercase tracking-wider mb-1">
-                  Full Name / ജീവനക്കാരന്റെ പേര്
+                  Full Name
                 </label>
                 <input
                   type="text"
@@ -1619,7 +1617,7 @@ export default function MorePage() {
 
               <div>
                 <label className="block text-xs font-black text-zinc-800 uppercase tracking-wider mb-1">
-                  Designated Role / ജോലി
+                  Designated Role
                 </label>
                 <select
                   value={newStaffRole}
@@ -1635,7 +1633,7 @@ export default function MorePage() {
 
               <div>
                 <label className="block text-xs font-black text-zinc-800 uppercase tracking-wider mb-1">
-                  4-Digit Login PIN / 4 അക്ക പിൻ
+                  4-Digit Login PIN
                 </label>
                 <input
                   type="password"
