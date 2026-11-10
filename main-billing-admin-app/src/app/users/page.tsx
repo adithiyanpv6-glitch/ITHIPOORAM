@@ -79,10 +79,21 @@ export default function MorePage() {
     if (typeof window !== 'undefined') {
       window.history.pushState({ moreTab: tab }, '', `#${tab}`);
     }
+    // Always lock storage whenever entering or switching tabs
+    if (tab === 'storage') {
+      setIsStorageAdminUnlocked(false);
+      setStorageAdminPinInput('');
+      setStorageAdminPinError(null);
+    }
     setActiveTab(tab);
   };
 
   const handleBackToLanding = () => {
+    // Re-lock storage immediately upon exiting
+    setIsStorageAdminUnlocked(false);
+    setStorageAdminPinInput('');
+    setStorageAdminPinError(null);
+
     if (typeof window !== 'undefined' && window.location.hash) {
       window.history.back();
     } else {
@@ -92,6 +103,11 @@ export default function MorePage() {
 
   useEffect(() => {
     const handlePopState = (e: PopStateEvent) => {
+      // Re-lock storage every time browser or hardware back button is pressed
+      setIsStorageAdminUnlocked(false);
+      setStorageAdminPinInput('');
+      setStorageAdminPinError(null);
+
       if (e?.state?.moreTab) {
         setActiveTab(e.state.moreTab);
       } else if (typeof window !== 'undefined' && window.location.hash) {
@@ -207,6 +223,20 @@ export default function MorePage() {
       }
     }
   }, []);
+
+  // Guarantee: Storage is locked whenever user exits or is outside of storage option
+  useEffect(() => {
+    if (activeTab !== 'storage') {
+      setIsStorageAdminUnlocked(false);
+      setStorageAdminPinInput('');
+      setStorageAdminPinError(null);
+    }
+    return () => {
+      setIsStorageAdminUnlocked(false);
+      setStorageAdminPinInput('');
+      setStorageAdminPinError(null);
+    };
+  }, [activeTab]);
 
   const handleUnlockStorageAdmin = (e?: React.FormEvent) => {
     if (e) e.preventDefault();
