@@ -77,7 +77,7 @@ export default function TablesManagementPage() {
       const activePublicOrigin = isLocalhost ? PERMANENT_PUBLIC_URL : origin;
 
       const saved = localStorage.getItem('ithipooram_customer_qr_base_url');
-      if (saved && !saved.includes('trycloudflare.com')) {
+      if (saved && saved.startsWith('http')) {
         setCustomerBaseUrl(saved);
       } else {
         setCustomerBaseUrl(activePublicOrigin);
@@ -89,7 +89,7 @@ export default function TablesManagementPage() {
     fetch('/api/tunnel/register')
       .then((r) => r.json())
       .then((d) => {
-        if (d?.tunnelUrl && !d.tunnelUrl.includes('trycloudflare.com')) {
+        if (d?.tunnelUrl && d.tunnelUrl.startsWith('http')) {
           setCustomerBaseUrl(d.tunnelUrl);
           if (typeof window !== 'undefined') {
             localStorage.setItem('ithipooram_customer_qr_base_url', d.tunnelUrl);
