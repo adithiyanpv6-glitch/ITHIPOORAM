@@ -77,6 +77,16 @@ if (-not $portActive) {
 Write-Host "[4/4] Starting Cloudflare Tunnel for customer 4G/5G QR ordering..." -ForegroundColor Cyan
 $cloudflaredPath = Join-Path $baseDir "cloudflared.exe"
 
+if (-not (Test-Path $cloudflaredPath)) {
+    Write-Host "      -> cloudflared.exe not found, downloading automatic bridge..." -ForegroundColor Yellow
+    try {
+        Invoke-WebRequest -Uri "https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-windows-amd64.exe" -OutFile $cloudflaredPath
+        Write-Host "      -> cloudflared.exe ready!" -ForegroundColor Green
+    } catch {
+        curl.exe -L -o $cloudflaredPath "https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-windows-amd64.exe"
+    }
+}
+
 # Stop any duplicate cloudflared instances
 Get-Process -Name "cloudflared" -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
 
