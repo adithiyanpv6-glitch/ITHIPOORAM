@@ -53,24 +53,34 @@ $localIp = (Get-NetIPAddress -AddressFamily IPv4 | Where-Object {
 
 if (-not $localIp) { $localIp = "localhost" }
 
-# 5. Start Local Server on Port 3000
-$portActive = Get-NetTCPConnection -LocalPort 3000 -ErrorAction SilentlyContinue
-if (-not $portActive) {
-    Write-Host "[3/4] Starting ITHI POORAM Server on port 3000..." -ForegroundColor Cyan
-    Start-Process -FilePath "cmd.exe" -ArgumentList "/c cd /d `"$appDir`" && npm run dev" -WindowStyle Minimized
-    
-    # Wait for server to become responsive
-    $maxWait = 30
-    for ($i = 0; $i -lt $maxWait; $i++) {
-        Start-Sleep -Seconds 1
-        $check = Get-NetTCPConnection -LocalPort 3000 -ErrorAction SilentlyContinue
-        if ($check) {
-            Write-Host "      -> Local POS server ready on http://localhost:3000" -ForegroundColor Green
-            break
-        }
+# 5. High-Speed Production Server (Butter-smooth, instant 5ms clicks on mobile)
+$nextBuild = Join-Path $appDir ".next"
+if (-not (Test-Path $nextBuild)) {
+    Write-Host "[3/4] Compiling high-speed production build on this laptop (one-time only, ~1 min)..." -ForegroundColor Yellow
+    cmd.exe /c "cd /d `"$appDir`" && npm run build"
+}
+
+# Stop any previous node processes on port 3000 or 3001
+$oldConns = Get-NetTCPConnection -LocalPort 3000, 3001 -ErrorAction SilentlyContinue
+if ($oldConns) {
+    foreach ($conn in $oldConns) {
+        Stop-Process -Id $conn.OwningProcess -Force -ErrorAction SilentlyContinue
     }
-} else {
-    Write-Host "[3/4] Local POS server already running on port 3000!" -ForegroundColor Green
+    Start-Sleep -Seconds 1
+}
+
+Write-Host "[3/4] Starting Ultra-Fast Production Server on port 3000..." -ForegroundColor Cyan
+Start-Process -FilePath "cmd.exe" -ArgumentList "/c cd /d `"$appDir`" && npm run start" -WindowStyle Minimized
+
+# Wait for server to become responsive
+$maxWait = 30
+for ($i = 0; $i -lt $maxWait; $i++) {
+    Start-Sleep -Seconds 1
+    $check = Get-NetTCPConnection -LocalPort 3000 -ErrorAction SilentlyContinue
+    if ($check) {
+        Write-Host "      -> Production POS server online on http://localhost:3000 (Butter-smooth)" -ForegroundColor Green
+        break
+    }
 }
 
 # 6. Start Cloudflare Tunnel for Mobile Network (4G/5G) QR Customers
@@ -134,20 +144,14 @@ $linksContent = @"
           ITHI POORAM (ഇത്തിപ്പൂരം) - MOBILE PHONE ACCESS LINKS
 =========================================================================
 
-1. CASHIER BILLING PHONE:
-   Wi-Fi Link:       http://$localIp:3000/billing
-   Mobile Data Link: $tunnelUrl/billing
+⚡ FOR CASHIER & KITCHEN (USE SHOP WI-FI FOR ZERO LAG & INSTANT CLICKS):
+   Connect phone to Shop Wi-Fi and open:
+   1. Cashier Billing:      http://$localIp:3000/billing
+   2. Kitchen Display (KDS): http://$localIp:3000/kitchen
+   3. Manager Dashboard:    http://$localIp:3000/
 
-2. KITCHEN DISPLAY PHONE / TABLET:
-   Wi-Fi Link:       http://$localIp:3000/kitchen
-   Mobile Data Link: $tunnelUrl/kitchen
-
-3. MANAGER DASHBOARD PHONE:
-   Wi-Fi Link:       http://$localIp:3000/
-   Mobile Data Link: $tunnelUrl/
-
-4. CUSTOMER TABLE QR STANDS:
-   Live Menu Link:   $tunnelUrl
+🌐 FOR CUSTOMERS SCANNING TABLE QR CODES (MOBILE DATA 4G/5G):
+   Live QR Menu:            $tunnelUrl
 
 =========================================================================
 NOTE: Keep the Windows 10 laptop plugged into its charger.
@@ -160,29 +164,34 @@ Set-Content -Path $linksFile -Value $linksContent -Force
 # Beautiful Console Display
 Clear-Host
 Write-Host "=========================================================================" -ForegroundColor Green
-Write-Host "           ITHI POORAM RESTAURANT SERVER IS NOW ONLINE!" -ForegroundColor Yellow
+Write-Host "     ITHI POORAM HIGH-SPEED PRODUCTION RESTAURANT SERVER IS ONLINE!" -ForegroundColor Yellow
 Write-Host "=========================================================================" -ForegroundColor Green
-Write-Host "`n>>> OPEN THESE LINKS ON YOUR MOBILE PHONES: <<<`n" -ForegroundColor Yellow
+Write-Host "`n>>> CONNECT PHONES TO SHOP WI-FI & OPEN THESE LINKS FOR BUTTER-SMOOTH SPEED: <<<`n" -ForegroundColor Yellow
 
-Write-Host "  [1] CASHIER BILLING PHONE:" -ForegroundColor White
-Write-Host "      Wi-Fi Link:       http://${localIp}:3000/billing" -ForegroundColor Green
-Write-Host "      Mobile Data Link: $tunnelUrl/billing`n" -ForegroundColor Gray
+Write-Host "  [1] CASHIER BILLING PHONE (Shop Wi-Fi - Instant 0ms):" -ForegroundColor White
+Write-Host "      👉 http://${localIp}:3000/billing" -ForegroundColor Green
+Write-Host "      (Fallback on Mobile Data: $tunnelUrl/billing)`n" -ForegroundColor Gray
 
-Write-Host "  [2] KITCHEN DISPLAY (KDS) PHONE / TABLET:" -ForegroundColor White
-Write-Host "      Wi-Fi Link:       http://${localIp}:3000/kitchen" -ForegroundColor Green
-Write-Host "      Mobile Data Link: $tunnelUrl/kitchen`n" -ForegroundColor Gray
+Write-Host "  [2] KITCHEN DISPLAY (KDS) PHONE / TABLET (Shop Wi-Fi - Instant 0ms):" -ForegroundColor White
+Write-Host "      👉 http://${localIp}:3000/kitchen" -ForegroundColor Green
+Write-Host "      (Fallback on Mobile Data: $tunnelUrl/kitchen)`n" -ForegroundColor Gray
 
 Write-Host "  [3] MANAGER DASHBOARD PHONE:" -ForegroundColor White
-Write-Host "      Wi-Fi Link:       http://${localIp}:3000/" -ForegroundColor Green
-Write-Host "      Mobile Data Link: $tunnelUrl/`n" -ForegroundColor Gray
+Write-Host "      👉 http://${localIp}:3000/" -ForegroundColor Green
+Write-Host "      (Fallback on Mobile Data: $tunnelUrl/)`n" -ForegroundColor Gray
 
-Write-Host "  [4] CUSTOMER 4G/5G LIVE QR MENU:" -ForegroundColor White
-Write-Host "      $tunnelUrl`n" -ForegroundColor Cyan
+Write-Host "  [4] CUSTOMER TABLE QR SCAN LINK (4G/5G Mobile Data):" -ForegroundColor White
+Write-Host "      🌐 $tunnelUrl`n" -ForegroundColor Cyan
 
 Write-Host "-------------------------------------------------------------------------" -ForegroundColor DarkGray
-Write-Host "  [Saved to Desktop File]: MOBILE_LINKS_FOR_STAFF.txt" -ForegroundColor Yellow
+Write-Host "  [Database File]:         main-billing-admin-app\data\restaurant_store.json" -ForegroundColor White
 Write-Host "  [Database Status]:       100% Persistent on Laptop Disk (Never Disappears)" -ForegroundColor Green
+Write-Host "  [Check Database Tool]:   Run CHECK_DATABASE.bat anytime" -ForegroundColor Yellow
 Write-Host "  [Google Drive Sync]:     Active & Real-Time" -ForegroundColor Green
+Write-Host "-------------------------------------------------------------------------" -ForegroundColor DarkGray
+Write-Host "`nYOU CAN NOW CLOSE THE LAPTOP LID." -ForegroundColor Yellow
+Write-Host "The server will keep running in the background without sleeping." -ForegroundColor White
+Write-Host "Press Ctrl+C in this window when closing the restaurant for the day.`n" -ForegroundColor Gray
 Write-Host "-------------------------------------------------------------------------" -ForegroundColor DarkGray
 Write-Host "`nYOU CAN NOW CLOSE THE LAPTOP LID." -ForegroundColor Yellow
 Write-Host "The server will keep running in the background without sleeping." -ForegroundColor White

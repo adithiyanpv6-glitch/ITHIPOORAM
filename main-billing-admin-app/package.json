@@ -3,9 +3,9 @@
   "version": "1.0.0",
   "description": "Unified Main Billing Tablet, POS Counter, Executive Admin, Menu & Audit Console for Ithi Pooram",
   "scripts": {
-    "dev": "next dev -p 3001",
+    "dev": "next dev -p 3000",
     "build": "next build",
-    "start": "next start",
+    "start": "next start -p 3000",
     "lint": "next lint"
   },
   "dependencies": {
